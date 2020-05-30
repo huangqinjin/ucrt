@@ -81,7 +81,7 @@ static errno_t __cdecl _wcrtomb_s_l(
     }
 
     BOOL default_used{};
-    int const size = WideCharToMultiByte(
+    int const size = __acrt_WideCharToMultiByte(
         locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
         0,
         &wchar,

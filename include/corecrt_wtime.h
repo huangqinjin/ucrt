@@ -119,8 +119,8 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_1(
 
 _Check_return_wat_
 _ACRTIMP errno_t __cdecl _wstrdate_s(
-    _Out_writes_z_(_SizeInWords) _Post_readable_size_(9) wchar_t* _Buffer,
-    _In_ _In_range_(>=, 9)                               size_t   _SizeInWords
+    _Out_writes_z_(_SizeInWords) _When_(_SizeInWords >=9, _Post_readable_size_(9)) wchar_t* _Buffer,
+    _In_                                                                           size_t   _SizeInWords
     );
 
 __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_0(
@@ -135,8 +135,8 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
 
 _Check_return_wat_
 _ACRTIMP errno_t __cdecl _wstrtime_s(
-    _Out_writes_z_(_SizeInWords) _Post_readable_size_(9) wchar_t* _Buffer,
-    _In_ _In_range_(>=, 9)                               size_t   _SizeInWords
+    _Out_writes_z_(_SizeInWords) _When_(_SizeInWords >=9, _Post_readable_size_(9)) wchar_t* _Buffer,
+    _In_                                                                           size_t   _SizeInWords
     );
 
 __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_0(

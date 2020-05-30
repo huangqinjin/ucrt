@@ -45,7 +45,7 @@ struct __crt_char_traits;
     _APPLY(itot_s,                             _itoa_s,                                          _itow_s                                       ) \
     _APPLY(message_box,                        __acrt_MessageBoxA,                               __acrt_MessageBoxW                            ) \
     _APPLY(open_file,                          _openfile,                                        _wopenfile                                    ) \
-    _APPLY(output_debug_string,                OutputDebugStringA,                               OutputDebugStringW                            ) \
+    _APPLY(output_debug_string,                __acrt_OutputDebugStringA,                        __acrt_OutputDebugStringW                     ) \
     _APPLY(pack_command_line_and_environment,  __acrt_pack_narrow_command_line_and_environment,  __acrt_pack_wide_command_line_and_environment ) \
     _APPLY(puttc_nolock,                       _fputc_nolock,                                    _fputwc_nolock                                ) \
     _APPLY(puttch_nolock,                      _putch_nolock,                                    _putwch_nolock                                ) \

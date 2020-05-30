@@ -85,7 +85,7 @@ static size_t __cdecl _mbstowcs_l_helper(
             unsigned char *p;
 
             /* Assume that the buffer is large enough */
-            if ((count = MultiByteToWideChar(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+            if ((count = __acrt_MultiByteToWideChar(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
                 MB_PRECOMPOSED |
                 MB_ERR_INVALID_CHARS,
                 s,
@@ -130,7 +130,7 @@ static size_t __cdecl _mbstowcs_l_helper(
             }
             bytecnt = ((int) ((char *) p - (char *) s));
 
-            if ((count = MultiByteToWideChar(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+            if ((count = __acrt_MultiByteToWideChar(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
                 MB_PRECOMPOSED,
                 s,
                 bytecnt,
@@ -150,7 +150,7 @@ static size_t __cdecl _mbstowcs_l_helper(
         if (_loc_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE] == nullptr) {
             return strlen(s);
         }
-        else if ((count = MultiByteToWideChar(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+        else if ((count = __acrt_MultiByteToWideChar(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
             MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
             s,
             -1,

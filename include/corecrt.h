@@ -71,6 +71,12 @@ _CRT_BEGIN_C_HEADER
     #define _CRT_GUARDOVERFLOW
 #endif
 
+#if defined _DLL && defined _M_HYBRID && (defined _CORECRT_BUILD || defined _VCRT_BUILD)
+    #define _CRT_HYBRIDPATCHABLE __declspec(hybrid_patchable)
+#else
+    #define _CRT_HYBRIDPATCHABLE
+#endif
+
 #ifndef _CONST_RETURN
     #ifdef __cplusplus
         #define _CONST_RETURN const

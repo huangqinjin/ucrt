@@ -596,7 +596,7 @@ extern "C++"
         _Check_return_ _ACRTIMP int   __cdecl _set_FMA3_enable(_In_ int _Flag);
         _Check_return_ _ACRTIMP int   __cdecl _get_FMA3_enable(void);
 
-    #elif defined _M_ARM || defined _M_ARM64 || _M_HYBRID_X86_ARM64
+    #elif defined _M_ARM || defined _M_ARM64 || defined _M_HYBRID_X86_ARM64
 
         _Check_return_ _ACRTIMP int   __cdecl _finitef(_In_ float _X);
         _Check_return_ _ACRTIMP float __cdecl _logbf(_In_ float _X);

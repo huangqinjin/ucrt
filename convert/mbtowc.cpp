@@ -74,7 +74,7 @@ extern "C" int __cdecl _mbtowc_l(
         /* multi-byte char */
 
         if ((_loc_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max <= 1) || ((int) n < _loc_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max) ||
-            (MultiByteToWideChar(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+            (__acrt_MultiByteToWideChar(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
             MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
             s,
             _loc_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max,
@@ -92,7 +92,7 @@ extern "C" int __cdecl _mbtowc_l(
     }
     else {
         /* single byte char */
-        if (MultiByteToWideChar(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+        if (__acrt_MultiByteToWideChar(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
             MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
             s,
             1,

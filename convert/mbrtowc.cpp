@@ -73,7 +73,7 @@ static errno_t __cdecl _mbrtowc_s_l(
     }
 
     _LocaleUpdate _loc_update(plocinfo);
-    
+
     const int locale_mb_cur_max = _loc_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max;
     _ASSERTE(locale_mb_cur_max == 1 || locale_mb_cur_max == 2);
 
@@ -89,7 +89,7 @@ static errno_t __cdecl _mbrtowc_s_l(
         /* complete two-byte multibyte character */
         ((char *) pmbst)[1] = *s;
         if (locale_mb_cur_max <= 1 ||
-            (MultiByteToWideChar(
+            (__acrt_MultiByteToWideChar(
             _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
             MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
             (char *) pmbst,
@@ -119,7 +119,7 @@ static errno_t __cdecl _mbrtowc_s_l(
             return 0;
         }
         else if (locale_mb_cur_max <= 1 ||
-            (MultiByteToWideChar(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+            (__acrt_MultiByteToWideChar(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
             MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
             s,
             static_cast<int>(__min(strlen(s), INT_MAX)),
@@ -141,7 +141,7 @@ static errno_t __cdecl _mbrtowc_s_l(
     }
     else {
         /* single byte char */
-        if (MultiByteToWideChar(
+        if (__acrt_MultiByteToWideChar(
             _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
             MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
             s,

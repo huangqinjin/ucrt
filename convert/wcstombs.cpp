@@ -138,7 +138,7 @@ static size_t __cdecl _wcstombs_l_helper (
                 /* WideCharToMultiByte will compare past nullptr - reset n */
                 if (n > 0)
                     n = wcsncnt(pwcs, n);
-                if ( ((count = WideCharToMultiByte( _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+                if ( ((count = __acrt_WideCharToMultiByte( _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
                                                     0,
                                                     pwcs,
                                                     (int)n,
@@ -162,7 +162,7 @@ static size_t __cdecl _wcstombs_l_helper (
                 /* If MBCS, wchar_t to char mapping unknown */
 
                 /* Assume that usually the buffer is large enough */
-                if ( ((count = WideCharToMultiByte( _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+                if ( ((count = __acrt_WideCharToMultiByte( _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
                                                     0,
                                                     pwcs,
                                                     -1,
@@ -185,7 +185,7 @@ static size_t __cdecl _wcstombs_l_helper (
                 while (count < n)
                 {
                     int mb_cur_max = _loc_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max;
-                    if ( ((retval = WideCharToMultiByte( _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+                    if ( ((retval = __acrt_WideCharToMultiByte( _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
                                                          0,
                                                          pwcs,
                                                          1,
@@ -238,7 +238,7 @@ static size_t __cdecl _wcstombs_l_helper (
             return len;
         }
         else {
-            if ( ((count = WideCharToMultiByte( _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+            if ( ((count = __acrt_WideCharToMultiByte( _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
                                                 0,
                                                 pwcs,
                                                 -1,

@@ -277,8 +277,8 @@ _ACRTIMP size_t __cdecl _strftime_l(
 
 _Check_return_wat_
 _ACRTIMP errno_t __cdecl _strdate_s(
-    _Out_writes_(_SizeInBytes) _Post_readable_size_(9) char*  _Buffer,
-    _In_  _In_range_(>=, 9)                            size_t _SizeInBytes
+    _Out_writes_(_SizeInBytes) _When_(_SizeInBytes >=9, _Post_readable_size_(9)) char*  _Buffer,
+    _In_                                                                         size_t _SizeInBytes
     );
 
 __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_0(
@@ -293,8 +293,8 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
 
 _Check_return_wat_
 _ACRTIMP errno_t __cdecl _strtime_s(
-    _Out_writes_(_SizeInBytes) _Post_readable_size_(9) char*  _Buffer,
-    _In_  _In_range_(>=, 9)                            size_t _SizeInBytes
+    _Out_writes_(_SizeInBytes) _When_(_SizeInBytes >=9, _Post_readable_size_(9)) char*  _Buffer,
+    _In_                                                                         size_t _SizeInBytes
     );
 
 __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_0(

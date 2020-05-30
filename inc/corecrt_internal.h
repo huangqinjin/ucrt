@@ -540,6 +540,14 @@ BOOL __cdecl __acrt_GetStringTypeA(
     _In_                BOOL      _BError
     );
 
+_Success_(return)
+BOOL __cdecl __acrt_GetStringTypeW(
+    _In_                DWORD       _DWInfoType,
+    _In_NLS_string_(_CchSrc) PCWCH  _LpSrcStr,
+    _In_                int         _CchSrc,
+    _Out_               LPWORD      _LpCharType
+);
+
 _Success_(return != 0)
 int __cdecl __acrt_LCMapStringA(
     _In_opt_                   _locale_t _Plocinfo,
@@ -563,7 +571,27 @@ int __cdecl __acrt_LCMapStringW(
     _In_                       int     _CchDest
     );
 
+_Success_(return != 0)
+int __cdecl __acrt_MultiByteToWideChar(
+    _In_                       UINT    _CodePage,
+    _In_                       DWORD   _DWFlags,
+    _In_                       LPCSTR  _LpMultiByteStr,
+    _In_                       int     _CbMultiByte,
+    _Out_writes_opt_(_CchWideChar) LPWSTR  _LpWideCharStr,
+    _In_                       int     _CchWideChar
+    );
 
+_Success_(return != 0)
+int __cdecl __acrt_WideCharToMultiByte(
+    _In_                       UINT    _CodePage,
+    _In_                       DWORD   _DWFlags,
+    _In_                       LPCWSTR _LpWideCharStr,
+    _In_                       int     _CchWideChar,
+    _Out_writes_opt_(_CbMultiByte) LPSTR   _LpMultiByteStr,
+    _In_                       int     _CbMultiByte,
+    _In_opt_                   LPCSTR  _LpDefaultChar,
+    _Out_opt_                  LPBOOL  _LpUsedDefaultChar
+    );
 
 // Case-insensitive ASCII comparisons
 _Check_return_
@@ -991,7 +1019,9 @@ void* __cdecl _expand_base(
 #define _UCRT_HEAP_MISMATCH_RECOVERY    0
 #define _UCRT_HEAP_MISMATCH_BREAK       0
 
-#if defined _M_IX86 || defined _M_AMD64
+#define _UCRT_HEAP_MISMATCH_ANY (_UCRT_HEAP_MISMATCH_DETECTION || _UCRT_HEAP_MISMATCH_RECOVERY || _UCRT_HEAP_MISMATCH_BREAK)
+
+#if _UCRT_HEAP_MISMATCH_ANY && (defined _M_IX86 || defined _M_AMD64)
     HANDLE __cdecl __acrt_get_msvcrt_heap_handle(void);
 #endif
 
@@ -1317,6 +1347,14 @@ int WINAPI __acrt_MessageBoxW(
     _In_opt_ LPCWSTR text,
     _In_opt_ LPCWSTR caption,
     _In_     UINT    type
+    );
+
+void WINAPI __acrt_OutputDebugStringA(
+    _In_opt_ LPCSTR text
+    );
+
+void WINAPI __acrt_OutputDebugStringW(
+    _In_opt_ LPCWSTR text
     );
 
 #ifdef __cplusplus

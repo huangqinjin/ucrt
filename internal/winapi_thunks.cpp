@@ -719,6 +719,20 @@ extern "C" int WINAPI __acrt_MessageBoxW(
     abort(); // No fallback; callers should check availablility before calling
 }
 
+extern "C" void WINAPI __acrt_OutputDebugStringA(
+    LPCSTR const text
+)
+{
+    OutputDebugStringA(text);
+}
+
+extern "C" void WINAPI __acrt_OutputDebugStringW(
+    LPCWSTR const text
+)
+{
+    OutputDebugStringW(text);
+}
+
 extern "C" BOOLEAN WINAPI __acrt_RtlGenRandom(
     PVOID const buffer,
     ULONG const buffer_count

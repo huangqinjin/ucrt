@@ -123,7 +123,7 @@ _ACRTIMP int __cdecl fesetround(_In_ int _Round);
                     // x87 exceptions are raised immediately before execution of the
                     // next floating point instruction.  If we're using /arch:IA32,
                     // force the exception to be raised immediately:
-                    #if defined _M_IX86 && _M_IX86_FP == 0
+                    #if defined _M_IX86 && _M_IX86_FP == 0 && !defined _M_HYBRID_X86_ARM64
                     __asm fwait;
                     #endif
                 }

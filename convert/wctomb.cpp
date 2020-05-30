@@ -54,7 +54,7 @@ extern "C" int __cdecl _wctomb_s_l(
             {
                 memset(destination, 0, destination_count);
             }
-            
+
             return errno = EILSEQ;
         }
 
@@ -74,7 +74,7 @@ extern "C" int __cdecl _wctomb_s_l(
     else
     {
         BOOL default_used{};
-        int const size = WideCharToMultiByte(
+        int const size = __acrt_WideCharToMultiByte(
             locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
             0,
             &wchar,
@@ -95,7 +95,7 @@ extern "C" int __cdecl _wctomb_s_l(
 
                 _VALIDATE_RETURN_ERRCODE(("Buffer too small", 0), ERANGE);
             }
-            
+
             return errno = EILSEQ;
         }
 

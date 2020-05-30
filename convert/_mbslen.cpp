@@ -40,7 +40,7 @@ static size_t __cdecl common_mbstrlen_l(
     }
 
     // Verify that all of the multibyte characters are valid:
-    if (MultiByteToWideChar(
+    if (__acrt_MultiByteToWideChar(
             locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
             MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
             string,

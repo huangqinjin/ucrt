@@ -58,7 +58,7 @@ void* __cdecl _calloc_base(
     );
 
 _Check_return_ _Ret_maybenull_ _Post_writable_byte_size_(_Count * _Size)
-_ACRTIMP _CRT_JIT_INTRINSIC _CRTALLOCATOR _CRTRESTRICT
+_ACRTIMP _CRT_JIT_INTRINSIC _CRTALLOCATOR _CRTRESTRICT _CRT_HYBRIDPATCHABLE
 void* __cdecl calloc(
     _In_ _CRT_GUARDOVERFLOW size_t _Count,
     _In_ _CRT_GUARDOVERFLOW size_t _Size
@@ -70,7 +70,7 @@ _ACRTIMP int __cdecl _callnewh(
     );
 
 _Check_return_ _Ret_maybenull_ _Post_writable_byte_size_(_Size)
-_ACRTIMP _CRTALLOCATOR
+_ACRTIMP _CRTALLOCATOR _CRT_HYBRIDPATCHABLE
 void* __cdecl _expand(
     _Pre_notnull_           void*  _Block,
     _In_ _CRT_GUARDOVERFLOW size_t _Size
@@ -81,7 +81,7 @@ void __cdecl _free_base(
     _Pre_maybenull_ _Post_invalid_ void* _Block
     );
 
-_ACRTIMP
+_ACRTIMP _CRT_HYBRIDPATCHABLE
 void __cdecl free(
     _Pre_maybenull_ _Post_invalid_ void* _Block
     );
@@ -93,7 +93,7 @@ void* __cdecl _malloc_base(
     );
 
 _Check_return_ _Ret_maybenull_ _Post_writable_byte_size_(_Size)
-_ACRTIMP _CRTALLOCATOR _CRT_JIT_INTRINSIC _CRTRESTRICT
+_ACRTIMP _CRTALLOCATOR _CRT_JIT_INTRINSIC _CRTRESTRICT _CRT_HYBRIDPATCHABLE
 void* __cdecl malloc(
     _In_ _CRT_GUARDOVERFLOW size_t _Size
     );
@@ -105,7 +105,7 @@ size_t __cdecl _msize_base(
     );
 
 _Check_return_
-_ACRTIMP
+_ACRTIMP _CRT_HYBRIDPATCHABLE
 size_t __cdecl _msize(
     _Pre_notnull_ void* _Block
     );
@@ -118,7 +118,7 @@ void* __cdecl _realloc_base(
     );
 
 _Success_(return != 0) _Check_return_ _Ret_maybenull_ _Post_writable_byte_size_(_Size)
-_ACRTIMP _CRTALLOCATOR _CRTRESTRICT
+_ACRTIMP _CRTALLOCATOR _CRTRESTRICT _CRT_HYBRIDPATCHABLE
 void* __cdecl realloc(
     _Pre_maybenull_ _Post_invalid_ void*  _Block,
     _In_ _CRT_GUARDOVERFLOW        size_t _Size

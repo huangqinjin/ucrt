@@ -11,6 +11,7 @@
 #include <corecrt_internal.h>
 #include <corecrt_internal_stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 extern "C" {
 
@@ -59,6 +60,8 @@ static bool __cdecl initialize_global_variables()
         return true;
     }
 
+// C4505: unreferenced local function
+#pragma warning( suppress: 4505 )
     static bool __cdecl initialize_environment()
     {
         if (_initialize_narrow_environment() < 0)
@@ -88,6 +91,8 @@ static bool __cdecl initialize_global_variables()
         return true;
     }
 
+// C4505: unreferenced local function
+#pragma warning( suppress: 4505 )
     static bool __cdecl initialize_environment()
     {
         return true;
@@ -95,6 +100,8 @@ static bool __cdecl initialize_global_variables()
 
 #endif
 
+// C4505: unreferenced local function
+#pragma warning( suppress: 4505 )
 static bool __cdecl uninitialize_environment(bool const terminating)
 {
     UNREFERENCED_PARAMETER(terminating);
@@ -131,7 +138,7 @@ static bool __cdecl uninitialize_environment(bool const terminating)
     {
         return true;
     }
-    
+
     static bool __cdecl uninitialize_global_state_isolation(bool const /* terminating */)
     {
         return true;
@@ -169,6 +176,13 @@ static bool __cdecl uninitialize_allocated_memory(bool const /* terminating */)
         }
     });
 
+    return true;
+}
+
+// C4505: unreferenced local function
+#pragma warning( suppress: 4505 )
+static bool __cdecl uninitialize_allocated_io_buffers(bool const /* terminating */)
+{
     _free_crt(__acrt_stdout_buffer);
     __acrt_stdout_buffer = nullptr;
 
@@ -205,13 +219,16 @@ static bool __cdecl report_memory_leaks(bool const /* terminating */)
 static __acrt_initializer const __acrt_initializers[] =
 {
     // Init globals that can't be set at compile time because they have c'tors
-    { initialize_global_variables,             nullptr                                   },
-    
+    { initialize_global_variables,             nullptr                                  },
+
     // Global pointers are stored in encoded form; they must be dynamically
     // initialized to the encoded nullptr value before they are used by the CRT.
-    { initialize_pointers,                     nullptr                                   },
-    { __acrt_initialize_winapi_thunks,         __acrt_uninitialize_winapi_thunks         },
-    
+    { initialize_pointers,                     nullptr                                  },
+    // Enclaves only require initializers for supported features.
+#ifndef _UCRT_ENCLAVE_BUILD
+    { __acrt_initialize_winapi_thunks,         __acrt_uninitialize_winapi_thunks        },
+#endif
+
     // Configure CRT's global state isolation system.  This system calls FlsAlloc
     // and thus must occur after the initialize_pointers initialization, otherwise
     // it will fall back to call TlsAlloc, then try to use the allocated TLS slot
@@ -239,12 +256,22 @@ static __acrt_initializer const __acrt_initializers[] =
     { nullptr,                                 uninitialize_vcruntime                   },
 
     { __acrt_initialize_ptd,                   __acrt_uninitialize_ptd                  },
+    // Enclaves only require initializers for supported features.
+#ifndef _UCRT_ENCLAVE_BUILD
     { __acrt_initialize_lowio,                 __acrt_uninitialize_lowio                },
     { __acrt_initialize_command_line,          __acrt_uninitialize_command_line         },
+#endif
     { __acrt_initialize_multibyte,             nullptr                                  },
     { nullptr,                                 report_memory_leaks                      },
+    // Enclaves only require initializers for supported features.
+#ifndef _UCRT_ENCLAVE_BUILD
+    { nullptr,                                 uninitialize_allocated_io_buffers        },
+#endif
     { nullptr,                                 uninitialize_allocated_memory            },
+    // Enclaves only require initializers for supported features.
+#ifndef _UCRT_ENCLAVE_BUILD
     { initialize_environment,                  uninitialize_environment                 },
+#endif
     { initialize_c,                            uninitialize_c                           },
 };
 
@@ -289,7 +316,7 @@ __crt_bool __cdecl __acrt_uninitialize(__crt_bool const terminating)
 __crt_bool __cdecl __acrt_uninitialize_critical(__crt_bool const terminating)
 {
     __acrt_uninitialize_ptd(terminating);
-    
+
     #ifdef _CRT_GLOBAL_STATE_ISOLATION
     uninitialize_global_state_isolation(terminating);
     #endif

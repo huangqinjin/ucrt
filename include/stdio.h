@@ -1934,7 +1934,7 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
     #endif
 
     _Success_(return >= 0)
-    _Check_return_
+    _Check_return_opt_
     _CRT_STDIO_INLINE int __CRTDECL snprintf(
         _Out_writes_opt_(_BufferCount) _Always_(_Post_z_) char*       const _Buffer,
         _In_                                              size_t      const _BufferCount,
@@ -1955,6 +1955,7 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
     #endif
 
     _Success_(return >= 0)
+    _Check_return_opt_
     _CRT_STDIO_INLINE int __CRTDECL _snprintf(
         _Out_writes_opt_(_BufferCount) _Post_maybez_ char*       const _Buffer,
         _In_                                         size_t      const _BufferCount,

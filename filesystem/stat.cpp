@@ -36,8 +36,8 @@ namespace
         }
 
         inline static type get_invalid_value() throw()
-        { 
-            return -1; 
+        {
+            return -1;
         }
     };
 
@@ -56,7 +56,7 @@ namespace
         }
     };
 
-    
+
 
     typedef __crt_unique_handle_t<file_handle_traits> scoped_file_handle;
     typedef __crt_unique_handle_t<find_handle_traits> unique_find_handle;
@@ -346,7 +346,7 @@ static bool __cdecl common_stat_handle_file_not_opened(
     {
         return false;
     }
-    
+
     result.st_rdev = static_cast<_dev_t>(drive_number - 1);
     result.st_dev  = static_cast<_dev_t>(drive_number - 1); // A=0, B=1, etc.
 
@@ -559,7 +559,7 @@ static int __cdecl common_fstat(int const fh, StatStruct* const result) throw()
     _CHECK_FH_CLEAR_OSSERR_RETURN(fh, EBADF, -1);
     _VALIDATE_CLEAR_OSSERR_RETURN(fh >= 0 && fh < _nhandle, EBADF, -1);
     _VALIDATE_CLEAR_OSSERR_RETURN(_osfile(fh) & FOPEN, EBADF, -1);
-    
+
     return __acrt_lowio_lock_fh_and_call(fh, [&]()
     {
         if ((_osfile(fh) & FOPEN) == 0)

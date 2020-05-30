@@ -39,7 +39,7 @@ extern "C" int __cdecl _mblen_l(
         if (max_count > INT_MAX || static_cast<int>(max_count) < locale_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max)
             return -1;
 
-        int const status = MultiByteToWideChar(
+        int const status = __acrt_MultiByteToWideChar(
             locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
             MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
             string,
@@ -55,16 +55,20 @@ extern "C" int __cdecl _mblen_l(
     else
     {
         // Single byte character; verify that it is valid:
-        int const status = MultiByteToWideChar(
-            locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
-            MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
-            string,
-            1,
-            nullptr,
-            0);
+        // CP_ACP is known to be valid for all values
+        if (locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage != CP_ACP)
+        {
+            int const status = __acrt_MultiByteToWideChar(
+                locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+                MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
+                string,
+                1,
+                nullptr,
+                0);
 
-        if (status == 0)
-            return -1;
+            if (status == 0)
+                return -1;
+        }
 
         return sizeof(char);
     }
