@@ -199,8 +199,56 @@ extern "C++"
     }
 }
 
-void __cdecl __dcrt_lowio_initialize_console_input(void);
-void __cdecl __dcrt_lowio_initialize_console_output(void);
+// console_invalid_handle indicates that CONOUT$ or CONIN$ could not be created
+// console_uninitialized_handle indicates that the handle has not yet been initialized
+constexpr HANDLE _console_invalid_handle = reinterpret_cast<HANDLE>(-1);
+constexpr HANDLE _console_uninitialized_handle = reinterpret_cast<HANDLE>(-2);
+
+BOOL __cdecl __dcrt_lowio_ensure_console_input_initialized(void);
+
+BOOL __cdecl __dcrt_read_console_input(
+    _Out_ PINPUT_RECORD lpBuffer,
+    _In_  DWORD         nLength,
+    _Out_ LPDWORD       lpNumberOfEventsRead
+    );
+
+BOOL __cdecl __dcrt_read_console_input_w(
+    _Out_ PINPUT_RECORD lpBuffer,
+    _In_  DWORD         nLength,
+    _Out_ LPDWORD       lpNumberOfEventsRead
+    );
+
+BOOL __cdecl __dcrt_read_console_w(
+    _Out_ LPVOID  lpBuffer,
+    _In_  DWORD   nNumberOfCharsToRead,
+    _Out_ LPDWORD lpNumberOfCharsRead
+    );
+
+BOOL __cdecl __dcrt_get_number_of_console_input_events(
+    _Out_ LPDWORD lpcNumberOfEvents
+    );
+
+BOOL __cdecl __dcrt_peek_console_input(
+    _Out_ PINPUT_RECORD lpBuffer,
+    _In_  DWORD         nLength,
+    _Out_ LPDWORD       lpNumberOfEventsRead
+    );
+
+BOOL __cdecl __dcrt_get_input_console_mode(
+    _Out_ LPDWORD lpMode
+    );
+
+BOOL __cdecl __dcrt_set_input_console_mode(
+    _In_ DWORD dwMode
+    );
+
+BOOL __cdecl __dcrt_lowio_ensure_console_output_initialized(void);
+
+BOOL __cdecl __dcrt_write_console_w(
+    _In_  void const * lpBuffer,
+    _In_  DWORD        nNumberOfCharsToWrite,
+    _Out_ LPDWORD      lpNumberOfCharsWritten
+    );
 
 _Check_return_ int __cdecl _chsize_nolock(_In_ int _FileHandle,_In_ __int64 _Size);
 _Check_return_opt_ int __cdecl _close_nolock(_In_ int _FileHandle);

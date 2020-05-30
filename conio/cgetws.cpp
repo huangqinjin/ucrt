@@ -10,12 +10,6 @@
 #include <corecrt_internal_securecrt.h>
 #include <stdlib.h>
 
-
-
-extern "C" extern intptr_t __dcrt_lowio_console_input_handle;
-
-
-
 // Use of the following buffer variables is primarily for syncronizing with
 // _cgets_s. _cget_s fills the MBCS buffer and if the user passes in single
 // character buffer and the unicode character is not converted to single byte
@@ -73,10 +67,7 @@ extern "C" errno_t __cdecl _cgetws_s(wchar_t* const string_buffer, size_t const 
         * time that either _getch() or _cgets() or _kbhit() is called.
         */
 
-        if (__dcrt_lowio_console_input_handle == -2)
-            __dcrt_lowio_initialize_console_input();
-
-        if (__dcrt_lowio_console_input_handle == -1)
+        if (__dcrt_lowio_ensure_console_input_initialized() == FALSE)
         {
             __acrt_errno_map_os_error(GetLastError());
             retval = errno;
@@ -84,18 +75,14 @@ extern "C" errno_t __cdecl _cgetws_s(wchar_t* const string_buffer, size_t const 
         }
 
         ULONG old_state;
-        GetConsoleMode(reinterpret_cast<HANDLE>(__dcrt_lowio_console_input_handle), &old_state);
-        SetConsoleMode(
-            reinterpret_cast<HANDLE>(__dcrt_lowio_console_input_handle),
-            ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT | ENABLE_ECHO_INPUT);
+        __dcrt_get_input_console_mode(&old_state);
+        __dcrt_set_input_console_mode(ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT | ENABLE_ECHO_INPUT);
 
         ULONG wchars_read;
-        BOOL read_console_result = ReadConsoleW(
-            reinterpret_cast<HANDLE>(__dcrt_lowio_console_input_handle),
+        BOOL read_console_result = __dcrt_read_console_w(
             string,
             static_cast<DWORD>(size_remaining),
-            &wchars_read,
-            nullptr);
+            &wchars_read);
 
         if (!read_console_result)
         {
@@ -128,13 +115,13 @@ extern "C" errno_t __cdecl _cgetws_s(wchar_t* const string_buffer, size_t const 
             string[wchars_read] = L'\0';
         }
 
-        SetConsoleMode(reinterpret_cast<HANDLE>(__dcrt_lowio_console_input_handle), old_state);
+        __dcrt_set_input_console_mode(old_state);
     }
     __finally
     {
         __acrt_unlock(__acrt_conio_lock);
     }
-    
+
     return retval;
 }
 

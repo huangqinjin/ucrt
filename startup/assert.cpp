@@ -193,20 +193,20 @@ static void __cdecl common_assert_to_message_box_build_string(
         _ERRCHECK(traits::tcscpy_s(program_name, _countof(program_name), get_program_name_unknown_text(Character())));
     }
 
-    Character* pch = program_name;
+    Character* pchProg = program_name;
     if (program_intro_count + traits::tcslen(program_name) + newline_length > MAXLINELEN)
     {
-        pch += (program_intro_count + traits::tcslen(program_name) + newline_length) - MAXLINELEN;
+        pchProg += (program_intro_count + traits::tcslen(program_name) + newline_length) - MAXLINELEN;
         // Only replace first (sizeof(Character) * dot_dot_dot_length) bytes to ellipsis:
         _ERRCHECK(memcpy_s(
-            pch,
-            sizeof(Character) * ((MAX_PATH + 1) - (pch - program_name)),
+            pchProg,
+            sizeof(Character) * ((MAX_PATH + 1) - (pchProg - program_name)),
             get_dot_dot_dot(Character()),
             sizeof(Character) * dot_dot_dot_length
             ));
     }
 
-    _ERRCHECK(traits::tcscat_s(assert_buffer, assert_buffer_count, pch));
+    _ERRCHECK(traits::tcscat_s(assert_buffer, assert_buffer_count, pchProg));
     _ERRCHECK(traits::tcscat_s(assert_buffer, assert_buffer_count, get_newline(Character())));
 
     // Line 3:  File line

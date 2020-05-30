@@ -57,6 +57,7 @@ extern "C" WINBASEAPI PVOID WINAPI LocateXStateFeature(
 #define _ACRT_APPLY_TO_LATE_BOUND_MODULES(_APPLY)                                                        \
     _APPLY(api_ms_win_core_datetime_l1_1_1,              "api-ms-win-core-datetime-l1-1-1"             ) \
     _APPLY(api_ms_win_core_fibers_l1_1_1,                "api-ms-win-core-fibers-l1-1-1"               ) \
+    _APPLY(api_ms_win_core_file_l1_2_2,                  "api-ms-win-core-file-l1-2-2"                 ) \
     _APPLY(api_ms_win_core_localization_l1_2_1,          "api-ms-win-core-localization-l1-2-1"         ) \
     _APPLY(api_ms_win_core_localization_obsolete_l1_2_0, "api-ms-win-core-localization-obsolete-l1-2-0") \
     _APPLY(api_ms_win_core_processthreads_l1_1_2,        "api-ms-win-core-processthreads-l1-1-2"       ) \
@@ -78,7 +79,7 @@ extern "C" WINBASEAPI PVOID WINAPI LocateXStateFeature(
 
 
 #define _ACRT_APPLY_TO_LATE_BOUND_FUNCTIONS(_APPLY)                                                                                                     \
-    _APPLY(AreFileApisANSI,                             ({ kernel32                                                                                 })) \
+    _APPLY(AreFileApisANSI,                             ({ /* api_ms_win_core_file_l1_2_2, */            kernel32                                   })) \
     _APPLY(CompareStringEx,                             ({ api_ms_win_core_string_l1_1_0,                kernel32                                   })) \
     _APPLY(EnumSystemLocalesEx,                         ({ api_ms_win_core_localization_l1_2_1,          kernel32                                   })) \
     _APPLY(FlsAlloc,                                    ({ api_ms_win_core_fibers_l1_1_1,                kernel32                                   })) \

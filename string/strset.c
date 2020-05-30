@@ -11,7 +11,7 @@
 
 #include <string.h>
 
-#if defined _M_X64 || defined _M_ARM || defined _M_ARM64
+#if defined _M_X64 || defined _M_ARM || defined _M_ARM64 || _M_HYBRID
     #pragma function(_strset)
 #endif
 

@@ -52,31 +52,24 @@ T peek_va_arg(va_list arglist) throw()
 // The stream and console I/O functions pass an adapter to the core output
 // function, and that function calls the various write members of the adapter to
 // perform the write operations.
-template <typename Character>
-class console_output_adapter
+template <typename Character, typename Derived>
+class output_adapter_common
 {
 public:
-
-    typedef __acrt_stdio_char_traits<Character> char_traits;
-
-    bool validate() const throw()
-    {
-        return true;
-    }
-
     void write_character(Character const c, int* const count_written) const throw()
     {
-        if (char_traits::puttch_nolock(c) == char_traits::eof)
-        {
-            *count_written = -1;
-        }
-        else
+        if (static_cast<Derived const*>(this)->write_character_without_count_update(c))
         {
             ++*count_written;
         }
+        else
+        {
+            *count_written = -1;
+        }
     }
 
-    void write_string(
+protected:
+    void write_string_impl(
         Character const*      const string,
         int                   const length,
         int*                  const count_written,
@@ -88,14 +81,20 @@ public:
         Character const* const string_last{string + length};
         for (Character const* it{string}; it != string_last; ++it)
         {
-            // CRT_REFACTOR TODO This loses the value of count_written when a
-            // conversion error occurs.
-            write_character(*it, count_written);
-            if (*count_written == -1)
+            if (static_cast<Derived const*>(this)->write_character_without_count_update(*it))
             {
-                // Only EILSEQ errors are recoverable here:
+                ++*count_written;
+            }
+            else
+            {
+                // Non-standard extension: EILSEQ errors are recoverable.
+                // Standard behavior when we've encountered an 'illegal sequence' error
+                // (i.e. EILSEQ) is to set 'errno' to EILSEQ and return -1.
+                // Instead, we write '?' and continue writing the string.
                 if (status.get() != EILSEQ)
+                {
                     break;
+                }
 
                 write_character('?', count_written);
             }
@@ -103,13 +102,41 @@ public:
     }
 };
 
+template <typename Character>
+class console_output_adapter
+    : public output_adapter_common<Character, console_output_adapter<Character>>
+{
+public:
+    typedef __acrt_stdio_char_traits<Character> char_traits;
+
+    bool validate() const throw()
+    {
+        return true;
+    }
+
+    bool write_character_without_count_update(Character const c) const throw()
+    {
+        return char_traits::puttch_nolock(c) != char_traits::eof;
+    }
+
+    void write_string(
+        Character const*      const string,
+        int                   const length,
+        int*                  const count_written,
+        __crt_deferred_errno_cache& status
+        ) const throw()
+    {
+        write_string_impl(string, length, count_written, status);
+    }
+};
+
 
 
 template <typename Character>
 class stream_output_adapter
+    : public output_adapter_common<Character, stream_output_adapter<Character>>
 {
 public:
-
     typedef __acrt_stdio_char_traits<Character> char_traits;
 
     stream_output_adapter(FILE* const public_stream) throw()
@@ -124,22 +151,14 @@ public:
         return char_traits::validate_stream_is_ansi_if_required(_stream.public_stream());
     }
 
-    void write_character(Character const c, int* const count_written) const throw()
+    bool write_character_without_count_update(Character const c) const throw()
     {
         if (_stream.is_string_backed() && _stream->_base == nullptr)
         {
-            ++*count_written;
-            return;
+            return true;
         }
 
-        if (char_traits::puttc_nolock(c, _stream.public_stream()) == char_traits::eof)
-        {
-            *count_written = -1;
-        }
-        else
-        {
-            ++*count_written;
-        }
+        return char_traits::puttc_nolock(c, _stream.public_stream()) != char_traits::eof;
     }
 
     void write_string(
@@ -155,21 +174,7 @@ public:
             return;
         }
 
-        __crt_errno_guard const reset_errno{&status.get()};
-
-        Character const* const string_last{string + length};
-        for (Character const* it{string}; it != string_last; ++it)
-        {
-            write_character(*it, count_written);
-            if (*count_written == -1)
-            {
-                // Only EILSEQ errors are recoverable here:
-                if (status.get() != EILSEQ)
-                    return;
-
-                write_character('?', count_written);
-            }
-        }
+        write_string_impl(string, length, count_written, status);
     }
 
 private:
@@ -2396,6 +2401,7 @@ private:
         if (*_narrow_string == 'i' || *_narrow_string == 'I' ||
             *_narrow_string == 'n' || *_narrow_string == 'N')
         {
+            unset_flag(FL_LEADZERO); // padded with spaces, not zeros.
             _format_char = 's';
         }
 

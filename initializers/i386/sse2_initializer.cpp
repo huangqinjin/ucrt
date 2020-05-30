@@ -14,4 +14,14 @@
 
 extern "C" int __cdecl __acrt_initialize_sse2();
 
+#ifdef _M_HYBRID_X86_ARM64
+#pragma intrinsic(_HybridGenerateThunks)
+
+extern "C" int __cdecl __acrt_initialize_sse2()
+{
+    _HybridGenerateThunks(__acrt_initialize_sse2, 1);
+    return 0;
+}
+#endif
+
 extern "C" _CRTALLOC(".CRT$XIC") _PIFV const __acrt_tran_sse2_initializer = __acrt_initialize_sse2;

@@ -8,12 +8,6 @@
 #include <conio.h>
 #include <corecrt_internal_lowio.h>
 
-
-
-extern "C" extern intptr_t __dcrt_lowio_console_output_handle;
-
-
-
 // Writes a wide character to the console.  Returns the character on success,
 // WEOF on failure.
 extern "C" wint_t __cdecl _putwch(wchar_t const c)
@@ -24,19 +18,14 @@ extern "C" wint_t __cdecl _putwch(wchar_t const c)
     });
 }
 
-
-
 extern "C" wint_t __cdecl _putwch_nolock(wchar_t const c)
 {
-    if (__dcrt_lowio_console_output_handle == -2)
-        __dcrt_lowio_initialize_console_output();
-
-    if (__dcrt_lowio_console_output_handle == -1)
+    if (__dcrt_lowio_ensure_console_output_initialized() == FALSE)
         return WEOF;
 
     // Write character to console:
     DWORD charsWritten;
-    if (!WriteConsoleW(reinterpret_cast<HANDLE>(__dcrt_lowio_console_output_handle), &c, 1, &charsWritten, nullptr))
+    if (__dcrt_write_console_w(&c, 1, &charsWritten) == FALSE)
         return WEOF;
 
     return c;

@@ -215,12 +215,14 @@ _ACRTIMP void __cdecl _endthreadex(
         _In_ intptr_t _Handle
         );
 
+    typedef int (__cdecl* _GetDllProcAddrProcType)(void);
+
     _CRT_OBSOLETE(GetProcAddress)
-    _DCRTIMP int (__cdecl* __cdecl _getdllprocaddr(
+    _DCRTIMP _GetDllProcAddrProcType __cdecl _getdllprocaddr(
         _In_       intptr_t _Handle,
         _In_opt_z_ char*    _ProcedureName,
         _In_       intptr_t _Ordinal
-        ))(void);
+        );
 
 #endif // _CRT_USE_WINAPI_FAMILY_DESKTOP_APP
 

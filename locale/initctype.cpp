@@ -73,7 +73,7 @@ int __cdecl __acrt_locale_initialize_ctype (
     if (ploci->locale_name[LC_CTYPE] != nullptr)
     {
         long* refcount = nullptr;
-        
+
         if (ploci->_public._locale_lc_codepage == 0)
         { /* code page was not specified */
             if ( __acrt_GetLocaleInfoA( &locinfo, LC_INT_TYPE,
@@ -107,6 +107,16 @@ int __cdecl __acrt_locale_initialize_ctype (
 
         mb_cur_max = (unsigned short) cpInfo.MaxCharSize;
 
+        /* zero out leadbytes so GetStringType and LCMapStringA
+           don't interpret them as multi-byte chars */
+        if (mb_cur_max > 1)
+        {
+            for (cp = (unsigned char *)cpInfo.LeadByte; cp[0] && cp[1]; cp += 2)
+            {
+                for (i = cp[0]; i <= cp[1]; i++)
+                    cbuffer[i] = ' ';
+            }
+        }
 
         /*
          * LCMapString will map past nullptr. Must find nullptr if in string
@@ -134,16 +144,6 @@ int __cdecl __acrt_locale_initialize_ctype (
                     FALSE ) == FALSE)
             goto error_cleanup;
 
-        /* zero out leadbytes so GetStringType doesn't interpret as multi-byte chars */
-        if (mb_cur_max > 1)
-        {
-            for (cp = (unsigned char *)cpInfo.LeadByte; cp[0] && cp[1]; cp += 2)
-            {
-                for (i = cp[0]; i <= cp[1]; i++)
-                    cbuffer[i] = ' ';
-            }
-        }
-
         /* convert to newctype1 table - ignore invalid char errors */
         if ( __acrt_GetStringTypeA(nullptr,  CT_CTYPE1,
                                   reinterpret_cast<char*>(cbuffer),
@@ -161,13 +161,18 @@ int __cdecl __acrt_locale_initialize_ctype (
 
         /* ignore DefaultChar */
 
-        /* mark lead-byte entries in newctype1 table */
+        /* mark lead-byte entries in newctype1 table and
+           restore original values for lead-byte entries for clmap/cumap */
         if (mb_cur_max > 1)
         {
             for (cp = (unsigned char *)cpInfo.LeadByte; cp[0] && cp[1]; cp += 2)
             {
                 for (i = cp[0]; i <= cp[1]; i++)
+                {
                     newctype1[_COFFSET+i+1] = _LEADBYTE;
+                    newclmap[_COFFSET+i+1] = static_cast<unsigned char>(i);
+                    newcumap[_COFFSET+i+1] = static_cast<unsigned char>(i);
+                }
             }
         }
         /* copy last-1 _COFFSET unsigned short to front

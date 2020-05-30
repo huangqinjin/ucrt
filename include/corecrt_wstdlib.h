@@ -359,7 +359,10 @@ _CRT_BEGIN_C_HEADER
         _In_opt_z_ wchar_t const*, _Ext
         )
 
-    __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_4(
+#pragma warning(push)
+#pragma warning(disable: 28719) // __WARNING_BANNED_API_USAGE
+#pragma warning(disable: 28726) // __WARNING_BANNED_API_USAGEL2
+__DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_4(
         void, __RETURN_POLICY_VOID, _ACRTIMP, _wmakepath,
         _Pre_notnull_ _Post_z_, wchar_t,        _Buffer,
         _In_opt_z_              wchar_t const*, _Drive,
@@ -367,6 +370,7 @@ _CRT_BEGIN_C_HEADER
         _In_opt_z_              wchar_t const*, _Filename,
         _In_opt_z_              wchar_t const*, _Ext
         )
+#pragma warning(pop)
 
     _ACRTIMP void __cdecl _wperror(
         _In_opt_z_ wchar_t const* _ErrorMessage

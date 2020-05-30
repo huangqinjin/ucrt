@@ -53,8 +53,10 @@ _ACRTIMP void __cdecl _set_app_type(
     _In_ _crt_app_type _Type
     );
 
+typedef int (__cdecl *_UserMathErrorFunctionPointer)(struct _exception *);
+
 _ACRTIMP void __cdecl __setusermatherr(
-    int (__cdecl*)(struct _exception*)
+    _UserMathErrorFunctionPointer _UserMathErrorFunction
     );
 
 int __cdecl _is_c_termination_complete(void);

@@ -9,12 +9,6 @@
 #include <corecrt_internal_lowio.h>
 #include <stdlib.h>
 
-
-
-extern "C" extern intptr_t __dcrt_lowio_console_output_handle;
-
-
-
 // Writes a wide character to the console.  Returns the character on success,
 // EOF on failure.
 extern "C" int __cdecl _putch(int const c)
@@ -70,7 +64,7 @@ extern "C" int __cdecl _putch_nolock(int const c)
         {
             result = EOF;
         }
-        
+
         // Since we have processed full MBCS character, we should reset ch_buf_used.
         *pch_buf_used = 0;
     }

@@ -28,7 +28,7 @@ _CRT_BEGIN_C_HEADER
     } FILE;
 #endif
 
-_ACRTIMP_ALT FILE* __cdecl __acrt_iob_func(unsigned);
+_ACRTIMP_ALT FILE* __cdecl __acrt_iob_func(unsigned _Ix);
 
 #define stdin  (__acrt_iob_func(0))
 #define stdout (__acrt_iob_func(1))
@@ -1496,7 +1496,7 @@ _ACRTIMP_ALT FILE* __cdecl __acrt_iob_func(unsigned);
 
     __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_1_ARGLIST_EX(
         _Success_(return >= 0)
-        int, __RETURN_POLICY_SAME, _CRT_STDIO_INLINE, __CRTDECL, _swprintf, _swprintf_s, _vswprintf, vswprintf_s,
+        int, __RETURN_POLICY_SAME, _CRT_STDIO_INLINE, __CRTDECL, _swprintf, swprintf_s, _vswprintf, vswprintf_s,
         _Pre_notnull_ _Always_(_Post_z_), wchar_t,        _Buffer,
         _In_z_ _Printf_format_string_     wchar_t const*, _Format
         )
@@ -1971,9 +1971,9 @@ _ACRTIMP_ALT FILE* __cdecl __acrt_iob_func(unsigned);
     __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_2(
         _Success_(return >= 0)
         int, vswscanf_s,
-        _Always_(_Post_z_)            wchar_t,        _Buffer,
+        _In_z_                        wchar_t,        _Buffer,
         _In_z_ _Printf_format_string_ wchar_t const*, _Format,
-                                      va_list,        _Args
+                                      va_list,        _ArgList
         )
 
     _Success_(return >= 0)

@@ -679,7 +679,7 @@ __forceinline uint32_t __cdecl count_sequential_high_zeroes(uint32_t const u) th
 // This function [1] uses only two 32-bit multiplies instead of the three required
 // for general 64-bit x 64-bit multiplication, and [2] is inlineable, allowing the
 // compile to elide the extreme overhead of calling the _allmul function.
-#ifdef _M_IX86
+#if defined(_M_IX86) && !defined(_M_HYBRID_X86_ARM64)
     __forceinline uint64_t __cdecl multiply_64_32(
         uint64_t const multiplicand,
         uint32_t const multiplier

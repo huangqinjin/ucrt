@@ -434,11 +434,14 @@ typedef __int64 fpos_t;
         _Always_(_Post_z_) char, _Buffer
         )
 
-    __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
+#pragma warning(push)
+#pragma warning(disable: 28726) // __WARNING_BANNED_API_USAGEL2
+__DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
         _Success_(return != 0)
         char*, __RETURN_POLICY_DST, _ACRTIMP, tmpnam,
         _Pre_maybenull_ _Always_(_Post_z_), char, _Buffer
         )
+#pragma warning(pop)
 
     _Success_(return != EOF)
     _Check_return_opt_
@@ -1790,6 +1793,8 @@ typedef __int64 fpos_t;
 
     #pragma warning(push)
     #pragma warning(disable: 4996)
+    #pragma warning(disable: 28719) // __WARNING_BANNED_API_USAGE
+    #pragma warning(disable: 28726) // __WARNING_BANNED_API_USAGEL2
     __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_1_ARGLIST(
         _Success_(return >= 0)
         int, __RETURN_POLICY_SAME, __EMPTY_DECLSPEC, __CRTDECL, sprintf, vsprintf,
@@ -1844,6 +1849,7 @@ typedef __int64 fpos_t;
     #endif
 
     __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_1_ARGLIST(
+        _Success_(return >= 0)
         int, sprintf_s, vsprintf_s,
         _Always_(_Post_z_)            char,        _Buffer,
         _In_z_ _Printf_format_string_ char const*, _Format
@@ -1941,7 +1947,7 @@ typedef __int64 fpos_t;
         int _Result;
         va_list _ArgList;
         __crt_va_start(_ArgList, _Format);
-    #pragma warning(suppress:28719)    // __WARNING_BANNED_API_USAGE
+    #pragma warning(suppress:28719)    // 28719
         _Result = vsnprintf(_Buffer, _BufferCount, _Format, _ArgList);
         __crt_va_end(_ArgList);
         return _Result;
@@ -1961,7 +1967,7 @@ typedef __int64 fpos_t;
         int _Result;
         va_list _ArgList;
         __crt_va_start(_ArgList, _Format);
-    #pragma warning(suppress:28719)    // __WARNING_BANNED_API_USAGE
+    #pragma warning(suppress:28719)    // 28719
         _Result = _vsnprintf(_Buffer, _BufferCount, _Format, _ArgList);
         __crt_va_end(_ArgList);
         return _Result;
@@ -2222,7 +2228,7 @@ typedef __int64 fpos_t;
 
         __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_2(
             int, vsscanf_s,
-            _Always_(_Post_z_)            char const,  _Buffer,
+            _In_z_                        char const,  _Buffer,
             _In_z_ _Printf_format_string_ char const*, _Format,
                                           va_list,     _ArgList
             )

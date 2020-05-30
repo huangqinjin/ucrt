@@ -15,13 +15,17 @@
 
 // In the function below, we need to ensure that we've initialized the mbc table
 // before we start performing character transformations.
-static void do_locale_initialization(char)    throw() { __acrt_initialize_multibyte(); }
-static void do_locale_initialization(wchar_t) throw() { /* no-op */                    }
+static void do_locale_initialization(unsigned char) throw() { __acrt_initialize_multibyte(); }
+static void do_locale_initialization(wchar_t)       throw() { /* no-op */                    }
 
-static char*    get_command_line(char)    throw() { return _acmdln; }
+static unsigned char* get_command_line(unsigned char) throw()
+{
+    return reinterpret_cast<unsigned char *>(_acmdln);
+}
+
 static wchar_t* get_command_line(wchar_t) throw() { return _wcmdln; }
 
-static bool __cdecl should_copy_another_character(char const c) throw()
+static bool __cdecl should_copy_another_character(unsigned char const c) throw()
 {
     return _ismbblead(c) != 0;
 }
@@ -90,8 +94,9 @@ static Character* __cdecl common_wincmdln() throw()
 
 
 extern "C" char* __cdecl _get_narrow_winmain_command_line()
-{
-    return common_wincmdln<char>();
+{   // Need to use unsigned char so that we correctly handle ASCII characters
+    // above 127, in particular the comparison to ' ' (space - 0x20).
+    return reinterpret_cast<char *>(common_wincmdln<unsigned char>());
 }
 
 extern "C" wchar_t* __cdecl _get_wide_winmain_command_line()

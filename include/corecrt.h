@@ -249,11 +249,11 @@ _ACRTIMP __declspec(noreturn) void __cdecl _invalid_parameter_noinfo_noreturn(vo
 
 __declspec(noreturn)
 _ACRTIMP void __cdecl _invoke_watson(
-    _In_opt_z_ wchar_t const*,
-    _In_opt_z_ wchar_t const*,
-    _In_opt_z_ wchar_t const*,
-    _In_       unsigned int,
-    _In_       uintptr_t);
+    _In_opt_z_ wchar_t const* _Expression,
+    _In_opt_z_ wchar_t const* _FunctionName,
+    _In_opt_z_ wchar_t const* _FileName,
+    _In_       unsigned int _LineNo,
+    _In_       uintptr_t _Reserved);
 
 #ifndef _CRT_SECURE_INVALID_PARAMETER
     #ifdef _DEBUG
@@ -790,7 +790,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_FuncName(_SalAttributeDst _DstType *_Dst) \
             { \
-                _DeclSpec _ReturnType __cdecl _FuncName(_DstType *_Dst); \
+                _DeclSpec _ReturnType __cdecl _FuncName(_SalAttributeDst _DstType *_Dst); \
                 return _FuncName(_Dst); \
             } \
             extern "C++" \
@@ -812,7 +812,7 @@ typedef _Mbstatet mbstate_t;
             template <> \
             inline \
             _CRT_INSECURE_DEPRECATE(_SecureFuncName) \
-            _ReturnType __CRTDECL _FuncName(_DstType * &_Dst) _CRT_SECURE_CPP_NOTHROW \
+            _ReturnType __CRTDECL _FuncName(_SalAttributeDst _DstType * &_Dst) _CRT_SECURE_CPP_NOTHROW \
             { \
                 return __insecure_##_FuncName(_Dst); \
             } \
@@ -835,7 +835,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_FuncName(_SalAttributeDst _DstType *_Dst) \
             { \
-                _DeclSpec _ReturnType __cdecl _FuncName(_DstType *_Dst); \
+                _DeclSpec _ReturnType __cdecl _FuncName(_SalAttributeDst _DstType *_Dst); \
                 return _FuncName(_Dst); \
             } \
             extern "C++" \
@@ -857,7 +857,7 @@ typedef _Mbstatet mbstate_t;
             template <> \
             inline \
             _CRT_INSECURE_DEPRECATE(_FuncName##_s) \
-            _ReturnType __CRTDECL _FuncName(_DstType * &_Dst) _CRT_SECURE_CPP_NOTHROW \
+            _ReturnType __CRTDECL _FuncName(_SalAttributeDst _DstType * &_Dst) _CRT_SECURE_CPP_NOTHROW \
             { \
                 return __insecure_##_FuncName(_Dst); \
             } \
@@ -912,7 +912,7 @@ typedef _Mbstatet mbstate_t;
             template <> \
             inline \
             _CRT_INSECURE_DEPRECATE(_SecureFuncName) \
-            _ReturnType __CRTDECL _FuncName(_DstType * &_Dst, _TType1 _TArg1) _CRT_SECURE_CPP_NOTHROW \
+            _ReturnType __CRTDECL _FuncName(_SalAttributeDst _DstType * &_Dst, _TType1 _TArg1) _CRT_SECURE_CPP_NOTHROW \
             { \
                 return __insecure_##_FuncName(_Dst, _TArg1); \
             } \
@@ -935,7 +935,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2) _CRT_SECURE_CPP_NOTHROW \
             { \
-                _DeclSpec _ReturnType __cdecl _FuncName(_DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2); \
+                _DeclSpec _ReturnType __cdecl _FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2); \
                 return _FuncName(_Dst, _TArg1, _TArg2); \
             } \
             extern "C++" \
@@ -957,7 +957,7 @@ typedef _Mbstatet mbstate_t;
             template <> \
             inline \
             _CRT_INSECURE_DEPRECATE(_SecureFuncName) \
-            _ReturnType __CRTDECL _FuncName(_DstType * &_Dst, _TType1 _TArg1, _TType2 _TArg2) _CRT_SECURE_CPP_NOTHROW \
+            _ReturnType __CRTDECL _FuncName(_SalAttributeDst _DstType * &_Dst, _TType1 _TArg1, _TType2 _TArg2) _CRT_SECURE_CPP_NOTHROW \
             { \
                 return __insecure_##_FuncName(_Dst, _TArg1, _TArg2); \
             } \
@@ -980,7 +980,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3) \
             { \
-                _DeclSpec _ReturnType __cdecl _FuncName(_DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3); \
+                _DeclSpec _ReturnType __cdecl _FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3); \
                 return _FuncName(_Dst, _TArg1, _TArg2, _TArg3); \
             } \
             extern "C++" \
@@ -1002,7 +1002,7 @@ typedef _Mbstatet mbstate_t;
             template <> \
             inline \
             _CRT_INSECURE_DEPRECATE(_SecureFuncName) \
-            _ReturnType __CRTDECL _FuncName(_DstType * &_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3) _CRT_SECURE_CPP_NOTHROW \
+            _ReturnType __CRTDECL _FuncName(_SalAttributeDst _DstType * &_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3) _CRT_SECURE_CPP_NOTHROW \
             { \
                 return __insecure_##_FuncName(_Dst, _TArg1, _TArg2, _TArg3); \
             } \
@@ -1025,7 +1025,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3, _TType4 _TArg4) \
             { \
-                _DeclSpec _ReturnType __cdecl _FuncName(_DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3, _TType4 _TArg4); \
+                _DeclSpec _ReturnType __cdecl _FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3, _TType4 _TArg4); \
                 return _FuncName(_Dst, _TArg1, _TArg2, _TArg3, _TArg4); \
             } \
             extern "C++" \
@@ -1047,7 +1047,7 @@ typedef _Mbstatet mbstate_t;
             template <> \
             inline \
             _CRT_INSECURE_DEPRECATE(_SecureFuncName) \
-            _ReturnType __CRTDECL _FuncName(_DstType * &_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3, _TType4 _TArg4) _CRT_SECURE_CPP_NOTHROW \
+            _ReturnType __CRTDECL _FuncName(_SalAttributeDst _DstType * &_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3, _TType4 _TArg4) _CRT_SECURE_CPP_NOTHROW \
             { \
                 return __insecure_##_FuncName(_Dst, _TArg1, _TArg2, _TArg3, _TArg4); \
             } \
@@ -1070,7 +1070,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_FuncName(_HType1 _HArg1, _SalAttributeDst _DstType *_Dst, _TType1 _TArg1) \
             { \
-                _DeclSpec _ReturnType __cdecl _FuncName(_HType1 _HArg1, _DstType *_Dst, _TType1 _TArg1); \
+                _DeclSpec _ReturnType __cdecl _FuncName(_HType1 _HArg1, _SalAttributeDst _DstType *_Dst, _TType1 _TArg1); \
                 return _FuncName(_HArg1, _Dst, _TArg1); \
             } \
             extern "C++" \
@@ -1092,7 +1092,7 @@ typedef _Mbstatet mbstate_t;
             template <> \
             inline \
             _CRT_INSECURE_DEPRECATE(_SecureFuncName) \
-            _ReturnType __CRTDECL _FuncName(_HType1 _HArg1, _DstType * &_Dst, _TType1 _TArg1) _CRT_SECURE_CPP_NOTHROW \
+            _ReturnType __CRTDECL _FuncName(_HType1 _HArg1, _SalAttributeDst _DstType * &_Dst, _TType1 _TArg1) _CRT_SECURE_CPP_NOTHROW \
             { \
                 return __insecure_##_FuncName(_HArg1, _Dst, _TArg1); \
             } \
@@ -1115,7 +1115,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_FuncName(_HType1 _HArg1, _HType2 _HArg2, _SalAttributeDst _DstType *_Dst) \
             { \
-                _DeclSpec _ReturnType __cdecl _FuncName(_HType1 _HArg1, _HType2 _HArg2, _DstType *_Dst); \
+                _DeclSpec _ReturnType __cdecl _FuncName(_HType1 _HArg1, _HType2 _HArg2, _SalAttributeDst _DstType *_Dst); \
                 return _FuncName(_HArg1, _HArg2, _Dst); \
             } \
             extern "C++" \
@@ -1137,7 +1137,7 @@ typedef _Mbstatet mbstate_t;
             template <> \
             inline \
             _CRT_INSECURE_DEPRECATE(_SecureFuncName) \
-            _ReturnType __CRTDECL _FuncName(_HType1 _HArg1, _HType2 _HArg2, _DstType * &_Dst) _CRT_SECURE_CPP_NOTHROW \
+            _ReturnType __CRTDECL _FuncName(_HType1 _HArg1, _HType2 _HArg2, _SalAttributeDst _DstType * &_Dst) _CRT_SECURE_CPP_NOTHROW \
             { \
                 return __insecure_##_FuncName(_HArg1, _HArg2, _Dst); \
             } \
@@ -1160,7 +1160,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_VFuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, va_list _ArgList) \
             { \
-                _DeclSpec _ReturnType _CC _VFuncName(_DstType *_Dst, _TType1 _TArg1, va_list _ArgList); \
+                _DeclSpec _ReturnType _CC _VFuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, va_list _ArgList); \
                 return _VFuncName(_Dst, _TArg1, _ArgList); \
             } \
             extern "C++" \
@@ -1192,7 +1192,7 @@ typedef _Mbstatet mbstate_t;
                 template <> \
             inline \
             _CRT_INSECURE_DEPRECATE(_SecureFuncName) \
-            _ReturnType __CRTDECL _FuncName(_DstType * &_Dst, _TType1 _TArg1, ...) _CRT_SECURE_CPP_NOTHROW \
+            _ReturnType __CRTDECL _FuncName(_SalAttributeDst _DstType * &_Dst, _TType1 _TArg1, ...) _CRT_SECURE_CPP_NOTHROW \
             { \
                 va_list _ArgList; \
                 __crt_va_start(_ArgList, _TArg1); \
@@ -1242,7 +1242,7 @@ typedef _Mbstatet mbstate_t;
             template <> \
             inline \
             _CRT_INSECURE_DEPRECATE(_SecureVFuncName) \
-            _ReturnType __CRTDECL _VFuncName(_DstType *&_Dst, _TType1 _TArg1, va_list _ArgList) _CRT_SECURE_CPP_NOTHROW \
+            _ReturnType __CRTDECL _VFuncName(_SalAttributeDst _DstType *&_Dst, _TType1 _TArg1, va_list _ArgList) _CRT_SECURE_CPP_NOTHROW \
             { \
                 return __insecure_##_VFuncName(_Dst, _TArg1, _ArgList); \
             } \
@@ -1265,7 +1265,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_VFuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, va_list _ArgList) \
             { \
-                _DeclSpec _ReturnType _CC _VFuncName(_DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, va_list _ArgList); \
+                _DeclSpec _ReturnType _CC _VFuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, va_list _ArgList); \
                 return _VFuncName(_Dst, _TArg1, _TArg2, _ArgList); \
             } \
             extern "C++" \
@@ -1297,7 +1297,7 @@ typedef _Mbstatet mbstate_t;
             template <> \
             inline \
                 _CRT_INSECURE_DEPRECATE(_FuncName##_s) \
-            _ReturnType __CRTDECL _FuncName(_DstType * &_Dst, _TType1 _TArg1, _TType2 _TArg2, ...) _CRT_SECURE_CPP_NOTHROW \
+            _ReturnType __CRTDECL _FuncName(_SalAttributeDst _DstType * &_Dst, _TType1 _TArg1, _TType2 _TArg2, ...) _CRT_SECURE_CPP_NOTHROW \
             { \
                 va_list _ArgList; \
                 __crt_va_start(_ArgList, _TArg2); \
@@ -1347,7 +1347,7 @@ typedef _Mbstatet mbstate_t;
             template <> \
             inline \
                 _CRT_INSECURE_DEPRECATE(_SecureVFuncName) \
-            _ReturnType __CRTDECL _VFuncName(_DstType *&_Dst, _TType1 _TArg1, _TType2 _TArg2, va_list _ArgList) _CRT_SECURE_CPP_NOTHROW \
+            _ReturnType __CRTDECL _VFuncName(_SalAttributeDst _DstType *&_Dst, _TType1 _TArg1, _TType2 _TArg2, va_list _ArgList) _CRT_SECURE_CPP_NOTHROW \
             { \
                 return __insecure_##_VFuncName(_Dst, _TArg1, _TArg2, _ArgList); \
             } \
@@ -1370,7 +1370,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             size_t __CRTDECL __insecure_##_FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2) \
             { \
-                _DeclSpec size_t __cdecl _FuncName(_DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2); \
+                _DeclSpec size_t __cdecl _FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2); \
                 return _FuncName(_Dst, _TArg1, _TArg2); \
             } \
             extern "C++" \
@@ -1392,7 +1392,7 @@ typedef _Mbstatet mbstate_t;
             template <> \
             inline \
             _CRT_INSECURE_DEPRECATE(_SecureFuncName) \
-            size_t __CRTDECL _FuncName(_DstType * &_Dst, _TType1 _TArg1, _TType2 _TArg2) _CRT_SECURE_CPP_NOTHROW \
+            size_t __CRTDECL _FuncName(_SalAttributeDst _DstType * &_Dst, _TType1 _TArg1, _TType2 _TArg2) _CRT_SECURE_CPP_NOTHROW \
             { \
                 return __insecure_##_FuncName(_Dst, _TArg1, _TArg2); \
             } \
@@ -1419,7 +1419,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             size_t __CRTDECL __insecure_##_FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3) \
             { \
-                _DeclSpec size_t __cdecl _FuncName(_DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3); \
+                _DeclSpec size_t __cdecl _FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3); \
                 return _FuncName(_Dst, _TArg1, _TArg2, _TArg3); \
             } \
             extern "C++" \
@@ -1441,7 +1441,7 @@ typedef _Mbstatet mbstate_t;
             template <> \
             inline \
             _CRT_INSECURE_DEPRECATE(_SecureFuncName) \
-            size_t __CRTDECL _FuncName(_DstType * &_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3) _CRT_SECURE_CPP_NOTHROW \
+            size_t __CRTDECL _FuncName(_SalAttributeDst _DstType * &_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3) _CRT_SECURE_CPP_NOTHROW \
             { \
                 return __insecure_##_FuncName(_Dst, _TArg1, _TArg2, _TArg3); \
             } \
@@ -1574,7 +1574,7 @@ typedef _Mbstatet mbstate_t;
             template <> \
             inline \
             _CRT_INSECURE_DEPRECATE(_SecureFuncName) \
-            _ReturnType __CRTDECL _FuncName(_DstType * &_Dst, _TType1 _TArg1, _TType2 _TArg2) _CRT_SECURE_CPP_NOTHROW \
+            _ReturnType __CRTDECL _FuncName(_SalAttributeDst _DstType * &_Dst, _TType1 _TArg1, _TType2 _TArg2) _CRT_SECURE_CPP_NOTHROW \
             { \
                 return __insecure_##_FuncName(_Dst, _TArg1, _TArg2); \
             } \
@@ -1617,7 +1617,7 @@ typedef _Mbstatet mbstate_t;
             template <> \
             inline \
             _CRT_INSECURE_DEPRECATE(_SecureFuncName) \
-            _ReturnType __CRTDECL _FuncName(_DstType * &_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3) _CRT_SECURE_CPP_NOTHROW \
+            _ReturnType __CRTDECL _FuncName(_SalAttributeDst _DstType * &_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3) _CRT_SECURE_CPP_NOTHROW \
             { \
                 return __insecure_##_FuncName(_Dst, _TArg1, _TArg2, _TArg3); \
             } \

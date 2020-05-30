@@ -235,7 +235,7 @@ template <typename Integer>
 static Integer __cdecl common_ftell_nolock(__crt_stdio_stream) throw();
 
 template <>
-static __int64 __cdecl common_ftell_nolock(__crt_stdio_stream const stream) throw()
+__int64 __cdecl common_ftell_nolock(__crt_stdio_stream const stream) throw()
 {
     _VALIDATE_RETURN(stream.public_stream(), EINVAL, -1);
 
@@ -303,7 +303,7 @@ static __int64 __cdecl common_ftell_nolock(__crt_stdio_stream const stream) thro
 }
 
 template <>
-static long __cdecl common_ftell_nolock(__crt_stdio_stream const stream) throw()
+long __cdecl common_ftell_nolock(__crt_stdio_stream const stream) throw()
 {
     __int64 const result = common_ftell_nolock<__int64>(stream);
     if (result > LONG_MAX)

@@ -213,8 +213,6 @@ extern "C" int __cdecl _getch()
     return result;
 }
 
-
-
 extern "C" int __cdecl _getche()
 {
     __acrt_lock(__acrt_conio_lock);
@@ -230,8 +228,6 @@ extern "C" int __cdecl _getche()
     return result;
 }
 
-
-
 extern "C" int __cdecl _getch_nolock()
 {
     // Check the pushback buffer for a character.  If one is present, return it:
@@ -242,18 +238,13 @@ extern "C" int __cdecl _getch_nolock()
         return c;
     }
 
-    if (__dcrt_lowio_console_input_handle == -2)
-        __dcrt_lowio_initialize_console_input();
-
-    if (__dcrt_lowio_console_input_handle == -1)
+    if (__dcrt_lowio_ensure_console_input_initialized() == FALSE)
         return EOF;
-
-    HANDLE const console_handle = reinterpret_cast<HANDLE>(__dcrt_lowio_console_input_handle);
 
     // Switch console to raw mode:
     DWORD old_console_mode;
-    GetConsoleMode(console_handle, &old_console_mode);
-    SetConsoleMode(console_handle, 0);
+    __dcrt_get_input_console_mode(&old_console_mode);
+    __dcrt_set_input_console_mode(0);
 
     int result = 0;
 
@@ -264,7 +255,7 @@ extern "C" int __cdecl _getch_nolock()
             // Get a console input event:
             INPUT_RECORD input_record;
             DWORD num_read;
-            if (!ReadConsoleInput(console_handle, &input_record, 1, &num_read) || num_read == 0)
+            if (__dcrt_read_console_input(&input_record, 1, &num_read) == FALSE || num_read == 0)
             {
                 result = EOF;
                 __leave;
@@ -296,7 +287,7 @@ extern "C" int __cdecl _getch_nolock()
     __finally
     {
         // Restore the previous console mode:
-        SetConsoleMode(console_handle, old_console_mode);
+        __dcrt_set_input_console_mode(old_console_mode);
     }
     return result;
 }
@@ -351,17 +342,12 @@ extern "C" int __cdecl _kbhit_nolock()
     if (chbuf != -1)
         return TRUE;
 
-    if (__dcrt_lowio_console_input_handle == -2)
-        __dcrt_lowio_initialize_console_input();
-
-    if (__dcrt_lowio_console_input_handle == -1)
+    if (__dcrt_lowio_ensure_console_input_initialized() == FALSE)
         return FALSE;
-
-    HANDLE const console_handle = reinterpret_cast<HANDLE>(__dcrt_lowio_console_input_handle);
 
     // Peek at all pending console events:
     DWORD num_pending;
-    if (GetNumberOfConsoleInputEvents(console_handle, &num_pending) == 0)
+    if (__dcrt_get_number_of_console_input_events(&num_pending) == FALSE)
         return FALSE;
 
     if (num_pending == 0)
@@ -372,7 +358,7 @@ extern "C" int __cdecl _kbhit_nolock()
         return FALSE;
 
     DWORD num_peeked;
-    if (PeekConsoleInput(console_handle, input_buffer.get(), num_pending, &num_peeked) == 0)
+    if (__dcrt_peek_console_input(input_buffer.get(), num_pending, &num_peeked) == FALSE)
         return FALSE;
 
     if (num_peeked == 0 || num_peeked > num_pending)

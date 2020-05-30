@@ -68,8 +68,9 @@ void* __cdecl _alloca(_In_ size_t _Size);
 
     #ifdef _CRT_USE_WINAPI_FAMILY_DESKTOP_APP
         _Check_return_ _DCRTIMP int __cdecl _heapchk(void);
-        _DCRTIMP int __cdecl _resetstkoflw(void);
     #endif
+
+    _DCRTIMP int __cdecl _resetstkoflw(void);
 
     #define _ALLOCA_S_THRESHOLD     1024
     #define _ALLOCA_S_STACK_MARKER  0xCCCC

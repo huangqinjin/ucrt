@@ -473,7 +473,7 @@ template <uint32_t N>
 static __forceinline void __cdecl multiply_ld12_by(_LDBL12*) throw();
 
 template <>
-static __forceinline void __cdecl multiply_ld12_by<10>(_LDBL12* const ld12) throw()
+__forceinline void __cdecl multiply_ld12_by<10>(_LDBL12* const ld12) throw()
 {
     _LDBL12 const original_ld12 = *ld12;
     shl_ld12<2>(ld12);
@@ -482,7 +482,7 @@ static __forceinline void __cdecl multiply_ld12_by<10>(_LDBL12* const ld12) thro
 }
 
 template <>
-static __forceinline void __cdecl multiply_ld12_by<16>(_LDBL12* const ld12) throw()
+__forceinline void __cdecl multiply_ld12_by<16>(_LDBL12* const ld12) throw()
 {
     shl_ld12<4>(ld12);
 }
@@ -796,7 +796,7 @@ static void __cdecl convert_ld12_to_ldouble(
     {
         *UL_MANHI_12(pld12),
         *UL_MANLO_12(pld12),
-        *U_XT_12    (pld12) << 16
+        uint32_t ((*U_XT_12(pld12)) << 16)
     };
 
     if (round_mantissa(mantissa, 64))

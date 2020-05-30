@@ -76,7 +76,7 @@ extern "C" int __cdecl _strnicmp_l (
 }
 
 
-#ifndef _M_IX86
+#if !defined(_M_IX86) || defined(_M_HYBRID_X86_ARM64)
 
 extern "C" int __cdecl __ascii_strnicmp (
         const char * first,
@@ -111,7 +111,7 @@ extern "C" int __cdecl __ascii_strnicmp (
     }
 }
 
-#endif  /* _M_IX86 */
+#endif  /* !_M_IX86 || _M_HYBRID_X86_ARM64 */
 
 extern "C" int __cdecl _strnicmp (
         const char * dst,

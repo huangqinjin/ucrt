@@ -1081,8 +1081,7 @@ public:
           _format_parser                  {options, reinterpret_cast<unsigned_char_type const*>(format)},
           _locale                         {locale                                                      },
           _valist                         {arglist                                                     },
-          _assignments_processed          {0                                                           },
-          _conversion_specifiers_processed{0                                                           }
+          _receiving_arguments_assigned   {0                                                           }
     {
     }
 
@@ -1100,8 +1099,12 @@ public:
                 break;
         }
 
-        int result{static_cast<int>(_assignments_processed)};
-        if (_conversion_specifiers_processed == 0)
+        // Return value is number of receiving arguments assigned,
+        // or EOF if read failure occurs before the first receiving argument was assigned.
+        int result{static_cast<int>(_receiving_arguments_assigned)};
+
+        // If we haven't reached the 'end_of_string' parse, then a read error occurred.
+        if (_receiving_arguments_assigned == 0 && _format_parser.kind() != format_directive_kind::end_of_string)
         {
             int_type const c{_input_adapter.get()};
             if (c == traits::eof)
@@ -1137,9 +1140,12 @@ private:
         case format_directive_kind::conversion_specifier:
         {
             bool const result{process_conversion_specifier()};
-            if (result)
+            // %n and suppressed conversion specifiers are not considered receiving arguments
+            if (result
+                && _format_parser.mode() != conversion_mode::report_character_count
+                && !_format_parser.suppress_assignment())
             {
-                ++_conversion_specifiers_processed;
+                ++_receiving_arguments_assigned;
             }
 
             return result;
@@ -1330,7 +1336,6 @@ private:
             fill_buffer(buffer, buffer_count, buffer_remaining);
         }
 
-        ++_assignments_processed;
         return true;
     }
 
@@ -1512,7 +1517,7 @@ private:
         if (_format_parser.suppress_assignment())
             return true;
 
-        return write_integer(number, true);
+        return write_integer(number);
     }
 
     template <typename FloatingType>
@@ -1551,18 +1556,13 @@ private:
         if (_format_parser.suppress_assignment())
             return true;
 
-        return write_integer(_input_adapter.characters_read(), false);
+        return write_integer(_input_adapter.characters_read());
     }
 
-    bool write_integer(uint64_t const value, bool const counts_toward_assignments_processed) throw()
+    bool write_integer(uint64_t const value) throw()
     {
         void* const result_pointer{va_arg(_valist, void*)};
         _VALIDATE_RETURN(result_pointer != nullptr, EINVAL, false);
-
-        if (counts_toward_assignments_processed)
-        {
-            ++_assignments_processed;
-        }
 
         switch (_format_parser.length())
         {
@@ -1570,7 +1570,9 @@ private:
         case sizeof(uint16_t): *static_cast<uint16_t*>(result_pointer) = static_cast<uint16_t>(value); return true;
         case sizeof(uint32_t): *static_cast<uint32_t*>(result_pointer) = static_cast<uint32_t>(value); return true;
         case sizeof(uint64_t): *static_cast<uint64_t*>(result_pointer) = static_cast<uint64_t>(value); return true;
-        default:               return false;
+        default:
+            _ASSERTE(("Unexpected length specifier", false));
+            return false;
         }
     }
 
@@ -1581,8 +1583,6 @@ private:
 
         void* const result_pointer{va_arg(_valist, void*)};
         _VALIDATE_RETURN(result_pointer != nullptr, EINVAL, false);
-
-        ++_assignments_processed;
 
         _ASSERTE(sizeof(FloatingType) == _format_parser.length());
 
@@ -1605,8 +1605,7 @@ private:
     format_string_parser<char_type> _format_parser;
     _locale_t                       _locale;
     va_list                         _valist;
-    size_t                          _assignments_processed;
-    size_t                          _conversion_specifiers_processed;
+    size_t                          _receiving_arguments_assigned;
 };
 
 } // namespace __crt_stdio_input

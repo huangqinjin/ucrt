@@ -199,14 +199,10 @@ static bool __cdecl get_drive_number_from_path(wchar_t const* const path, int& d
 {
     drive_number = 0;
 
-    if (!__ascii_iswalpha(path[0]))
-    {
-        // The path does not start with a letter, so it does not have a drive
-        // number.  The path may still be valid, so return true:
-        return true;
-    }
-
-    if (path[1] == L':')
+    // If path has a drive letter and a colon, return the value of that drive,
+    // as expected from _getdrive(). A = 1, B = 2, etc.
+    // If the path is relative, then use _getdrive() to get the current drive.
+    if (__ascii_iswalpha(path[0]) && path[1] == L':')
     {
         // If the path is just a drive letter followed by a colon, it is not a
         // valid input to the stat functions:
@@ -218,8 +214,11 @@ static bool __cdecl get_drive_number_from_path(wchar_t const* const path, int& d
 
         drive_number = __ascii_towlower(path[0]) - L'a' + 1;
     }
+    else
+    {
+        drive_number = _getdrive();
+    }
 
-    drive_number = _getdrive();
     return true;
 }
 

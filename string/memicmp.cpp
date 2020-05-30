@@ -69,7 +69,7 @@ extern "C" int __cdecl _memicmp_l (
 }
 
 
-#ifndef _M_IX86
+#if !defined(_M_IX86) || defined(_M_HYBRID_X86_ARM64)
 
 extern "C" int __cdecl __ascii_memicmp (
         const void * first,
@@ -100,7 +100,7 @@ extern "C" int __cdecl __ascii_memicmp (
     return ( f - l );
 }
 
-#endif  /* _M_IX86 */
+#endif  /* !_M_IX86 || _M_HYBRID_X86_ARM64 */
 
 extern "C" int __cdecl _memicmp (
         const void * first,

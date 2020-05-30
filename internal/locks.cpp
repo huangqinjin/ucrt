@@ -61,6 +61,7 @@ extern "C" void __cdecl __acrt_unlock(_In_ __acrt_lock_id _Lock)
 
 extern "C" void __cdecl _lock_locales()
 {
+	__acrt_eagerly_load_locale_apis();
     __acrt_lock(__acrt_locale_lock);
 }
 

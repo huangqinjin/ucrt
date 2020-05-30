@@ -459,11 +459,13 @@ _CRT_BEGIN_C_HEADER
 
     struct _EXCEPTION_POINTERS;
 
+    typedef int (__cdecl* _FpieeFltHandlerType)(_FPIEEE_RECORD*);
+
     // Floating point IEEE exception filter routine
     _ACRTIMP int __cdecl _fpieee_flt(
         _In_ unsigned long               _ExceptionCode,
         _In_ struct _EXCEPTION_POINTERS* _PtExceptionPtr,
-        _In_ int (__cdecl* _Handler)(_FPIEEE_RECORD*)
+        _In_ _FpieeFltHandlerType        _Handler
         );
 
     #pragma warning(pop)

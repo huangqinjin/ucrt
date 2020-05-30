@@ -633,12 +633,16 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_1_1(
     _In_ int,  _Radix
     )
 
+#pragma warning(push)
+#pragma warning(disable: 28719) // __WARNING_BANNED_API_USAGE
+#pragma warning(disable: 28726) // __WARNING_BANNED_API_USAGEL2
 __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_1_1(
     char*, __RETURN_POLICY_DST, _ACRTIMP, _itoa,
     _In_                    int,  _Value,
     _Pre_notnull_ _Post_z_, char, _Buffer,
     _In_                    int,  _Radix
     )
+#pragma warning(pop)
 
 _Success_(return == 0)
 _Check_return_opt_
@@ -679,12 +683,15 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_1_1(
     _In_ int,           _Radix
     )
 
+#pragma warning(push)
+#pragma warning(disable: 28726) // __WARNING_BANNED_API_USAGEL2
 __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_1_1(
     char*, __RETURN_POLICY_DST, _ACRTIMP, _ultoa,
     _In_                    unsigned long, _Value,
     _Pre_notnull_ _Post_z_, char,          _Buffer,
     _In_                    int,           _Radix
     )
+#pragma warning(pop)
 
 _Success_(return == 0)
 _Check_return_opt_
@@ -838,7 +845,7 @@ _ACRTIMP char* __cdecl _gcvt(
     _ACRTIMP int __cdecl ___mb_cur_max_func(void);
 
     _Post_satisfies_(return > 0 && return < MB_LEN_MAX)
-    _ACRTIMP int __cdecl ___mb_cur_max_l_func(_locale_t);
+    _ACRTIMP int __cdecl ___mb_cur_max_l_func(_locale_t _Locale);
 #endif
 
 
@@ -1087,6 +1094,9 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_4(
     _In_opt_z_ char const*, _Ext
     )
 
+#pragma warning(push)
+#pragma warning(disable: 28719) // __WARNING_BANNED_API_USAGE
+#pragma warning(disable: 28726) // __WARNING_BANNED_API_USAGEL2
 __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_4(
     void, __RETURN_POLICY_VOID, _ACRTIMP, _makepath,
     _Pre_notnull_ _Post_z_, char,        _Buffer,
@@ -1095,6 +1105,7 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_4(
     _In_opt_z_              char const*, _Filename,
     _In_opt_z_              char const*, _Ext
     )
+#pragma warning(pop)
 
 _CRT_INSECURE_DEPRECATE(_splitpath_s)
 _ACRTIMP void __cdecl _splitpath(

@@ -8,13 +8,6 @@
 #include <conio.h>
 #include <corecrt_internal_lowio.h>
 
-
-
-// The console handle:
-extern "C" extern intptr_t __dcrt_lowio_console_output_handle;
-
-
-
 // Writes the given string directly to the console.  No newline is appended.
 // Returns 0 on success; nonzero on failure.
 extern "C" int __cdecl _cputs(char const* const string)

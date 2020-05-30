@@ -23,6 +23,9 @@
 #pragma warning(disable:4514)       /* disable unwanted C++ /W4 warning */
 /* #pragma warning(default:4514) */ /* use this to reenable, if necessary */
 
+#pragma warning(push)
+#pragma warning(disable:4995) /* C4995: name was marked as #pragma deprecated */
+
 /* Notes */
 
 /* There is no:
@@ -175,6 +178,9 @@ typedef wint_t      _TINT;
 #if _CRT_INTERNAL_NONSTDC_NAMES
 #ifndef _TCHAR_DEFINED
 typedef wchar_t     TCHAR;
+typedef wchar_t *   PTCHAR;
+typedef wchar_t     TBYTE;
+typedef wchar_t *   PTBYTE;
 #define _TCHAR_DEFINED
 #endif  /* _TCHAR_DEFINED */
 #endif  /* _CRT_INTERNAL_NONSTDC_NAMES */
@@ -1261,6 +1267,9 @@ typedef unsigned int    _TINT;
 #if _CRT_INTERNAL_NONSTDC_NAMES
 #ifndef _TCHAR_DEFINED
 typedef char            TCHAR;
+typedef char *          PTCHAR;
+typedef unsigned char   TBYTE;
+typedef unsigned char * PTBYTE;
 #define _TCHAR_DEFINED
 #endif  /* _TCHAR_DEFINED */
 #endif  /* _CRT_INTERNAL_NONSTDC_NAMES */
@@ -2096,6 +2105,9 @@ typedef int             _TINT;
 #if _CRT_INTERNAL_NONSTDC_NAMES
 #ifndef _TCHAR_DEFINED
 typedef char            TCHAR;
+typedef char *          PTCHAR;
+typedef unsigned char   TBYTE;
+typedef unsigned char * PTBYTE;
 #define _TCHAR_DEFINED
 #endif  /* _TCHAR_DEFINED */
 #endif  /* _CRT_INTERNAL_NONSTDC_NAMES */
@@ -2419,6 +2431,8 @@ __DEFINE_CPP_OVERLOAD_INLINE_FUNC_0_2_EX(char *, __RETURN_POLICY_DST, _strset_l,
 #ifdef __cplusplus
 }   /* ... extern "C" */
 #endif  /* __cplusplus */
+
+#pragma warning(pop)
 
 #endif  /* _INC_TCHAR */
 

@@ -23,7 +23,7 @@ _CRT_BEGIN_C_HEADER
 #define FE_ROUND_MASK _MCW_RC
 
 _ACRTIMP int __cdecl fegetround(void);
-_ACRTIMP int __cdecl fesetround(_In_ int);
+_ACRTIMP int __cdecl fesetround(_In_ int _Round);
 
 
 
@@ -46,19 +46,29 @@ _ACRTIMP int __cdecl fesetround(_In_ int);
 
     #define FE_ALL_EXCEPT (FE_DIVBYZERO | FE_INEXACT | FE_INVALID | FE_OVERFLOW | FE_UNDERFLOW)
 
-    _ACRTIMP int __cdecl fegetenv(_Out_ fenv_t*);
-    _ACRTIMP int __cdecl fesetenv(_In_ fenv_t const*);
-    _ACRTIMP int __cdecl feclearexcept(_In_ int);
-    _ACRTIMP _Success_(return == 0) int __cdecl feholdexcept(_Out_ fenv_t*);
-    _ACRTIMP int __cdecl fetestexcept(_In_ int);
-    _ACRTIMP int __cdecl fegetexceptflag(_Out_ fexcept_t*, _In_ int);
-    _ACRTIMP int __cdecl fesetexceptflag(_In_ fexcept_t const*, _In_ int);
+    _ACRTIMP int __cdecl fegetenv(_Out_ fenv_t* _Env);
+    _ACRTIMP int __cdecl fesetenv(_In_ fenv_t const* _Env);
+    _ACRTIMP int __cdecl feclearexcept(_In_ int _Flags);
+    _ACRTIMP _Success_(return == 0) int __cdecl feholdexcept(_Out_ fenv_t* _Env);
+    _ACRTIMP int __cdecl fetestexcept(_In_ int _Flags);
+    _ACRTIMP int __cdecl fegetexceptflag(_Out_ fexcept_t* _Except, _In_ int _TestFlags);
+    _ACRTIMP int __cdecl fesetexceptflag(_In_ fexcept_t const* _Except, _In_ int _SetFlags);
 
     #if !defined __midl // MIDL does not support compound initializers
-        __declspec(selectany) extern const fenv_t _Fenv0 = { 0, 0 };
+        // In the original implementation (_Fenv0), the global variable was zero
+        // initialized, indicating no exceptions are masked.  In the current
+        // implementation (_Fenv1), the global variable is initialized with all
+        // exceptions masked, which is the actual initial environment.
+        #if defined _M_IX86
+            __declspec(selectany) extern const fenv_t _Fenv1 = { 0x3f3f103f, 0 };
+        #elif defined _M_X64
+            __declspec(selectany) extern const fenv_t _Fenv1 = { 0x3f00003f, 0 };
+        #else
+            __declspec(selectany) extern const fenv_t _Fenv1 = { 0x0000003f, 0 };
+        #endif
     #endif
 
-    #define FE_DFL_ENV (&_Fenv0)
+    #define FE_DFL_ENV (&_Fenv1)
 
 
 

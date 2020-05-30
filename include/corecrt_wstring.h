@@ -94,12 +94,15 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_1(
 
 #ifndef RC_INVOKED
 
+#pragma warning(push)
+#pragma warning(disable: 28719) // __WARNING_BANNED_API_USAGE
+#pragma warning(disable: 28726) // __WARNING_BANNED_API_USAGEL2
     __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_1(
         wchar_t*, __RETURN_POLICY_DST, _ACRTIMP, wcscat,
         _Inout_updates_z_(_String_length_(_Destination) + _String_length_(_Source) + 1), wchar_t,        _Destination,
         _In_z_                                                                           wchar_t const*, _Source
         )
-
+#pragma warning(pop)
 #endif
 
 _Check_return_
@@ -114,11 +117,15 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_1(
     _In_z_ wchar_t const*, _Source
     )
 
+#pragma warning(push)
+#pragma warning(disable: 28719) // __WARNING_BANNED_API_USAGE
+#pragma warning(disable: 28726) // __WARNING_BANNED_API_USAGEL2
 __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_1(
     wchar_t*, __RETURN_POLICY_DST, _ACRTIMP, wcscpy,
     _Out_writes_z_(_String_length_(_Source) + 1), wchar_t,        _Destination,
     _In_z_                                        wchar_t const*, _Source
     )
+#pragma warning(pop)
 
 _Check_return_
 _ACRTIMP size_t __cdecl wcscspn(

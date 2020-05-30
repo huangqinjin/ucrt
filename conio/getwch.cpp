@@ -85,18 +85,13 @@ extern "C" wint_t __cdecl _getwch_nolock()
 
     // The console input handle is created the first time that _getwch(),
     // _cgetws(), or _kbhit() is called:
-    if (__dcrt_lowio_console_input_handle == -2)
-        __dcrt_lowio_initialize_console_input();
-
-    if (__dcrt_lowio_console_input_handle == -1)
+    if (__dcrt_lowio_ensure_console_input_initialized() == FALSE)
         return WEOF;
-
-    HANDLE const console_handle = reinterpret_cast<HANDLE>(__dcrt_lowio_console_input_handle);
 
     // Switch to raw mode (no line input, no echo input):
     DWORD old_console_mode;
-    GetConsoleMode(console_handle, &old_console_mode);
-    SetConsoleMode(console_handle, 0);
+    __dcrt_get_input_console_mode(&old_console_mode);
+    __dcrt_set_input_console_mode(0);
     wint_t result = 0;
     __try
     {
@@ -105,7 +100,7 @@ extern "C" wint_t __cdecl _getwch_nolock()
             // Get a console input event:
             INPUT_RECORD input_record;
             DWORD num_read;
-            if (!ReadConsoleInputW(console_handle, &input_record, 1, &num_read))
+            if (__dcrt_read_console_input_w(&input_record, 1, &num_read) == FALSE)
             {
                 result = WEOF;
                 __leave;
@@ -143,7 +138,7 @@ extern "C" wint_t __cdecl _getwch_nolock()
     __finally
     {
         // Restore the previous console mode:
-        SetConsoleMode(console_handle, old_console_mode);
+        __dcrt_set_input_console_mode(old_console_mode);
     }
     return result;
 }

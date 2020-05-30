@@ -9,6 +9,7 @@
 // library, these are called by the initialization code.
 //
 #include <corecrt_internal.h>
+#include <corecrt_internal_stdio.h>
 #include <stdlib.h>
 
 extern "C" {
@@ -268,12 +269,16 @@ __crt_bool __cdecl __acrt_uninitialize(__crt_bool const terminating)
 
     // If the process is terminating, there's no point in cleaning up, except
     // in debug builds.
-    // CRT_REFACTOR TODO We can't skip _all_ of the termination.  E.g., we need
-    // the stdio termination to run so that all files are flushed. :(
-    // #ifndef _DEBUG
-    // if (terminating)
-    //     return TRUE;
-    // #endif
+    #ifndef _DEBUG
+    if (terminating) {
+        #ifndef _UCRT_ENCLAVE_BUILD
+        if (__acrt_stdio_is_initialized()) {
+            _flushall();
+        }
+        #endif
+        return TRUE;
+    }
+    #endif
 
     return __acrt_execute_uninitializers(
         __acrt_initializers,

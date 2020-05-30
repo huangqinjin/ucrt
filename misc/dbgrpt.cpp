@@ -51,7 +51,7 @@ static wchar_t const* __cdecl get_output_message_format(wchar_t) throw()
     return L"Debug %ls!\n\nProgram: %ls%ls%ls%ls%ls%ls%ls%ls%ls%ls%ls%ls\n\n(Press Retry to debug the application)\n";
 }
 
-static wchar_t const* const more_info_string = 
+static wchar_t const* const more_info_string =
     L"\n\nFor information on how your program can cause an assertion"
     L"\nfailure, see the Visual C++ documentation on asserts.";
 
@@ -410,8 +410,13 @@ static int __cdecl common_message_window(
         // Note that even though we are "aborting," we do not call abort()
         // because we do not want to invoke Watson (the user has already had an
         // opportunity to debug the error and chose not to).
-        raise(SIGABRT);
-        _exit(3);
+        __crt_signal_handler_t const sigabrt_action = __acrt_get_sigabrt_handler();
+        if (sigabrt_action != SIG_DFL)
+        {
+            raise(SIGABRT);
+        }
+
+        TerminateProcess(GetCurrentProcess(), 3);
     }
 
     case IDRETRY:
