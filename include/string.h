@@ -6,6 +6,7 @@
 // The C Standard Library <string.h> header.
 //
 #pragma once
+#ifndef _INC_STRING // include guard for 3rd party interop
 #define _INC_STRING
 
 #include <corecrt.h>
@@ -529,19 +530,13 @@ extern "C++"
 
 #if _CRT_INTERNAL_NONSTDC_NAMES
 
-    #if defined _DEBUG && defined _CRTDBG_MAP_ALLOC
-        #pragma push_macro("strdup")
-        #undef strdup
-    #endif
-
+    #pragma push_macro("strdup")
+    #undef strdup
     _Check_return_ _CRT_NONSTDC_DEPRECATE(_strdup)
     _ACRTIMP char* __cdecl strdup(
         _In_opt_z_ char const* _String
         );
-
-    #if defined _DEBUG && defined _CRTDBG_MAP_ALLOC
-        #pragma pop_macro("strdup")
-    #endif
+    #pragma pop_macro("strdup")
 
     // Declarations of functions defined in oldnames.lib:
     _Check_return_ _CRT_NONSTDC_DEPRECATE(_strcmpi)
@@ -597,3 +592,4 @@ extern "C++"
 _CRT_END_C_HEADER
 
 #endif // !__midl
+#endif // _INC_STRING

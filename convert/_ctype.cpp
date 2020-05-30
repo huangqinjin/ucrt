@@ -19,7 +19,7 @@ static __forceinline int __cdecl fast_check(int const c, int const mask) throw()
     #ifdef _DEBUG
     return _chvalidator(c, mask);
     #else
-    return __acrt_initial_locale_data._public._locale_pctype[c] & mask;
+    return __acrt_initial_locale_data._public._locale_pctype[static_cast<unsigned char>(c)] & mask;
     #endif
 }
 

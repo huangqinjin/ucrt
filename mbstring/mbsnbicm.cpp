@@ -21,7 +21,7 @@
 * _mbsnbicmp - Compare n bytes of strings, ignoring case (MBCS)
 *
 *Purpose:
-*       Compares up to n bytes of two strings for lexical order.
+*       Compares up to n bytes of two strings for ordinal order.
 *       Strings are compared on a character basis, not a byte basis.
 *       Case of characters is not considered.
 *

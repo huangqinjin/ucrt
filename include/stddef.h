@@ -6,6 +6,7 @@
 // The C <stddef.h> Standard Library header.
 //
 #pragma once
+#ifndef _INC_STDDEF // include guard for 3rd party interop
 #define _INC_STDDEF
 
 #include <corecrt.h>
@@ -39,7 +40,7 @@ _CRT_BEGIN_C_HEADER
 
 #if defined _MSC_VER && !defined _CRT_USE_BUILTIN_OFFSETOF
     #ifdef __cplusplus
-        #define offsetof(s,m) ((size_t)&reinterpret_cast<char const volatile&>((((s*)0)->m)))
+        #define offsetof(s,m) ((::size_t)&reinterpret_cast<char const volatile&>((((s*)0)->m)))
     #else
         #define offsetof(s,m) ((size_t)&(((s*)0)->m))
     #endif
@@ -54,3 +55,4 @@ _ACRTIMP extern uintptr_t __cdecl __threadhandle(void);
 
 
 _CRT_END_C_HEADER
+#endif // _INC_STDDEF

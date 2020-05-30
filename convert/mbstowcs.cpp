@@ -7,12 +7,14 @@
 *       Convert a multibyte char string into the equivalent wide char string.
 *
 *******************************************************************************/
-#include <corecrt_internal.h>
+#include <corecrt_internal_mbstring.h>
 #include <corecrt_internal_securecrt.h>
 #include <ctype.h>
 #include <locale.h>
 #include <errno.h>
 #include <stdlib.h>
+
+using namespace __crt_mbstring;
 
 /***
 *size_t mbstowcs() - Convert multibyte char string to wide char string.
@@ -63,6 +65,13 @@ static size_t __cdecl _mbstowcs_l_helper(
 
 
     _LocaleUpdate _loc_update(plocinfo);
+
+    if (_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage == CP_UTF8)
+    {
+        mbstate_t state{};
+        return __mbsrtowcs_utf8(pwcs, &s, n, &state);
+    }
+
     /* if destination string exists, fill it in */
     if (pwcs)
     {

@@ -6,6 +6,7 @@
 // The memory allocation library.
 //
 #pragma once
+#ifndef _INC_MALLOC // include guard for 3rd party interop
 #define _INC_MALLOC
 
 #include <corecrt.h>
@@ -176,3 +177,4 @@ void* __cdecl _alloca(_In_ size_t _Size);
 
 
 _CRT_END_C_HEADER
+#endif // _INC_MALLOC

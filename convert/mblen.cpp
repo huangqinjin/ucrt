@@ -6,9 +6,9 @@
 // The mblen() and _mblen_l() functions, which return the number of bytes
 // contained in a multibyte character.
 //
-#include <corecrt_internal.h>
+#include <corecrt_internal_mbstring.h>
 
-
+using namespace __crt_mbstring;
 
 // Computes the number of bytes contained in a multibyte character.  If the string
 // is null, zero is returned to indicate that we support only state-independent
@@ -21,10 +21,22 @@ extern "C" int __cdecl _mblen_l(
     _locale_t   const locale
     )
 {
+    mbstate_t internal_state{};
     if (!string || *string == '\0' || max_count == 0)
+    {
+        internal_state = {};
         return 0;
+    }
 
     _LocaleUpdate locale_update(locale);
+
+    if (locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage == CP_UTF8)
+    {
+        int result = static_cast<int>(__mbrtowc_utf8(nullptr, string, max_count, &internal_state));
+        if (result < 0)
+            result = -1;
+        return result;
+    }
 
     _ASSERTE(
         locale_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max == 1 ||
@@ -32,6 +44,11 @@ extern "C" int __cdecl _mblen_l(
 
     if (_isleadbyte_l(static_cast<unsigned char>(*string), locale_update.GetLocaleT()))
     {
+        _ASSERTE(locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage != CP_UTF8 && L"UTF-8 isn't supported in this _mblen_l function yet!!!");
+
+        // If this is a lead byte, then the codepage better be a multibyte codepage
+        _ASSERTE(locale_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max > 1);
+
         // Multi-byte character; verify that it is valid:
         if (locale_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max <= 1)
             return -1;

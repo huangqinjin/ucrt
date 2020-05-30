@@ -20,7 +20,10 @@
 *int mbsnbcmp(s1, s2, n) - Compare n bytes of two MBCS strings
 *
 *Purpose:
-*       Compares up to n bytes of two strings for lexical order.
+*       Compares up to n bytes of two strings for ordinal order.
+*
+*       UTF-8 and SBCS are merely compared in byte order.
+*       DBCS are compared by codepoint to ensure double byte chars sort last
 *
 *Entry:
 *       unsigned char *s1, *s2 = strings to compare

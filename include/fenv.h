@@ -6,6 +6,7 @@
 // Floating point environment library.
 //
 #pragma once
+#ifndef _FENV // include guard for 3rd party interop
 #define _FENV
 
 #include <corecrt.h>
@@ -149,3 +150,4 @@ _ACRTIMP int __cdecl fesetround(_In_ int _Round);
 #endif // !defined _M_CEE && !defined _CORECRT_BUILD
 
 _CRT_END_C_HEADER
+#endif // _FENV

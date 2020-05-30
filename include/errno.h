@@ -6,6 +6,7 @@
 // System error numbers for use with errno and errno_t.
 //
 #pragma once
+#ifndef _INC_ERRNO // include guard for 3rd party interop
 #define _INC_ERRNO
 
 #include <corecrt.h>
@@ -127,3 +128,4 @@ _CRT_BEGIN_C_HEADER
 
 
 _CRT_END_C_HEADER
+#endif // _INC_ERRNO

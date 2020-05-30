@@ -6,6 +6,7 @@
 // The C locale library.
 //
 #pragma once
+#ifndef _INC_LOCALE // include guard for 3rd party interop
 #define _INC_LOCALE
 
 #include <corecrt.h>
@@ -88,7 +89,7 @@ struct tm;
         _In_ int _Flag
         );
 
-    _Check_return_opt_
+    _Check_return_opt_ _Success_(return != 0) _Ret_z_
     _ACRTIMP char* __cdecl setlocale(
         _In_       int         _Category,
         _In_opt_z_ char const* _Locale
@@ -111,7 +112,7 @@ struct tm;
         );
 
     // Also declared in <wchar.h>
-    _Check_return_opt_
+    _Check_return_opt_ _Success_(return != 0) _Ret_z_
     _ACRTIMP wchar_t* __cdecl _wsetlocale(
         _In_       int            _Category,
         _In_opt_z_ wchar_t const* _Locale
@@ -174,3 +175,4 @@ struct tm;
 
 
 _CRT_END_C_HEADER
+#endif // _INC_LOCALE

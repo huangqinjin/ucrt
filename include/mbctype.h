@@ -6,6 +6,7 @@
 // Functions and macros for MBCS character classification and conversion.
 //
 #pragma once
+#ifndef _INC_MBCTYPE // include guard for 3rd party interop
 #define _INC_MBCTYPE
 
 #include <corecrt.h>
@@ -32,15 +33,20 @@ _Check_return_ _ACRTIMP unsigned char* __cdecl __p__mbcasemap(void);
 
 
 // Bit masks for MBCS character types:
+// Different encodings may have different behaviors, applications are discouraged
+// from attempting to reverse engineer the mechanics of the various encodings.
 #define _MS     0x01 // MBCS single-byte symbol
 #define _MP     0x02 // MBCS punctuation
-#define _M1     0x04 // MBCS 1st (lead) byte
-#define _M2     0x08 // MBCS 2nd byte
+#define _M1     0x04 // MBCS (not UTF-8!) 1st (lead) byte
+#define _M2     0x08 // MBCS (not UTF-8!) 2nd byte
 
-#define _SBUP   0x10 // SBCS upper char
-#define _SBLOW  0x20 // SBCS lower char
+// The CRT does not do proper linguistic casing, it is preferred that applications
+// use appropriate NLS or Globalization functions.
+#define _SBUP   0x10 // SBCS uppercase char
+#define _SBLOW  0x20 // SBCS lowercase char
 
 // Byte types
+// Different encodings may have different behaviors, use of these is discouraged
 #define _MBC_SINGLE    0  // Valid single byte char
 #define _MBC_LEAD      1  // Lead byte
 #define _MBC_TRAIL     2  // Trailing byte
@@ -49,10 +55,13 @@ _Check_return_ _ACRTIMP unsigned char* __cdecl __p__mbcasemap(void);
 #define _KANJI_CP   932
 
 // _setmbcp parameter defines:
+// Use of UTF-8 is encouraged
 #define _MB_CP_SBCS    0
 #define _MB_CP_OEM    -2
 #define _MB_CP_ANSI   -3
 #define _MB_CP_LOCALE -4
+// CP_UTF8 - UTF-8 was not permitted in earlier CRT versions
+#define _MB_CP_UTF8   65001
 
 // Multibyte control routines:
 _ACRTIMP int __cdecl _setmbcp(_In_ int _CodePage);
@@ -89,6 +98,9 @@ _ACRTIMP int __cdecl _getmbcp(void);
     _Check_return_ _DCRTIMP int __cdecl _ismbbgraph_l (_In_ unsigned int _C, _In_opt_ _locale_t _Locale);
 
     // BEGIN _MBLEADTRAIL_DEFINED
+    // Lead and trail bytes do not apply correctly to all encodings, including UTF-8.  Applications
+    // are recommended to use the system codepage conversion APIs and not attempt to reverse 
+    // engineer the behavior of any particular encoding.  Lead and trail are always FALSE for UTF-8.
     _When_(_Ch == 0, _Post_equal_to_(0))
     _Check_return_ _DCRTIMP int __cdecl _ismbblead (_In_ unsigned int _Ch);
     _Check_return_ _DCRTIMP int __cdecl _ismbbtrail(_In_ unsigned int _Ch);
@@ -143,6 +155,8 @@ _ACRTIMP int __cdecl _getmbcp(void);
     #define _ismbbpunct(_c)  (((_pctype)[(unsigned char)(_c)] & (_PUNCT                           )) || _ismbbkpunct(_c))
     #define _ismbbblank(_c)  (((_c) == '\t') ? _BLANK : (_pctype)[(unsigned char)(_c)] & _BLANK)
 
+    // Note that these are intended for double byte character sets (DBCS) and so UTF-8 doesn't consider either to be true for any bytes
+    // (for UTF-8 we never set _M1 or _M2 in this array)
     #define _ismbblead(_c)   ((_mbctype+1)[(unsigned char)(_c)] & _M1)
     #define _ismbbtrail(_c)  ((_mbctype+1)[(unsigned char)(_c)] & _M2)
 
@@ -150,3 +164,4 @@ _ACRTIMP int __cdecl _getmbcp(void);
 #endif
 
 _CRT_END_C_HEADER
+#endif // _INC_MBCTYPE

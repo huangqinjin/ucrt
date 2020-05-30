@@ -7,6 +7,7 @@
 // exceptions (IEEE 754).
 //
 #pragma once
+#ifndef _INC_FPIEEE // include guard for 3rd party interop
 #define _INC_FPIEEE
 
 #ifndef __midl
@@ -475,3 +476,4 @@ _CRT_BEGIN_C_HEADER
 _CRT_END_C_HEADER
 
 #endif // __midl
+#endif // _INC_FPIEEE

@@ -231,11 +231,60 @@ void __cdecl __acrt_call_reportfault(
 
 extern _CRT_ALLOC_HOOK _pfnAllocHook;
 
+BOOL __cdecl __acrt_CreateProcessA(
+    _In_opt_    LPCSTR                lpApplicationName,
+    _Inout_opt_ LPSTR                 lpCommandLine,
+    _In_opt_    LPSECURITY_ATTRIBUTES lpProcessAttributes,
+    _In_opt_    LPSECURITY_ATTRIBUTES lpThreadAttributes,
+    _In_        BOOL                  bInheritHandles,
+    _In_        DWORD                 dwCreationFlags,
+    _In_opt_    LPVOID                lpEnvironment,
+    _In_opt_    LPCSTR                lpCurrentDirectory,
+    _In_        LPSTARTUPINFOW        lpStartupInfo,
+    _Out_       LPPROCESS_INFORMATION lpProcessInformation
+    );
+
 _Success_(return > 0)
 DWORD __cdecl __acrt_GetTempPathA(
     DWORD nBufferLength,
     _Out_writes_to_(nBufferLength, return + 1) PSTR lpBuffer
     );
+
+HANDLE __cdecl __acrt_FindFirstFileExA(
+    _In_       LPCSTR             lpFileName,
+    _In_       FINDEX_INFO_LEVELS fInfoLevelId,
+    _Out_      LPVOID             lpFindFileData,
+    _In_       FINDEX_SEARCH_OPS  fSearchOp,
+    _Reserved_ LPVOID             lpSearchFilter,
+    _In_       DWORD              dwAdditionalFlags
+    );
+
+BOOL __cdecl __acrt_FindNextFileA(
+    _In_  HANDLE             hFindFile,
+    _Out_ WIN32_FIND_DATAA * lpFindFileData
+    );
+
+DWORD __cdecl __acrt_GetModuleFileNameA(
+    _In_opt_ HMODULE hModule,
+    _Out_    LPSTR  lpFilename,
+    _In_     DWORD   nSize
+    );
+
+HMODULE __cdecl __acrt_LoadLibraryExA(
+    _In_       LPCSTR lpFileName,
+    _Reserved_ HANDLE  hFile,
+    _In_       DWORD   dwFlags
+    );
+
+BOOL __cdecl __acrt_SetEnvironmentVariableA(
+    _In_     LPCSTR lpName,
+    _In_opt_ LPCSTR lpValue
+    );
+
+BOOL __cdecl __acrt_SetCurrentDirectoryA(
+    _In_ LPCSTR lpPathName
+    );
+
 
 // Adding some defines which are used in dbgrpt.c
 #define DBGRPT_MAX_MSG 4096
@@ -258,28 +307,12 @@ extern "C++"
 }
 #endif
 
-
-
-// Helper function to convert an ANSI/MBCS string to wide char using the current
-// ANSI code set
-_Success_(return != 0)
-BOOL __cdecl __acrt_copy_path_to_wide_string(
-    _In_z_ char const* narrow_string,
-    _Outptr_result_z_ wchar_t** wide_string
-    );
-_Success_(return != 0)
-BOOL __cdecl __acrt_copy_to_char(
-    _In_z_ wchar_t const* wide_string,
-    _Outptr_result_z_ char** narrow_string
-    );
-
 _Success_(return != 0)
 unsigned char* __cdecl __acrt_allocate_buffer_for_argv(
     _In_ size_t argument_count,
     _In_ size_t character_count,
     _In_ size_t character_size
     );
-
 
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
@@ -573,24 +606,24 @@ int __cdecl __acrt_LCMapStringW(
 
 _Success_(return != 0)
 int __cdecl __acrt_MultiByteToWideChar(
-    _In_                       UINT    _CodePage,
-    _In_                       DWORD   _DWFlags,
-    _In_                       LPCSTR  _LpMultiByteStr,
-    _In_                       int     _CbMultiByte,
+    _In_                           UINT    _CodePage,
+    _In_                           DWORD   _DWFlags,
+    _In_                           LPCSTR  _LpMultiByteStr,
+    _In_                           int     _CbMultiByte,
     _Out_writes_opt_(_CchWideChar) LPWSTR  _LpWideCharStr,
-    _In_                       int     _CchWideChar
+    _In_                           int     _CchWideChar
     );
 
 _Success_(return != 0)
 int __cdecl __acrt_WideCharToMultiByte(
-    _In_                       UINT    _CodePage,
-    _In_                       DWORD   _DWFlags,
-    _In_                       LPCWSTR _LpWideCharStr,
-    _In_                       int     _CchWideChar,
+    _In_                           UINT    _CodePage,
+    _In_                           DWORD   _DWFlags,
+    _In_                           LPCWSTR _LpWideCharStr,
+    _In_                           int     _CchWideChar,
     _Out_writes_opt_(_CbMultiByte) LPSTR   _LpMultiByteStr,
-    _In_                       int     _CbMultiByte,
-    _In_opt_                   LPCSTR  _LpDefaultChar,
-    _Out_opt_                  LPBOOL  _LpUsedDefaultChar
+    _In_                           int     _CbMultiByte,
+    _In_opt_                       LPCSTR  _LpDefaultChar,
+    _Out_opt_                      LPBOOL  _LpUsedDefaultChar
     );
 
 // Case-insensitive ASCII comparisons
@@ -950,69 +983,11 @@ extern "C++"
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 extern HANDLE __acrt_heap;
 
-void __cdecl _aligned_free_base(
-    _Pre_maybenull_ _Post_invalid_ void* block
-    );
-
-_Check_return_ _Ret_maybenull_ _Post_writable_byte_size_(size)
-void* __cdecl _aligned_malloc_base(
-    _In_ size_t size,
-    _In_ size_t alignment
-    );
-
-_Check_return_
-size_t __cdecl _aligned_msize_base(
-    _Pre_notnull_ void*  block,
-    _In_          size_t alignment,
-    _In_          size_t offset
-    );
-
-_Check_return_ _Ret_maybenull_ _Post_writable_byte_size_(size)
-void* __cdecl _aligned_offset_malloc_base(
-    _In_ size_t size,
-    _In_ size_t alignment,
-    _In_ size_t offset
-    );
-
-_Success_(return != 0) _Check_return_ _Ret_maybenull_ _Post_writable_byte_size_(size)
-void* __cdecl _aligned_offset_realloc_base(
-    _Pre_maybenull_ _Post_invalid_ void*  block,
-    _In_                           size_t size,
-    _In_                           size_t alignment,
-    _In_                           size_t offset
-    );
-
-_Success_(return != 0) _Check_return_ _Ret_maybenull_ _Post_writable_byte_size_(size * count)
-void* __cdecl _aligned_offset_recalloc_base(
-    _Pre_maybenull_ _Post_invalid_ void*  block,
-    _In_                           size_t count,
-    _In_                           size_t size,
-    _In_                           size_t alignment,
-    _In_                           size_t offset
-    );
-
-_Success_(return != 0) _Check_return_ _Ret_maybenull_ _Post_writable_byte_size_(size)
-void* __cdecl _aligned_realloc_base(
-    _Pre_maybenull_ _Post_invalid_ void*  block,
-    _In_                           size_t size,
-    _In_                           size_t alignment
-    );
-
-_Success_(return != 0) _Check_return_ _Ret_maybenull_ _Post_writable_byte_size_(size * count)
-void* __cdecl _aligned_recalloc_base(
-    _Pre_maybenull_ _Post_invalid_ void*  block,
-    _In_                           size_t count,
-    _In_                           size_t size,
-    _In_                           size_t alignment
-    );
-
 _Check_return_ _Ret_maybenull_ _Post_writable_byte_size_(size)
 void* __cdecl _expand_base(
     _Pre_notnull_ void*  block,
     _In_          size_t size
     );
-
-
 
 // For detection of heap mismatch between MSVCRT and UCRT
 #define _UCRT_HEAP_MISMATCH_DETECTION   0
@@ -1351,10 +1326,6 @@ int WINAPI __acrt_MessageBoxW(
 
 void WINAPI __acrt_OutputDebugStringA(
     _In_opt_ LPCSTR text
-    );
-
-void WINAPI __acrt_OutputDebugStringW(
-    _In_opt_ LPCWSTR text
     );
 
 #ifdef __cplusplus

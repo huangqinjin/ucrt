@@ -37,6 +37,10 @@
 *
 *       _MBC_ILLEGAL   = if illegal char
 *
+*WARNING:
+*       This function was intended for SBCS/DBCS code pages.  UTF-8 will always return _MBC_SINGLE
+*       It is recommended that apps do not try to reverse engineer how encodings work.
+*
 *Exceptions:
 *       Returns _MBC_ILLEGAL if char is invalid.
 *       Calls invalid parameter if len is bigger than string length (and errno is set to EINVAL).

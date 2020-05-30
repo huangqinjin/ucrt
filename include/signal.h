@@ -6,6 +6,7 @@
 // The C Standard Library <signal.h> header.
 //
 #pragma once
+#ifndef _INC_SIGNAL // include guard for 3rd party interop
 #define _INC_SIGNAL
 
 #include <corecrt.h>
@@ -62,3 +63,4 @@ _ACRTIMP int __cdecl raise(_In_ int _Signal);
 
 
 _CRT_END_C_HEADER
+#endif // _INC_SIGNAL

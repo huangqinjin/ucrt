@@ -6,6 +6,7 @@
 // The C Standard Library <time.h> header.
 //
 #pragma once
+#ifndef _INC_TIME // include guard for 3rd party interop
 #define _INC_TIME
 
 #include <corecrt.h>
@@ -598,3 +599,4 @@ _ACRTIMP int __cdecl _timespec64_get(
 
 
 _CRT_END_C_HEADER
+#endif // _INC_TIME

@@ -7,6 +7,7 @@
 // (floating point) programs.
 //
 #pragma once
+#ifndef _INC_FLOAT // include guard for 3rd party interop
 #define _INC_FLOAT
 
 #include <corecrt.h>
@@ -399,3 +400,4 @@ _Check_return_ _ACRTIMP int    __cdecl _fpclass(_In_ double _X);
 
 
 _CRT_END_C_HEADER
+#endif // _INC_FLOAT

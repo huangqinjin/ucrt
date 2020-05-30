@@ -6,6 +6,7 @@
 // The C Standard Library <stdio.h> header.
 //
 #pragma once
+#ifndef _INC_STDIO // include guard for 3rd party interop
 #define _INC_STDIO
 
 #include <corecrt.h>
@@ -568,6 +569,7 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
         #define fclose(_Stream)                                           _fclose_nolock(_Stream)
         #define fflush(_Stream)                                           _fflush_nolock(_Stream)
         #define fgetc(_Stream)                                            _fgetc_nolock(_Stream)
+        #define fputc(_Ch, _Stream)                                       _fputc_nolock(_Ch, _Stream)
         #define fread(_DstBuf, _ElementSize, _Count, _Stream)             _fread_nolock(_DstBuf, _ElementSize, _Count, _Stream)
         #define fread_s(_DstBuf, _DstSize, _ElementSize, _Count, _Stream) _fread_nolock_s(_DstBuf, _DstSize, _ElementSize, _Count, _Stream)
         #define fseek(_Stream, _Offset, _Origin)                          _fseek_nolock(_Stream, _Offset, _Origin)
@@ -576,7 +578,7 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
         #define _ftelli64(_Stream)                                        _ftelli64_nolock(_Stream)
         #define fwrite(_SrcBuf, _ElementSize, _Count, _Stream)            _fwrite_nolock(_SrcBuf, _ElementSize, _Count, _Stream)
         #define getc(_Stream)                                             _getc_nolock(_Stream)
-        #define putc(_Ch, _Stream)                                        _fputc(_Ch, _Stream)
+        #define putc(_Ch, _Stream)                                        _putc_nolock(_Ch, _Stream)
         #define ungetc(_Ch, _Stream)                                      _ungetc_nolock(_Ch, _Stream)
     #endif
 
@@ -2467,3 +2469,4 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
 
 
 _CRT_END_C_HEADER
+#endif // _INC_STDIO

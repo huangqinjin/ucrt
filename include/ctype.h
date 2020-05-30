@@ -6,6 +6,7 @@
 // This file declares the narrow character (char) classification functionality.
 //
 #pragma once
+#ifndef _INC_CTYPE // include guard for 3rd party interop
 #define _INC_CTYPE
 
 #include <corecrt.h>
@@ -110,7 +111,7 @@ _Check_return_ _ACRTIMP int __cdecl __iscsym(_In_ int _C);
         _ACRTIMP int __cdecl _chvalidator(_In_ int _Ch, _In_ int _Mask);
         #define __chvalidchk(a, b) _chvalidator(a, b)
     #else
-        #define __chvalidchk(a, b) (__PCTYPE_FUNC[(a)] & (b))
+        #define __chvalidchk(a, b) (__PCTYPE_FUNC[(unsigned char)(a)] & (b))
     #endif
 
 
@@ -162,7 +163,7 @@ _Check_return_ _ACRTIMP int __cdecl __iscsym(_In_ int _C);
         #else
         if (_Locale)
         {
-            return __acrt_get_locale_data_prefix(_Locale)->_locale_pctype[_C] & _Mask;
+            return __acrt_get_locale_data_prefix(_Locale)->_locale_pctype[(unsigned char)_C] & _Mask;
         }
 
         return __chvalidchk(_C, _Mask);
@@ -231,3 +232,4 @@ _Check_return_ _ACRTIMP int __cdecl __iscsym(_In_ int _C);
 
 #endif // !defined __midl && !defined RC_INVOKED
 _CRT_END_C_HEADER
+#endif // _INC_CTYPE

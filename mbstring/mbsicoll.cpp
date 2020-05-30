@@ -19,8 +19,8 @@
 * _mbsicoll - Collate MBCS strings, ignoring case
 *
 *Purpose:
-*       Collates two strings for lexical order.   Strings
-*       are collated on a character basis, not a byte basis.
+*       Collates two strings for lexical order (ignoring case).
+*       Strings are collated on a character basis, not a byte basis.
 *
 *Entry:
 *       char *s1, *s2 = strings to collate

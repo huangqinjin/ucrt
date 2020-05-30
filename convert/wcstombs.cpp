@@ -7,7 +7,7 @@
 *       Convert a wide char string into the equivalent multibyte char string.
 *
 *******************************************************************************/
-#include <corecrt_internal.h>
+#include <corecrt_internal_mbstring.h>
 #include <corecrt_internal_securecrt.h>
 #include <ctype.h>
 #include <locale.h>
@@ -103,6 +103,12 @@ static size_t __cdecl _wcstombs_l_helper (
 
     _LocaleUpdate _loc_update(plocinfo);
 
+    if (_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage == CP_UTF8)
+    {
+        mbstate_t state{};
+        return __crt_mbstring::__wcsrtombs_utf8(s, &pwcs, n, &state);
+    }
+
     if (s)
     {
         if ( _loc_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE] == nullptr )
@@ -148,8 +154,9 @@ static size_t __cdecl _wcstombs_l_helper (
                                                     &defused )) != 0) &&
                      (!defused) )
                 {
-                    if (*(s + count - 1) == '\0')
+                    if (s[count - 1] == '\0') {
                         count--; /* don't count NUL */
+                    }
 
                     return count;
                 }

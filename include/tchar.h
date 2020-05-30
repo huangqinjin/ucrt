@@ -17,7 +17,7 @@
 
 #include <corecrt.h>
 
-#ifndef _INC_TCHAR
+#ifndef _INC_TCHAR // include guard for 3rd party interop
 #define _INC_TCHAR
 
 #pragma warning(disable:4514)       /* disable unwanted C++ /W4 warning */

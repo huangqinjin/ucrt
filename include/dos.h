@@ -7,6 +7,7 @@
 // legacy DOS interface.
 //
 #pragma once
+#ifndef _INC_DOS // include guard for 3rd party interop
 #define _INC_DOS
 
 #include <corecrt.h>
@@ -57,3 +58,4 @@ _CRT_BEGIN_C_HEADER
 
 
 _CRT_END_C_HEADER
+#endif // _INC_DOS

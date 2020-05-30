@@ -7,9 +7,12 @@
 *       Convert a multibyte character into the equivalent wide character.
 *
 *******************************************************************************/
-#include <corecrt_internal.h>
+#include <corecrt_internal_mbstring.h>
 #include <stdlib.h>
 #include <locale.h>
+#include <wchar.h>
+
+using namespace __crt_mbstring;
 
 /***
 *int mbtowc() - Convert multibyte char to wide character.
@@ -45,10 +48,14 @@ extern "C" int __cdecl _mbtowc_l(
     _locale_t plocinfo
     )
 {
+    static mbstate_t internal_state{};
     if (!s || n == 0)
+    {
         /* indicate do not have state-dependent encodings,
         handle zero length string */
+        internal_state = {};
         return 0;
+    }
 
     if (!*s)
     {
@@ -60,7 +67,17 @@ extern "C" int __cdecl _mbtowc_l(
 
 
     _LocaleUpdate _loc_update(plocinfo);
-    _ASSERTE(_loc_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max == 1 || _loc_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max == 2);
+
+    if (_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage == CP_UTF8)
+    {
+        int result = static_cast<int>(__mbrtowc_utf8(pwc, s, n, &internal_state));
+        if (result < 0)
+            result = -1;
+        return result;
+    }
+
+    _ASSERTE(_loc_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max == 1 ||
+             _loc_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max == 2);
 
     if (_loc_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE] == nullptr)
     {
@@ -71,7 +88,11 @@ extern "C" int __cdecl _mbtowc_l(
 
     if (_isleadbyte_l((unsigned char) *s, _loc_update.GetLocaleT()))
     {
+        _ASSERTE(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage != CP_UTF8 && L"UTF-8 isn't supported in this _mbtowc_l function yet!!!");
+
         /* multi-byte char */
+        // If this is a lead byte, then the codepage better be a multibyte codepage
+        _ASSERTE(_loc_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max > 1);
 
         if ((_loc_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max <= 1) || ((int) n < _loc_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max) ||
             (__acrt_MultiByteToWideChar(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,

@@ -6,6 +6,7 @@
 // The complex math library.
 //
 #pragma once
+#ifndef _COMPLEX
 #define _COMPLEX
 
 #include <corecrt.h>
@@ -569,3 +570,4 @@ extern "C++"
 
 
 _CRT_END_C_HEADER
+#endif // _COMPLEX

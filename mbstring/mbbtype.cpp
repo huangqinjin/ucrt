@@ -33,6 +33,12 @@
 *
 *       _MBC_ILLEGAL   = if illegal char
 *
+*WARNING:
+*       These fail for UTF-8, which doesn't have lead bytes matched with single
+*       trail bytes as this function expects.
+*
+*       Applications should not be trying to reverse engineer how any encoding works.
+*
 *Exceptions:
 *
 *******************************************************************************/

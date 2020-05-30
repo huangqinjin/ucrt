@@ -6,6 +6,7 @@
 // Functions for directory handling and creation.
 //
 #pragma once
+#ifndef _INC_DIRECT // include guard for 3rd party interop
 #define _INC_DIRECT
 
 #include <corecrt.h>
@@ -121,3 +122,4 @@ _Check_return_ _ACRTIMP int __cdecl _rmdir(_In_z_ char const* _Path);
 
 
 _CRT_END_C_HEADER
+#endif // _INC_DIRECT

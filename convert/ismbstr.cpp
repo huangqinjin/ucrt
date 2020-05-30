@@ -11,6 +11,10 @@
 // These functions return -1 if the pointer points to a trail byte; 0 if it does
 // not.
 //
+// These functions are intended for use with single/double byte character sets (DBCS)
+// and are meaningless for UTF-8 which has more than just a lead/trail byte pair.
+// for UTF-8 these functions always return FALSE.
+//
 #ifndef _MBCS
     #error This file should only be compiled with _MBCS defined
 #endif

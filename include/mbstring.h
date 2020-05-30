@@ -6,6 +6,7 @@
 // Functions and macros for MBCS string manipulation
 //
 #pragma once
+#ifndef _INC_MBSTRING // include guard for 3rd party interop
 #define _INC_MBSTRING
 
 #include <corecrt.h>
@@ -1224,6 +1225,9 @@ _CRT_BEGIN_C_HEADER
 
 
 #if _CRT_FUNCTIONS_REQUIRED
+    // Lead and trail bytes do not apply correctly to all encodings, including UTF-8.  Applications
+    // are recommended to use the system codepage conversion APIs and not attempt to reverse 
+    // engineer the behavior of any particular encoding.  Lead and trail are always FALSE for UTF-8.
     _When_(_Ch == 0, _Post_equal_to_(0))
     _Check_return_ _DCRTIMP int __cdecl _ismbblead (_In_ unsigned int _Ch);
     _Check_return_ _DCRTIMP int __cdecl _ismbbtrail(_In_ unsigned int _Ch);
@@ -1262,3 +1266,4 @@ _CRT_BEGIN_C_HEADER
 
 
 _CRT_END_C_HEADER
+#endif // _INC_MBSTRING

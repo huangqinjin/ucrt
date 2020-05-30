@@ -7,6 +7,7 @@
 // spawn families of functions).
 //
 #pragma once
+#ifndef _INC_PROCESS // include guard for 3rd party interop
 #define _INC_PROCESS
 
 #include <corecrt.h>
@@ -365,3 +366,4 @@ _ACRTIMP void __cdecl _endthreadex(
 
 
 _CRT_END_C_HEADER
+#endif // _INC_PROCESS

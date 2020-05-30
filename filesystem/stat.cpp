@@ -14,6 +14,7 @@
 #include <fcntl.h>
 #include <corecrt_internal_lowio.h>
 #include <corecrt_internal_time.h>
+#include <corecrt_internal_win32_buffer.h>
 #include <io.h>
 #include <share.h>
 #include <stdlib.h>
@@ -496,14 +497,19 @@ static int __cdecl common_stat(
     StatStruct* const result
     ) throw()
 {
-    if (path == nullptr)
+    if (path == nullptr) {
         return common_stat(static_cast<wchar_t const*>(nullptr), result);
+    }
 
-    __crt_unique_heap_ptr<wchar_t> wide_path;
-    if (!__acrt_copy_path_to_wide_string(path, wide_path.get_address_of()))
+    __crt_internal_win32_buffer<wchar_t> wide_path;
+
+    errno_t const cvt = __acrt_mbs_to_wcs_cp(path, wide_path, __acrt_get_utf8_acp_compatibility_codepage());
+
+    if (cvt != 0) {
         return -1;
+    }
 
-    return common_stat(wide_path.get(), result);
+    return common_stat(wide_path.data(), result);
 }
 
 

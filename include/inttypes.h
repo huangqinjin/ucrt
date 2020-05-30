@@ -7,6 +7,7 @@
 // various integer conversion and manipulation functions.
 //
 #pragma once
+#ifndef _INTTYPES // include guard for 3rd party interop
 #define _INTTYPES
 
 #include <corecrt.h>
@@ -330,3 +331,5 @@ _CRT_END_C_HEADER
  * Copyright (c) 1992-2010 by P.J. Plauger.  ALL RIGHTS RESERVED.
  * Consult your license regarding permissions and restrictions.
 V5.30:0009 */
+
+#endif // _INTTYPES

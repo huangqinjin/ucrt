@@ -402,10 +402,6 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_4(
         wchar_t, _Path
         )
 
-
-
-    #ifdef _CRT_USE_WINAPI_FAMILY_DESKTOP_APP
-
         #pragma push_macro("_wdupenv_s")
         #undef _wdupenv_s
 
@@ -476,7 +472,6 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_4(
             _In_opt_z_ wchar_t const* _Command
             );
 
-    #endif // _CRT_USE_WINAPI_FAMILY_DESKTOP_APP
 #endif // _CRT_FUNCTIONS_REQUIRED
 
 

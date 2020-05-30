@@ -8,8 +8,14 @@
 // (or *return_value, for the _s-suffixed functions) depends on the destination
 // and destination_count:
 //  * If destination == nullptr && count == 0, number of bytes needed for conversion
-//  * If destination == nullptr && count >  0, the state information
 //  * If destination != nullptr:  the number of bytes used for the conversion
+//  * If destination == nullptr && count >  0, the state information
+//    (0 for no state dependency, 1 if a state dependent encoding)
+//
+// Historically Windows has not supported state-dependent encodings for wctomb,
+// however UTF-8 can possible require more than one input wchar_t and maintain
+// state between calls.
+//
 // The return_value pointer may be null.
 //
 #include <corecrt_internal.h>
@@ -28,6 +34,7 @@ extern "C" int __cdecl _wctomb_s_l(
     _locale_t const locale
     )
 {
+    // Did the caller request if this is a state dependent encoding?
     if (!destination && destination_count > 0)
     {
         // Indicate do not have state-dependent encodings:
@@ -46,10 +53,14 @@ extern "C" int __cdecl _wctomb_s_l(
 
     _LocaleUpdate locale_update(locale);
 
+    // Check for C-locale behavior, which merely casts it to char (if in range)
+    // for ASCII-ish behavior.
     if (!locale_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE])
     {
+        // See if the WCHAR is > ASCII-ish range
         if (wchar > 255)  // Validate high byte
         {
+            // Too big, can't convert, clear buffer and return error
             if (destination != nullptr && destination_count > 0)
             {
                 memset(destination, 0, destination_count);
@@ -58,6 +69,7 @@ extern "C" int __cdecl _wctomb_s_l(
             return errno = EILSEQ;
         }
 
+        // ASCII-ish, just cast to a (char)
         if (destination != nullptr)
         {
             _VALIDATE_RETURN_ERRCODE(destination_count > 0, ERANGE);
@@ -66,9 +78,11 @@ extern "C" int __cdecl _wctomb_s_l(
 
         if (return_value != nullptr)
         {
+            // casting one WCHAR emits a single char
             *return_value = 1;
         }
 
+        // We're done
         return 0;
     }
     else
@@ -104,6 +118,8 @@ extern "C" int __cdecl _wctomb_s_l(
 
         return 0;
     }
+
+    // The last thing was an if/else, so we already returned.
 }
 
 extern "C" errno_t __cdecl wctomb_s (

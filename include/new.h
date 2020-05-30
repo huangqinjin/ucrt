@@ -6,6 +6,7 @@
 // The C++ memory allocation library functionality
 //
 #pragma once
+#ifndef _INC_NEW // include guard for 3rd party interop
 #define _INC_NEW
 
 #include <corecrt.h>
@@ -59,3 +60,4 @@ _ACRTIMP int __cdecl _set_new_mode(_In_ int _NewMode);
 
 
 _CRT_END_C_HEADER
+#endif // _INC_NEW

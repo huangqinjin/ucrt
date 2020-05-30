@@ -22,7 +22,7 @@
 * _mbsicmp - Case-insensitive string comparision routine (MBCS)
 *
 *Purpose:
-*       Compares two strings for lexical order without regard to case.
+*       Compares two strings for ordinal order without regard to case.
 *       Strings are compared on a character basis, not a byte basis.
 *
 *Entry:

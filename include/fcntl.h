@@ -6,6 +6,7 @@
 // File control options used by _open().
 //
 #pragma once
+#ifndef _INC_FCNTL // include guard for 3rd party interop
 #define _INC_FCNTL
 
 
@@ -56,3 +57,5 @@
     #define O_SEQUENTIAL _O_SEQUENTIAL
     #define O_RANDOM     _O_RANDOM
 #endif
+
+#endif // _INC_FCNTL

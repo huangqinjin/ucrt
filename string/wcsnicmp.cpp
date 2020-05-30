@@ -19,7 +19,7 @@
 *       ignore case
 *
 *Purpose:
-*       Compare the two strings for lexical order.  Stops the comparison
+*       Compare the two strings for ordinal order.  Stops the comparison
 *       when the following occurs: (1) strings differ, (2) the end of the
 *       strings is reached, or (3) count characters have been compared.
 *       For the purposes of the comparison, upper case characters are

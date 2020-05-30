@@ -6,6 +6,7 @@
 // The majority of the C Standard Library <math.h> functionality.
 //
 #pragma once
+#ifndef _INC_MATH // include guard for 3rd party interop
 #define _INC_MATH
 
 #include <corecrt.h>
@@ -991,3 +992,4 @@ extern "C++"
 #pragma warning(pop)
 
 _CRT_END_C_HEADER
+#endif /* _INC_MATH */

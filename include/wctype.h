@@ -6,6 +6,7 @@
 // The C Standard Library <wctype.h> header.
 //
 #pragma once
+#ifndef _INC_WCTYPE // include guard for 3rd party interop
 #define _INC_WCTYPE
 
 #include <corecrt.h>
@@ -23,3 +24,4 @@ _ACRTIMP wctype_t __cdecl wctype(const char *name);
 
 
 _CRT_END_C_HEADER
+#endif // _INC_WCTYPE

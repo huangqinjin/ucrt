@@ -6,6 +6,7 @@
 // Public debugging facilities for the CRT
 //
 #pragma once
+#ifndef _INC_CRTDBG // include guard for 3rd party interop
 #define _INC_CRTDBG
 
 #include <corecrt.h>
@@ -806,3 +807,4 @@ typedef struct _CrtMemState
 
 
 _CRT_END_C_HEADER
+#endif // _INC_CRTDBG

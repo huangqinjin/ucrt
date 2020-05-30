@@ -4,7 +4,7 @@
 *       Copyright (c) Microsoft Corporation. All rights reserved.
 *
 *Purpose:
-*       defines _memicmp() - compare two blocks of memory for lexical
+*       defines _memicmp() - compare two blocks of memory for ordinal
 *       order.  Case is ignored in the comparison.
 *
 *******************************************************************************/

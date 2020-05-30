@@ -242,7 +242,7 @@ _ACRTIMP wchar_t* __cdecl wcstok(
 
     #pragma warning(push)
     #pragma warning(disable: 4141 4996) // Deprecated function use
-
+    #pragma warning(disable: 28719 28726 28727) // wcstok is banned by dontuse.h
     _Check_return_ _CRT_INSECURE_DEPRECATE(wcstok_s)
     static __inline wchar_t* __CRTDECL _wcstok(
         _Inout_opt_z_ wchar_t*       const _String,

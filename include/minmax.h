@@ -6,9 +6,8 @@
 // Familiar min() and max() macros
 //
 #pragma once
+#ifndef _INC_MINMAX
 #define _INC_MINMAX
-
-
 
 #ifndef max
     #define max(a ,b) (((a) > (b)) ? (a) : (b))
@@ -17,3 +16,5 @@
 #ifndef min
     #define min(a, b) (((a) < (b)) ? (a) : (b))
 #endif
+
+#endif // _INC_MINMAX

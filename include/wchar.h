@@ -8,6 +8,7 @@
 // <corecrt_wxxxx.h> headers, which are also #included by other public headers.
 //
 #pragma once
+#ifndef _INC_WCHAR // include guard for 3rd party interop
 #define _INC_WCHAR
 
 #include <corecrt.h>
@@ -40,7 +41,7 @@ typedef wchar_t _Wint_t;
 
 #if _CRT_FUNCTIONS_REQUIRED
 
-    _Check_return_opt_
+    _Check_return_opt_ _Success_(return != 0) _Ret_z_
     _ACRTIMP wchar_t* __cdecl _wsetlocale(
         _In_       int            _Category,
         _In_opt_z_ wchar_t const* _Locale
@@ -281,3 +282,4 @@ typedef wchar_t _Wint_t;
 
 
 _CRT_END_C_HEADER
+#endif // _INC_WCHAR
