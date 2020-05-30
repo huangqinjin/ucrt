@@ -66,6 +66,27 @@ static errno_t __cdecl _wcrtomb_s_l(
     if (state)
         state->_Wchar = 0;
 
+    if (locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage == CP_UTF8)
+    {
+        // Unlike c16rtomb. wctomb/wcrtomb have no ability to process a partial code point.
+        // So, we could call c16rtomb and check for a lone surrogate or other error, or for simplicity
+        // We can instead just call c32rtomb and check for any error. I choose the latter.
+        static mbstate_t local_state{};
+        int result = static_cast<int>(__crt_mbstring::__c32rtomb_utf8(destination, static_cast<char32_t>(wchar), (state != nullptr ? state : &local_state)));
+        if (return_value != nullptr)
+        {
+            *return_value = result;
+        }
+        if (result <= 4)
+        {
+            return 0;
+        }
+        else
+        {
+            return errno;
+        }
+    }
+
     if (!locale_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE])
     {
         if (wchar > 255) // Validate high byte

@@ -55,7 +55,7 @@ _CRT_BEGIN_C_HEADER
             // Unreachable, but required to suppress /analyze warnings:
             return EINVAL;
         }
-
+#pragma warning(suppress:4996) // Deprecation
         memcpy(_Destination, _Source, _SourceSize);
         return 0;
     }
@@ -77,6 +77,7 @@ _CRT_BEGIN_C_HEADER
         _CRT_MEMCPY_S_VALIDATE_RETURN_ERRCODE(_Source != NULL,                 EINVAL);
         _CRT_MEMCPY_S_VALIDATE_RETURN_ERRCODE(_DestinationSize >= _SourceSize, ERANGE);
 
+#pragma warning(suppress:4996) // Deprecation
         memmove(_Destination, _Source, _SourceSize);
         return 0;
     }

@@ -17,7 +17,7 @@
 extern "C" extern __inline int (__cdecl _isleadbyte_l)(int const c, _locale_t const locale)
 {
     _LocaleUpdate locale_update(locale);
-    return locale_update.GetLocaleT()->locinfo->_public._locale_pctype[(unsigned char) (c)] & _LEADBYTE;
+    return __acrt_locale_get_ctype_array_value(locale_update.GetLocaleT()->locinfo->_public._locale_pctype, c, _LEADBYTE);
 }
 
 extern "C" extern __inline int (__cdecl isleadbyte)(int const c)

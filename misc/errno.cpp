@@ -66,6 +66,7 @@ static errentry const errtable[]
     { ERROR_ALREADY_EXISTS,         EEXIST    },  //  183
     { ERROR_FILENAME_EXCED_RANGE,   ENOENT    },  //  206
     { ERROR_NESTING_NOT_ALLOWED,    EAGAIN    },  //  215
+    { ERROR_NO_UNICODE_TRANSLATION, EILSEQ    },  // 1113
     { ERROR_NOT_ENOUGH_QUOTA,       ENOMEM    }   // 1816
 };
 

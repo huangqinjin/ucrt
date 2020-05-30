@@ -323,7 +323,7 @@ static __forceinline void* __cdecl _aligned_offset_realloc_base(
      */
     #pragma warning(push)
     #pragma warning(disable: 22018) // Silence prefast about overflow/underflow
-    movsz = _msize((void *)stptr) - ((uintptr_t)block - stptr);
+    movsz = _msize_base((void *)stptr) - ((uintptr_t)block - stptr);
     #pragma warning(pop)
 
     movsz = movsz > size ? size : movsz;
@@ -418,7 +418,7 @@ static __forceinline size_t __cdecl _aligned_msize_base(
                                           /* the value in ptr is the start of the real allocated block */
     ptr = *((uintptr_t *)ptr);            /* after dereference ptr points to the beginning of the allocated block */
 
-    total_size = _msize((void*)ptr);
+    total_size = _msize_base((void*)ptr);
     header_size = (uintptr_t) block - ptr;
     gap = (0 - offset) & (PTR_SZ - 1);
     /* Alignment cannot be less than sizeof(void*) */
@@ -481,7 +481,7 @@ static __forceinline void* __cdecl _aligned_offset_recalloc_base(
 
     if (block != nullptr)
     {
-        start_fill = _aligned_msize(block, align, offset);
+        start_fill = _aligned_msize_base(block, align, offset);
     }
 
     retptr = _aligned_offset_realloc_base(block, user_size, align, offset);

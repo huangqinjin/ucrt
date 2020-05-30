@@ -28,7 +28,7 @@ extern "C" __declspec(noinline) void* __cdecl _recalloc_base(
     // Ensure that (count * size) does not overflow
     _VALIDATE_RETURN_NOEXC(count == 0 || (_HEAP_MAXREQ / count) >= size, ENOMEM, nullptr);
 
-    size_t const old_block_size = block != nullptr ? _msize(block) : 0;
+    size_t const old_block_size = block != nullptr ? _msize_base(block) : 0;
     size_t const new_block_size = count * size;
 
     void* const new_block = _realloc_base(block, new_block_size);

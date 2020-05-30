@@ -958,12 +958,13 @@ private:
         }
 
         unsigned_char_type const* const first{_format_it};
+        unsigned_char_type const* last_range_end = nullptr;
         for (; *_format_it != ']' && *_format_it != '\0'; ++_format_it)
         {
-            // If the current character is not a hyphen, or if it's the first or
-            // last character in the scanset, treat it as a literal character and
-            // just add it to the table:
-            if (*_format_it != '-' || _format_it == first || _format_it[1] == ']')
+            // If the current character is not a hyphen, if its the end of a range,
+            // or if it's the first or last character in the scanset, treat it as a
+            // literal character and just add it to the table:
+            if (*_format_it != '-' || _format_it - 1 == last_range_end || _format_it == first || _format_it[1] == ']')
             {
                 _scanset.set(*_format_it);
             }
@@ -974,6 +975,7 @@ private:
             {
                 unsigned_char_type lower_bound{_format_it[-1]};
                 unsigned_char_type upper_bound{_format_it[ 1]};
+                last_range_end = _format_it + 1;
 
                 // We support ranges in both directions ([a-z] and [z-a]).  We
                 // can handle both simultaneously by transforming [z-a] into [a-z]:

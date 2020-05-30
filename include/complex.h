@@ -11,9 +11,11 @@
 
 #include <corecrt.h>
 
+#if (_CRT_HAS_CXX17 == 1) && !defined(_CRT_USE_C_COMPLEX_H)
+#include <ccomplex>
+#else // ^^^^ /std:c++17 ^^^^ // vvvv _CRT_USE_C_COMPLEX_H vvvv
+
 _CRT_BEGIN_C_HEADER
-
-
 
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
@@ -567,7 +569,6 @@ extern "C++"
 } // extern "C++"
 #endif // __cplusplus
 
-
-
 _CRT_END_C_HEADER
+#endif // (_CRT_HAS_CXX17 == 1) && !defined(_CRT_USE_C_COMPLEX_H)
 #endif // _COMPLEX

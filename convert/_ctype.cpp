@@ -19,7 +19,7 @@ static __forceinline int __cdecl fast_check(int const c, int const mask) throw()
     #ifdef _DEBUG
     return _chvalidator(c, mask);
     #else
-    return __acrt_initial_locale_data._public._locale_pctype[static_cast<unsigned char>(c)] & mask;
+    return __acrt_locale_get_ctype_array_value(__acrt_initial_locale_data._public._locale_pctype, c, mask);
     #endif
 }
 
@@ -132,6 +132,10 @@ extern "C" extern __inline int (__cdecl _isblank_l)(int const c, _locale_t const
 
 extern "C" extern __inline int (__cdecl isblank)(int const c)
 {
+
+    // \t is a blank character, but is not registered as _Blank on the table, because that will make it
+    //printable. Also Windows (via GetStringType()) considered all _BLANK characters to also be _PRINT characters,
+    //so does not have a way to specify blank, non-printable.
     return __acrt_locale_changed()
         ? (_isblank_l)(c, nullptr)
         : ((c == '\t') ? _BLANK : fast_check(c, _BLANK));

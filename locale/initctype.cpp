@@ -188,7 +188,7 @@ int __cdecl __acrt_locale_initialize_ctype (
                 // "real" leadbytes start with C0 and end at F7
                 // However, C0 & C1 are overlong encoded ASCII, F5 & F6 would be > U+10FFFF.
                 // Note that some starting with E0 and F0 are overlong and not legal though.
-                for (i = 0xC2; i <= 0xF5; i++)
+                for (i = 0xC2; i < 0xF5; i++)
                 {
                     newctype1[_COFFSET + i + 1] = _LEADBYTE;
                     newclmap[_COFFSET + i + 1] = static_cast<unsigned char>(i);

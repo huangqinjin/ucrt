@@ -103,7 +103,8 @@ struct __crt_lowio_handle_data
     uint8_t unicode          : 1; // Was the file opened as unicode?
     uint8_t utf8translations : 1; // Buffer contains translations other than CRLF
     uint8_t dbcsBufferUsed   : 1; // Is the dbcsBuffer in use?
-    char    dbcsBuffer;           // Buffer for the lead byte of DBCS when converting from DBCS to Unicode
+    char    mbBuffer[MB_LEN_MAX]; // Buffer for the lead byte of DBCS when converting from DBCS to Unicode
+                                  // Or for the first up to 3 bytes of a UTF-8 character
 };
 
 // The log-base-2 of the number of elements in each array of lowio file objects
@@ -133,7 +134,8 @@ struct __crt_lowio_handle_data
 #define _tm_unicode(i)       (_pioinfo(i)->unicode)
 #define _startpos(i)         (_pioinfo(i)->startpos)
 #define _utf8translations(i) (_pioinfo(i)->utf8translations)
-#define _dbcsBuffer(i)       (_pioinfo(i)->dbcsBuffer)
+#define _mbBuffer(i)         (_pioinfo(i)->mbBuffer)
+#define _dbcsBuffer(i)       (_pioinfo(i)->mbBuffer[0])
 #define _dbcsBufferUsed(i)   (_pioinfo(i)->dbcsBufferUsed)
 
 /*

@@ -78,6 +78,24 @@ _Check_return_ _ACRTIMP int __cdecl __iscsym(_In_ int _C);
 // Character Classification Macro Definitions
 //
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+__inline int __CRTDECL __acrt_locale_get_ctype_array_value(
+    _In_reads_(_Char_value + 1) unsigned short const * const _Locale_pctype_array,
+    _In_range_(-1, 255)         int                    const _Char_value,
+    _In_                        int                    const _Mask
+    )
+{
+    // The C Standard specifies valid input to a ctype function ranges from -1 to 255.
+    // To avoid undefined behavior, we should check this range for all accesses.
+    // Note _locale_pctype array does extend to -127 to support accessing
+    // _pctype directly with signed chars.
+    if (_Char_value >= -1 && _Char_value <= 255)
+    {
+        return _Locale_pctype_array[_Char_value] & _Mask;
+    }
+
+    return 0;
+}
+
 #ifndef _CTYPE_DISABLE_MACROS
 
     // Maximum number of bytes in multi-byte character in the current locale
@@ -103,15 +121,14 @@ _Check_return_ _ACRTIMP int __cdecl __iscsym(_In_ int _C);
         _ACRTIMP int __cdecl ___mb_cur_max_l_func(_locale_t _Locale);
     #endif
 
-
-
     // In the debug CRT, we make all calls through the validation function to catch
     // invalid integer inputs that yield undefined behavior.
     #ifdef _DEBUG
         _ACRTIMP int __cdecl _chvalidator(_In_ int _Ch, _In_ int _Mask);
         #define __chvalidchk(a, b) _chvalidator(a, b)
     #else
-        #define __chvalidchk(a, b) (__PCTYPE_FUNC[(unsigned char)(a)] & (b))
+
+        #define __chvalidchk(a, b) (__acrt_locale_get_ctype_array_value(__PCTYPE_FUNC, (a), (b)))
     #endif
 
 
@@ -163,7 +180,7 @@ _Check_return_ _ACRTIMP int __cdecl __iscsym(_In_ int _C);
         #else
         if (_Locale)
         {
-            return __acrt_get_locale_data_prefix(_Locale)->_locale_pctype[(unsigned char)_C] & _Mask;
+            return __acrt_locale_get_ctype_array_value(__acrt_get_locale_data_prefix(_Locale)->_locale_pctype, _C, _Mask);
         }
 
         return __chvalidchk(_C, _Mask);

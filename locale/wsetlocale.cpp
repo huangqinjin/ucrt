@@ -1,5 +1,5 @@
 /***
-*wsetloca.c - Contains the wsetlocale function
+*wsetlocale.cpp - Contains the wsetlocale function
 *
 *       Copyright (c) Microsoft Corporation.  All rights reserved.
 *
@@ -852,31 +852,33 @@ static wchar_t * __cdecl _wsetlocale_get_all ( __crt_locale_data* ploci)
 
 
 wchar_t * _expandlocale (
-        const wchar_t* const expr,
-        wchar_t*       const output,
-        size_t         const sizeInChars,
-        wchar_t*       const localeNameOutput,
-        size_t         const localeNameSizeInChars,
-        UINT*          const cp
+        wchar_t const * const expr,
+        wchar_t *       const output,
+        size_t          const sizeInChars,
+        wchar_t *       const localeNameOutput,
+        size_t          const localeNameSizeInChars,
+        UINT *          const cp
         )
 {
     if (!expr)
+    {
         return nullptr; /* error if no input */
+    }
 
-    __crt_qualified_locale_data* const _psetloc_data    = &__acrt_getptd()->_setloc_data;
-    UINT *                       const pcachecp         = &_psetloc_data->_cachecp;
-    wchar_t *                    const cachein          = _psetloc_data->_cachein;
-    size_t                       const cacheinLen       = _countof(_psetloc_data->_cachein);
-    wchar_t *                    const cacheout         = _psetloc_data->_cacheout;
-    size_t                       const cacheoutLen      = _countof(_psetloc_data->_cacheout);
-    size_t                             charactersInExpression = 0;
-    int                                iCodePage = 0;
+    __crt_qualified_locale_data * const _psetloc_data    = &__acrt_getptd()->_setloc_data;
+    UINT *                        const pcachecp         = &_psetloc_data->_cachecp;
+    wchar_t *                     const cachein          = _psetloc_data->_cachein;
+    size_t                        const cacheinLen       = _countof(_psetloc_data->_cachein);
+    wchar_t *                     const cacheout         = _psetloc_data->_cacheout;
+    size_t                        const cacheoutLen      = _countof(_psetloc_data->_cacheout);
+    size_t                              charactersInExpression = 0;
+    int                                 iCodePage = 0;
 
     // Store the last successfully obtained locale name
     _ERRCHECK(wcsncpy_s(localeNameOutput, localeNameSizeInChars, _psetloc_data->_cacheLocaleName, _countof(_psetloc_data->_cacheLocaleName)));
 
     // if "C" locale
-    if (((*expr==L'C') && (!expr[1])))
+    if (((*expr == L'C') && (!expr[1])))
     {
 
         _ERRCHECK(wcscpy_s(output, sizeInChars, L"C"));
@@ -897,23 +899,29 @@ wchar_t * _expandlocale (
         BOOL getqloc_results = FALSE;
 
         /* begin: cache atomic section */
-        // isDownlevel should always be false as we support Vista+ now
         BOOL const isDownlevel = !__acrt_can_use_vista_locale_apis();
         if (__lc_wcstolc(&names, expr) == 0)
         {
             if (isDownlevel)
+            {
                 getqloc_results = __acrt_get_qualified_locale_downlevel(&names, pcachecp, &names);
+            }
             else
+            {
                 getqloc_results = __acrt_get_qualified_locale(&names, pcachecp, &names);
+            }
         }
+
 
         if (getqloc_results)
         {
             __lc_lctowcs(cacheout, cacheoutLen, &names);
             if (localeNameOutput)
+            {
                 _ERRCHECK(wcsncpy_s(localeNameOutput, localeNameSizeInChars, names.szLocaleName, wcslen(names.szLocaleName) + 1));
+            }
         }
-        else if (names.szLanguage[0] && __acrt_IsValidLocaleName(names.szLanguage))
+        else if (charactersInExpression < MAX_LC_LEN && names.szLanguage[0] && __acrt_IsValidLocaleName(names.szLanguage))
         {
             if (names.szCodePage[0])
             {
@@ -942,7 +950,7 @@ wchar_t * _expandlocale (
             }
 
             // Copy code page
-            *pcachecp = (WORD) iCodePage;
+            *pcachecp = static_cast<WORD>(iCodePage);
 
             /* Copy the locale name to the output */
             _ERRCHECK(wcsncpy_s(cacheout, cacheoutLen, expr, charactersInExpression + 1));
@@ -961,15 +969,21 @@ wchar_t * _expandlocale (
         }
 
         if (*expr && charactersInExpression < MAX_LC_LEN)
+        {
             _ERRCHECK(wcsncpy_s(cachein, cacheinLen, expr, charactersInExpression + 1));
+        }
         else
+        {
             *cachein = L'\x0';
+        }
 
         /* end: cache atomic section */
     }
 
     if (cp)
+    {
         memcpy(cp, pcachecp, sizeof(*pcachecp));   /* possibly return cp */
+    }
 
     _ERRCHECK(wcscpy_s(output, sizeInChars, cacheout));
     return cacheout; /* return fully expanded locale string or locale name */

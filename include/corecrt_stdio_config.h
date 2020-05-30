@@ -81,6 +81,7 @@ _CRT_BEGIN_C_HEADER
     // This function must not be inlined into callers to avoid ODR violations.  The
     // static local variable has different names in C and in C++ translation units.
     _Check_return_ _Ret_notnull_
+    _CRT_INLINE_PURE_SECURITYCRITICAL_ATTRIBUTE
     __declspec(noinline) __inline unsigned __int64* __CRTDECL __local_stdio_printf_options(void)
     {
         static unsigned __int64 _OptionsStorage;
@@ -90,6 +91,7 @@ _CRT_BEGIN_C_HEADER
     // This function must not be inlined into callers to avoid ODR violations.  The
     // static local variable has different names in C and in C++ translation units.
     _Check_return_ _Ret_notnull_
+    _CRT_INLINE_PURE_SECURITYCRITICAL_ATTRIBUTE
     __declspec(noinline) __inline unsigned __int64* __CRTDECL __local_stdio_scanf_options(void)
     {
         static unsigned __int64 _OptionsStorage;

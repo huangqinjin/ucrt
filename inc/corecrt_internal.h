@@ -11,6 +11,7 @@
 #include <corecrt_startup.h>
 #include <corecrt_terminate.h>
 #include <crtdbg.h>
+#include <ctype.h>
 #include <errno.h>
 #include <excpt.h>
 #include <internal_shared.h>
@@ -250,24 +251,11 @@ DWORD __cdecl __acrt_GetTempPathA(
     _Out_writes_to_(nBufferLength, return + 1) PSTR lpBuffer
     );
 
-HANDLE __cdecl __acrt_FindFirstFileExA(
-    _In_       LPCSTR             lpFileName,
-    _In_       FINDEX_INFO_LEVELS fInfoLevelId,
-    _Out_      LPVOID             lpFindFileData,
-    _In_       FINDEX_SEARCH_OPS  fSearchOp,
-    _Reserved_ LPVOID             lpSearchFilter,
-    _In_       DWORD              dwAdditionalFlags
-    );
-
-BOOL __cdecl __acrt_FindNextFileA(
-    _In_  HANDLE             hFindFile,
-    _Out_ WIN32_FIND_DATAA * lpFindFileData
-    );
-
 DWORD __cdecl __acrt_GetModuleFileNameA(
-    _In_opt_ HMODULE hModule,
-    _Out_    LPSTR  lpFilename,
-    _In_     DWORD   nSize
+    _In_opt_                HMODULE hModule,
+    _When_(return < nSize, _Out_writes_to_(nSize, return + 1))
+    _When_(return == nSize, _Out_writes_all_(nSize) _Null_terminated_) char * lpFilename,
+    _In_range_(1, MAX_PATH) DWORD   nSize
     );
 
 HMODULE __cdecl __acrt_LoadLibraryExA(
@@ -805,7 +793,7 @@ __inline int __CRTDECL __acrt_isleadbyte_l_noupdate(
     _In_ _locale_t const locale
     )
 {
-    return locale->locinfo->_public._locale_pctype[(unsigned char)c] & _LEADBYTE;
+    return __acrt_locale_get_ctype_array_value(locale->locinfo->_public._locale_pctype, c, _LEADBYTE);
 }
 
 

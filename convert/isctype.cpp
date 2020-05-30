@@ -43,9 +43,7 @@ extern "C" int __cdecl _chvalidator_l(_locale_t const locale, int const c, int c
 
     _LocaleUpdate locale_update(locale);
 
-    int const index = (c >= -1 && c <= 255) ? static_cast<unsigned char>(c) : -1;
-
-    return locale_update.GetLocaleT()->locinfo->_public._locale_pctype[index] & mask;
+    return __acrt_locale_get_ctype_array_value(locale_update.GetLocaleT()->locinfo->_public._locale_pctype, c, mask);
 }
 
 #endif // _DEBUG
@@ -65,10 +63,10 @@ extern "C" int __cdecl _isctype_l(int const c, int const mask, _locale_t const l
 {
     _LocaleUpdate locale_update(locale);
 
-    // c valid between -1 and 255:
     if (c >= -1 && c <= 255)
     {
-        return locale_update.GetLocaleT()->locinfo->_public._locale_pctype[static_cast<unsigned char>(c)] & mask;
+        // Direct access to _locale_pctype is allowed due to bounds check.
+        return locale_update.GetLocaleT()->locinfo->_public._locale_pctype[c] & mask;
     }
 
     size_t const buffer_count{3};
@@ -109,12 +107,10 @@ extern "C" int __cdecl _isctype_l(int const c, int const mask, _locale_t const l
 
 extern "C" int __cdecl _isctype(int const c, int const mask)
 {
-    if (!__acrt_locale_changed())
-    {
-        return __acrt_initial_locale_data._public._locale_pctype[static_cast<unsigned char>(c)] & mask;
-    }
-    else
+    if (__acrt_locale_changed())
     {
         return _isctype_l(c, mask, nullptr);
     }
+
+    return __acrt_locale_get_ctype_array_value(__acrt_initial_locale_data._public._locale_pctype, c, mask);
 }

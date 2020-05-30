@@ -345,7 +345,7 @@ static int __cdecl common_vsnprintf_s(
     }
     else
     {
-#pragma warning(suppress:__WARNING_UNUSED_SCALAR_ASSIGNMENT) // 28931
+#pragma warning(suppress:__WARNING_UNUSED_ASSIGNMENT) // 28931
         errno_t const saved_errno = errno;
         result = common_vsprintf<format_validation_base>(options, buffer, buffer_count, format, locale, arglist);
 

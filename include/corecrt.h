@@ -77,6 +77,17 @@ _CRT_BEGIN_C_HEADER
     #define _CRT_HYBRIDPATCHABLE
 #endif
 
+// The CLR requires code calling other SecurityCritical code or using SecurityCritical types
+// to be marked as SecurityCritical.
+// _CRT_SECURITYCRITICAL_ATTRIBUTE covers this for internal function definitions.
+// _CRT_INLINE_PURE_SECURITYCRITICAL_ATTRIBUTE is for inline pure functions defined in the header.
+// This is clr:pure-only because for mixed mode we compile inline functions as native.
+#ifdef _M_CEE_PURE
+    #define _CRT_INLINE_PURE_SECURITYCRITICAL_ATTRIBUTE [System::Security::SecurityCritical]
+#else
+    #define _CRT_INLINE_PURE_SECURITYCRITICAL_ATTRIBUTE
+#endif
+
 #ifndef _CONST_RETURN
     #ifdef __cplusplus
         #define _CONST_RETURN const
@@ -190,7 +201,21 @@ extern "C++"
     #define _CRT_UNUSED(x) (void)x
 #endif
 
-
+#ifndef _CRT_HAS_CXX17
+ #ifdef _MSVC_LANG
+  #if _MSVC_LANG > 201402
+   #define _CRT_HAS_CXX17   1
+  #else /* _MSVC_LANG > 201402 */
+   #define _CRT_HAS_CXX17   0
+  #endif /* _MSVC_LANG > 201402 */
+ #else /* _MSVC_LANG */
+  #if __cplusplus > 201402
+   #define _CRT_HAS_CXX17   1
+  #else /* __cplusplus > 201402 */
+   #define _CRT_HAS_CXX17   0
+  #endif /* __cplusplus > 201402 */
+ #endif /* _MSVC_LANG */
+#endif /* _CRT_HAS_CXX17 */
 
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
@@ -215,7 +240,7 @@ extern "C++"
 #endif
 
 #ifndef _ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE
-    #define _ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE 0
+    #define _ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE 1
 #endif
 
 #ifndef _CRT_BUILD_DESKTOP_APP
@@ -286,9 +311,12 @@ _ACRTIMP void __cdecl _invoke_watson(
 
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
-// Deprecation
+// Deprecation and Warnings
 //
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#define _CRT_WARNING_MESSAGE(NUMBER, MESSAGE) \
+    __FILE__ "(" _CRT_STRINGIZE(__LINE__) "): warning " NUMBER ": " MESSAGE
+
 #define _CRT_INTERNAL_NONSTDC_NAMES                                            \
     (                                                                          \
         ( defined _CRT_DECLARE_NONSTDC_NAMES && _CRT_DECLARE_NONSTDC_NAMES) || \
@@ -796,7 +824,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_FuncName(_SalAttributeDst _DstType *_Dst) \
             { \
-                _DeclSpec _ReturnType __cdecl _FuncName(_SalAttributeDst _DstType *_Dst); \
+                _ReturnType __cdecl _FuncName(_SalAttributeDst _DstType *_Dst); \
                 return _FuncName(_Dst); \
             } \
             extern "C++" \
@@ -841,7 +869,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_FuncName(_SalAttributeDst _DstType *_Dst) \
             { \
-                _DeclSpec _ReturnType __cdecl _FuncName(_SalAttributeDst _DstType *_Dst); \
+                _ReturnType __cdecl _FuncName(_SalAttributeDst _DstType *_Dst); \
                 return _FuncName(_Dst); \
             } \
             extern "C++" \
@@ -896,7 +924,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1) \
             { \
-                _DeclSpec _ReturnType __cdecl _FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1); \
+                _ReturnType __cdecl _FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1); \
                 return _FuncName(_Dst, _TArg1); \
             } \
             extern "C++" \
@@ -941,7 +969,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2) _CRT_SECURE_CPP_NOTHROW \
             { \
-                _DeclSpec _ReturnType __cdecl _FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2); \
+                _ReturnType __cdecl _FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2); \
                 return _FuncName(_Dst, _TArg1, _TArg2); \
             } \
             extern "C++" \
@@ -986,7 +1014,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3) \
             { \
-                _DeclSpec _ReturnType __cdecl _FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3); \
+                _ReturnType __cdecl _FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3); \
                 return _FuncName(_Dst, _TArg1, _TArg2, _TArg3); \
             } \
             extern "C++" \
@@ -1031,7 +1059,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3, _TType4 _TArg4) \
             { \
-                _DeclSpec _ReturnType __cdecl _FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3, _TType4 _TArg4); \
+                _ReturnType __cdecl _FuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3, _TType4 _TArg4); \
                 return _FuncName(_Dst, _TArg1, _TArg2, _TArg3, _TArg4); \
             } \
             extern "C++" \
@@ -1076,7 +1104,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_FuncName(_HType1 _HArg1, _SalAttributeDst _DstType *_Dst, _TType1 _TArg1) \
             { \
-                _DeclSpec _ReturnType __cdecl _FuncName(_HType1 _HArg1, _SalAttributeDst _DstType *_Dst, _TType1 _TArg1); \
+                _ReturnType __cdecl _FuncName(_HType1 _HArg1, _SalAttributeDst _DstType *_Dst, _TType1 _TArg1); \
                 return _FuncName(_HArg1, _Dst, _TArg1); \
             } \
             extern "C++" \
@@ -1121,7 +1149,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_FuncName(_HType1 _HArg1, _HType2 _HArg2, _SalAttributeDst _DstType *_Dst) \
             { \
-                _DeclSpec _ReturnType __cdecl _FuncName(_HType1 _HArg1, _HType2 _HArg2, _SalAttributeDst _DstType *_Dst); \
+                _ReturnType __cdecl _FuncName(_HType1 _HArg1, _HType2 _HArg2, _SalAttributeDst _DstType *_Dst); \
                 return _FuncName(_HArg1, _HArg2, _Dst); \
             } \
             extern "C++" \
@@ -1166,7 +1194,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_VFuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, va_list _ArgList) \
             { \
-                _DeclSpec _ReturnType _CC _VFuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, va_list _ArgList); \
+                _ReturnType _CC _VFuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, va_list _ArgList); \
                 return _VFuncName(_Dst, _TArg1, _ArgList); \
             } \
             extern "C++" \
@@ -1271,7 +1299,7 @@ typedef _Mbstatet mbstate_t;
             __inline \
             _ReturnType __CRTDECL __insecure_##_VFuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, va_list _ArgList) \
             { \
-                _DeclSpec _ReturnType _CC _VFuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, va_list _ArgList); \
+                _ReturnType _CC _VFuncName(_SalAttributeDst _DstType *_Dst, _TType1 _TArg1, _TType2 _TArg2, va_list _ArgList); \
                 return _VFuncName(_Dst, _TArg1, _TArg2, _ArgList); \
             } \
             extern "C++" \

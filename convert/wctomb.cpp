@@ -23,7 +23,7 @@
 #include <errno.h>
 #include <locale.h>
 #include <limits.h>
-
+#include <corecrt_internal_mbstring.h>
 
 
 extern "C" int __cdecl _wctomb_s_l(
@@ -52,6 +52,27 @@ extern "C" int __cdecl _wctomb_s_l(
     _VALIDATE_RETURN_ERRCODE(destination_count <= INT_MAX, EINVAL);
 
     _LocaleUpdate locale_update(locale);
+
+    if (locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage == CP_UTF8)
+    {
+        // Unlike c16rtomb. wctomb/wcrtomb have no ability to process a partial code point.
+        // So, we could call c16rtomb and check for a lone surrogate or other error, or for simplicity
+        // We can instead just call c32rtomb and check for any error. I choose the latter.
+        mbstate_t state{};
+        int result = static_cast<int>(__crt_mbstring::__c32rtomb_utf8(destination, static_cast<char32_t>(wchar), &state));
+        if (return_value != nullptr)
+        {
+            *return_value = result;
+        }
+        if (result <= 4)
+        {
+            return 0;
+        }
+        else
+        {
+            return errno;
+        }
+    }
 
     // Check for C-locale behavior, which merely casts it to char (if in range)
     // for ASCII-ish behavior.
