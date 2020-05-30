@@ -210,4 +210,7 @@ extern "C" _Success_(return > 0) size_t __cdecl _Wcsftime_l(
     _In_opt_                 _locale_t      locale
     );
 
+_Check_return_ _Deref_ret_z_
+extern "C" wchar_t** __cdecl __wide_tzname();
+
 #pragma pack(pop)

@@ -999,7 +999,7 @@ static bool __cdecl expand_time(
         // This looks wrong, but it is correct:  The offset is the difference
         // between UTC and the local time zone, so it is a positive value if
         // the local time zone is behind UTC.
-        wchar_t const* const sign_string{offset < 0 ? L"+" : L"-"};
+        wchar_t const* const sign_string{offset <= 0 ? L"+" : L"-"};
 
         store_string(sign_string, string, left);
         store_number(hours_offset,   2, string, left, '0');
@@ -1010,28 +1010,7 @@ static bool __cdecl expand_time(
     case L'Z': // time zone name, if any
     {
         __tzset();
-
-        _BEGIN_SECURE_CRT_DEPRECATION_DISABLE
-        size_t wnum = 0;
-
-        char const* const tz_name = _tzname[timeptr->tm_isdst ? 1 : 0];
-        errno_t const result = _ERRCHECK_EINVAL_ERANGE(_mbstowcs_s_l(&wnum, *string, *left, tz_name, _TRUNCATE, locale));
-
-        // If the conversion terminated due to truncation, the remaining
-        // length must be set to 0, to notify our caller that we ran out
-        // of space:
-        if (result == STRUNCATE)
-        {
-            *string += *left;
-            *left = 0;
-        }
-        else
-        {
-            *left -= wnum - 1;
-            *string += wnum - 1;
-        }
-
-        _END_SECURE_CRT_DEPRECATION_DISABLE
+        store_string(__wide_tzname()[timeptr->tm_isdst ? 1 : 0], string, left);
         return true;
     }
 

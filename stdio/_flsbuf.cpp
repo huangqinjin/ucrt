@@ -162,19 +162,13 @@ static int __cdecl common_flush_and_write_nolock(
     // Get a buffer for this stream, if one is necessary:
     if (!stream.has_any_buffer())
     {
-        // Do not get a buffer if the stream is stdout or stderr and the stream
-        // is not a TTY.  If one of these streams is a TTY, we do not set up a
-        // single character buffer; this is so that later temporary buffering
-        // will not be thwarted by the _IONBF flag being set.  (See _stbuf() and
-        // _ftbuf() for more information on stdout and stderr buffering.)
-        if ((stream.public_stream() != stdout && stream.public_stream() != stderr) || !_isatty(fh))
+        // If the stream uses temporary buffering, we do not set up a single character buffer;
+        // this is so that later temporary buffering will not be thwarted by
+        // the _IONBF flag being set. (See _stbuf() and _ftbuf() for more
+        //information on stdout and stderr buffering.)
+        if (!__acrt_should_use_temporary_buffer(stream.public_stream()))
             __acrt_stdio_allocate_buffer_nolock(stream.public_stream());
     }
-
-    int char_count;
-    int written;
-
-    written = char_count = 0;
 
     // Write the character; return (W)EOF if it fails:
     if (!write_buffer_nolock(static_cast<Character>(c & character_mask), stream))

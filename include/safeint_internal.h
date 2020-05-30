@@ -108,7 +108,7 @@ public:
     {
         isBothSigned   = (IntTraits< T >::isSigned && IntTraits< U >::isSigned),
         isBothUnsigned = (!IntTraits< T >::isSigned && !IntTraits< U >::isSigned),
-        isLikeSigned   = (IntTraits< T >::isSigned == IntTraits< U >::isSigned),
+        isLikeSigned   = (static_cast<bool>(IntTraits< T >::isSigned) == static_cast<bool>(IntTraits< U >::isSigned)),
         isCastOK       = ((isLikeSigned && sizeof(T) >= sizeof(U)) ||
         (IntTraits< T >::isSigned && sizeof(T) > sizeof(U))),
         isBothLT32Bit  = (IntTraits< T >::isLT32Bit && IntTraits< U >::isLT32Bit),

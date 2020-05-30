@@ -25,12 +25,31 @@
 extern "C" void* __acrt_stdout_buffer = nullptr;
 extern "C" void* __acrt_stderr_buffer = nullptr;
 
+// The temporary buffer has the data of one stdio call. Stderr and Stdout use a
+// temporary buffer for the duration of stdio output calls instead of having a
+// full buffer and write after flush. The temporary buffer prevents the stdio
+// functions from writing to the disk more than once per call when the stream is
+// unbuffered (except when _IONBF is specified).
+bool __acrt_should_use_temporary_buffer(FILE* const stream)
+{
+    if (stream == stderr)
+    {
+        return true;
+    }
+
+    if (stream == stdout && _isatty(_fileno(stream)))
+    {
+        return true;
+    }
+
+    return false;
+}
 
 
-// If the stream is stdout or stderr and the stream is not buffered, this function
-// creates and initializes a temporary buffer for the stream.  On success, the
-// buffer is initialized for the stream and 1 is returned.  On failure, 0 is
-// returned.
+// Sets a temporary buffer if necessary (see __acrt_should_use_temporary_buffer).
+// On success, the buffer is initialized for the stream and 1 is returned. On
+// failure, 0 is returned. The temporary buffer ensures that only one write to
+// the disk occurs per stdio output call.
 extern "C" bool __cdecl __acrt_stdio_begin_temporary_buffering_nolock(
     FILE* const public_stream
     )
@@ -39,17 +58,24 @@ extern "C" bool __cdecl __acrt_stdio_begin_temporary_buffering_nolock(
 
     __crt_stdio_stream const stream(public_stream);
 
-    // Do nothing if the stream is not backed by a TTY device
-    if (!_isatty(_fileno(stream.public_stream())))
+    if (!__acrt_should_use_temporary_buffer(stream.public_stream()))
+    {
         return false;
+    }
 
     void** buffer;
     if (stream.public_stream() == stdout)
+    {
         buffer = &__acrt_stdout_buffer;
+    }
     else if (stream.public_stream() == stderr)
+    {
         buffer = &__acrt_stderr_buffer;
+    }
     else
+    {
         return false;
+    }
 
     #ifndef CRTDLL
     _cflush++; // Force library pre-termination procedure to run
@@ -57,11 +83,15 @@ extern "C" bool __cdecl __acrt_stdio_begin_temporary_buffering_nolock(
 
     // Make sure the stream is not already buffered:
     if (stream.has_any_buffer())
+    {
         return false;
+    }
 
     stream.set_flags(_IOWRITE | _IOBUFFER_USER | _IOBUFFER_STBUF);
     if (*buffer == nullptr)
+    {
         *buffer = _malloc_crt_t(char, _INTERNAL_BUFSIZ).detach();
+    }
 
     if (*buffer == nullptr)
     {

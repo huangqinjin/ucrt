@@ -51,8 +51,8 @@ static errno_t __cdecl internal_to_string(
 
     int const capped_digits = min(requested_digits, static_cast<int>(buffer_count - 2));
 
-    errno_t const e = __acrt_fp_strflt_to_string(buffer, buffer_count, capped_digits, strflt);
-    
+    errno_t const e = __acrt_fp_strflt_to_string(buffer, buffer_count, capped_digits, strflt, __acrt_has_trailing_digits::trailing, __acrt_rounding_mode::legacy);
+
     if (e != 0)
         return errno = e;
 
@@ -89,7 +89,7 @@ extern "C" errno_t __cdecl _fcvt_s(
     _RESET_STRING(buffer, buffer_count);
     _VALIDATE_RETURN_ERRCODE(decimal_point != nullptr, EINVAL);
     _VALIDATE_RETURN_ERRCODE(sign != nullptr,          EINVAL);
-    
+
     char result_string[_CVTBUFSIZE + 1];
 
     _strflt strflt{};
@@ -102,7 +102,7 @@ extern "C" errno_t __cdecl _fcvt_s(
 
     int const actual_digits = strflt.decpt + requested_digits;
 
-    bool const buffer_insufficiently_large = 
+    bool const buffer_insufficiently_large =
         requested_digits > 0 && strflt.decpt > 0 &&
         actual_digits < requested_digits;
 

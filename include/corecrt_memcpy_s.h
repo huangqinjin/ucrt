@@ -11,6 +11,10 @@
 #include <errno.h>
 #include <vcruntime_string.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 _CRT_BEGIN_C_HEADER
 
 #ifndef _CRT_MEMCPY_S_INLINE
@@ -55,7 +59,6 @@ _CRT_BEGIN_C_HEADER
             // Unreachable, but required to suppress /analyze warnings:
             return EINVAL;
         }
-#pragma warning(suppress:4996) // Deprecation
         memcpy(_Destination, _Source, _SourceSize);
         return 0;
     }
@@ -77,7 +80,6 @@ _CRT_BEGIN_C_HEADER
         _CRT_MEMCPY_S_VALIDATE_RETURN_ERRCODE(_Source != NULL,                 EINVAL);
         _CRT_MEMCPY_S_VALIDATE_RETURN_ERRCODE(_DestinationSize >= _SourceSize, ERANGE);
 
-#pragma warning(suppress:4996) // Deprecation
         memmove(_Destination, _Source, _SourceSize);
         return 0;
     }
@@ -86,4 +88,6 @@ _CRT_BEGIN_C_HEADER
 
 #undef _CRT_MEMCPY_S_VALIDATE_RETURN_ERRCODE
 
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS
 _CRT_END_C_HEADER

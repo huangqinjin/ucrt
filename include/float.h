@@ -12,6 +12,10 @@
 
 #include <corecrt.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 _CRT_BEGIN_C_HEADER
 
 
@@ -227,7 +231,7 @@ _CRT_MANAGED_FP_DEPRECATE
 _ACRTIMP unsigned int __cdecl _clearfp(void);
 
 #pragma warning(push)
-#pragma warning(disable: 4141)
+#pragma warning(disable: 4141) // Double deprecation
 
 _CRT_MANAGED_FP_DEPRECATE _CRT_INSECURE_DEPRECATE(_controlfp_s)
 _ACRTIMP unsigned int __cdecl _controlfp(
@@ -400,4 +404,6 @@ _Check_return_ _ACRTIMP int    __cdecl _fpclass(_In_ double _X);
 
 
 _CRT_END_C_HEADER
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS
 #endif // _INC_FLOAT

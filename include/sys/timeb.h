@@ -9,9 +9,11 @@
 
 #include <corecrt.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 _CRT_BEGIN_C_HEADER
-
-
 
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
@@ -85,9 +87,6 @@ _ACRTIMP errno_t __cdecl _ftime64_s(
 
 #if !defined RC_INVOKED && !defined __midl && defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES && !defined _CRT_NO_TIME_T
 
-    #pragma warning(push)
-    #pragma warning(disable:4996)
-
     #ifdef _USE_32BIT_TIME_T
 
         static __inline void __CRTDECL ftime(struct timeb* const _Tmb)
@@ -106,10 +105,8 @@ _ACRTIMP errno_t __cdecl _ftime64_s(
 
     #endif
 
-    #pragma warning(pop)
-
 #endif
 
-
-
 _CRT_END_C_HEADER
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS

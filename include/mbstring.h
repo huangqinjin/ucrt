@@ -11,6 +11,10 @@
 
 #include <corecrt.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 _CRT_BEGIN_C_HEADER
 
 
@@ -100,16 +104,11 @@ _CRT_BEGIN_C_HEADER
         _In_z_ unsigned char const*, _DstSizeInBytes
         )
 
-#pragma warning(push)
-#pragma warning(disable:4995)
-
     __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_1(
         unsigned char*, __RETURN_POLICY_DST, _DCRTIMP, _mbscat,
         _Inout_updates_z_(_String_length_(_Dest) + _String_length_(_Source) + 1), unsigned char,        _Dest,
         _In_z_                                                                    unsigned char const*, _Source
         )
-
-#pragma warning(pop)
 
     _DCRTIMP errno_t __cdecl _mbscat_s_l(
         _Inout_updates_z_(_DstSizeInBytes) unsigned char*       _Dst,
@@ -184,16 +183,11 @@ _CRT_BEGIN_C_HEADER
         _In_z_ unsigned char const*, _Source
         )
 
-#pragma warning(push)
-#pragma warning(disable:4995)
-
     __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_1(
         unsigned char*, __RETURN_POLICY_DST, _DCRTIMP, _mbscpy,
         _Out_writes_z_(_String_length_(_Source) + 1), unsigned char,        _Dest,
         _In_z_                                        unsigned char const*, _Source
         )
-
-#pragma warning(pop)
 
     _DCRTIMP errno_t __cdecl _mbscpy_s_l(
         _Out_writes_z_(_DstSizeInBytes) unsigned char*       _Dst,
@@ -356,17 +350,12 @@ _CRT_BEGIN_C_HEADER
         _In_   size_t,               _Count
         )
 
-#pragma warning(push)
-#pragma warning(disable:4995)
-
     __DEFINE_CPP_OVERLOAD_STANDARD_NFUNC_0_2(
         unsigned char*, __RETURN_POLICY_DST, _DCRTIMP, _mbsnbcat,
         _Inout_z_, unsigned char,        _Dest,
         _In_z_     unsigned char const*, _Source,
         _In_       size_t,               _Count
         )
-
-#pragma warning(pop)
 
     _DCRTIMP errno_t __cdecl _mbsnbcat_s_l(
         _Inout_updates_z_(_DstSizeInBytes) unsigned char*       _Dst,
@@ -450,17 +439,12 @@ _CRT_BEGIN_C_HEADER
         _In_   size_t,               _Count
         )
 
-#pragma warning(push)
-#pragma warning(disable:4995)
-
     __DEFINE_CPP_OVERLOAD_STANDARD_NFUNC_0_2(
         _Success_(return != 0) unsigned char*, __RETURN_POLICY_DST, _DCRTIMP, _mbsnbcpy,
         _Out_writes_(_Count) _Post_maybez_, unsigned char,        _Dest,
         _In_z_                              unsigned char const*, _Source,
         _In_                                size_t,               _Count
         )
-
-#pragma warning(pop)
 
     _DCRTIMP errno_t __cdecl _mbsnbcpy_s_l(
         _Out_writes_z_(_DstSizeInBytes) unsigned char*       _Dst,
@@ -578,17 +562,12 @@ _CRT_BEGIN_C_HEADER
         _In_   size_t,               _Count
         )
 
-#pragma warning(push)
-#pragma warning(disable:4995)
-
     __DEFINE_CPP_OVERLOAD_STANDARD_NFUNC_0_2(
         unsigned char*, __RETURN_POLICY_DST, _DCRTIMP, _mbsncat,
         _Inout_z_, unsigned char,        _Dest,
         _In_z_     unsigned char const*, _Source,
         _In_       size_t,               _Count
         )
-
-#pragma warning(pop)
 
     _DCRTIMP errno_t __cdecl _mbsncat_s_l(
         _Inout_updates_z_(_DstSizeInBytes) unsigned char*       _Dst,
@@ -672,17 +651,12 @@ _CRT_BEGIN_C_HEADER
         _In_   size_t,               _Count
         )
 
-#pragma warning(push)
-#pragma warning(disable:4995)
-
     __DEFINE_CPP_OVERLOAD_STANDARD_NFUNC_0_2(
         unsigned char*, __RETURN_POLICY_DST, _DCRTIMP, _mbsncpy,
         _Pre_notnull_ _Out_writes_(2 * _Count) _Post_maybez_, unsigned char,        _Dest,
         _In_z_                                                unsigned char const*, _Source,
         _In_                                                  size_t,               _Count
         )
-
-#pragma warning(pop)
 
     _DCRTIMP errno_t __cdecl _mbsncpy_s_l(
         _Out_writes_z_(_DstSizeInBytes) unsigned char*       _Dst,
@@ -925,16 +899,11 @@ _CRT_BEGIN_C_HEADER
         _In_opt_ _locale_t            _Locale
         );
 
-#pragma warning(push)
-#pragma warning(disable:4995)
-
     _Check_return_ _CRT_INSECURE_DEPRECATE(_mbstok_s)
     _DCRTIMP unsigned char* __cdecl _mbstok(
         _Inout_opt_z_ unsigned char*       _Str,
         _In_z_        unsigned char const* _Delim
         );
-
-#pragma warning(pop)
 
     _Check_return_ _CRT_INSECURE_DEPRECATE(_mbstok_s_l)
     _DCRTIMP unsigned char* __cdecl _mbstok_l(
@@ -1003,16 +972,11 @@ _CRT_BEGIN_C_HEADER
         _In_opt_ _locale_t            _Locale
         );
 
-#pragma warning(push)
-#pragma warning(disable:4995)
-
     _CRT_INSECURE_DEPRECATE(_mbccpy_s)
     _DCRTIMP void __cdecl _mbccpy(
         _Out_writes_bytes_(2) unsigned char*       _Dst,
         _In_z_                unsigned char const* _Src
         );
-
-#pragma warning(pop)
 
     _CRT_INSECURE_DEPRECATE(_mbccpy_s_l)
     _DCRTIMP void __cdecl _mbccpy_l(
@@ -1226,7 +1190,7 @@ _CRT_BEGIN_C_HEADER
 
 #if _CRT_FUNCTIONS_REQUIRED
     // Lead and trail bytes do not apply correctly to all encodings, including UTF-8.  Applications
-    // are recommended to use the system codepage conversion APIs and not attempt to reverse 
+    // are recommended to use the system codepage conversion APIs and not attempt to reverse
     // engineer the behavior of any particular encoding.  Lead and trail are always FALSE for UTF-8.
     _When_(_Ch == 0, _Post_equal_to_(0))
     _Check_return_ _DCRTIMP int __cdecl _ismbblead (_In_ unsigned int _Ch);
@@ -1266,4 +1230,6 @@ _CRT_BEGIN_C_HEADER
 
 
 _CRT_END_C_HEADER
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS
 #endif // _INC_MBSTRING

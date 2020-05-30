@@ -20,12 +20,14 @@ _DEFINE_SET_FUNCTION(_set_timezone, long, _timezone)
 
 // Pointer to a saved copy of the TZ value obtained in the previous call to the
 // tzset functions, if one is available:
-static char* last_tz = nullptr;
+static wchar_t* last_wide_tz = nullptr;
 
 // If the time zone was last updated by calling the system API, then the tz_info
 // variable contains the time zone information and tz_api_used is set to true.
 static int                   tz_api_used;
 static TIME_ZONE_INFORMATION tz_info;
+
+static __crt_state_management::dual_state_global<long> tzset_init_state;
 
 namespace
 {
@@ -71,25 +73,53 @@ static transitiondate dstend   = { -1, 0, 0 };
 // dynamically allocated, the value is stored into that buffer, and a pointer to
 // that buffer is returned.  In this case, the caller is responsible for freeing
 // the buffer.
-static char* get_tz_environment_variable(char (&local_buffer)[local_env_buffer_size]) throw()
+static wchar_t* get_tz_environment_variable(wchar_t (&local_buffer)[local_env_buffer_size]) throw()
 {
     size_t required_length;
-    errno_t const status = getenv_s(&required_length, local_buffer, local_env_buffer_size, "TZ");
+    errno_t const status = _wgetenv_s(&required_length, local_buffer, local_env_buffer_size, L"TZ");
     if (status == 0)
+    {
         return local_buffer;
+    }
 
     if (status != ERANGE)
+    {
         return nullptr;
+    }
 
-    __crt_unique_heap_ptr<char> dynamic_buffer(_malloc_crt_t(char, required_length));
+    __crt_unique_heap_ptr<wchar_t> dynamic_buffer(_malloc_crt_t(wchar_t, required_length));
     if (dynamic_buffer.get() == nullptr)
+    {
         return nullptr;
+    }
 
     size_t actual_length;
-    if (getenv_s(&actual_length, dynamic_buffer.get(), required_length, "TZ") != 0)
+    if (_wgetenv_s(&actual_length, dynamic_buffer.get(), required_length, L"TZ") != 0)
+    {
         return nullptr;
+    }
 
     return dynamic_buffer.detach();
+}
+
+static void __cdecl tzset_os_copy_to_tzname(const wchar_t * const timezone_name, wchar_t * const wide_tzname, char * const narrow_tzname, unsigned int const code_page)
+{
+    // Maximum time zone name from OS is 32 characters long
+    // (see https://docs.microsoft.com/en-us/windows/desktop/api/timezoneapi/ns-timezoneapi-_time_zone_information)
+    _ERRCHECK(wcsncpy_s(wide_tzname, _TZ_STRINGS_SIZE, timezone_name, 32));
+
+    // Invalid characters are replaced by closest approximation or default character.
+    // On other failure, leave narrow tzname blank.
+    __acrt_WideCharToMultiByte(
+        code_page,
+        0,
+        timezone_name,
+        -1,
+        narrow_tzname,
+        _TZ_STRINGS_SIZE, // Passing -1 as source size, so null terminator included.
+        nullptr,
+        nullptr
+    );
 }
 
 // Handles the _tzset if and only if there is no TZ environment variable.  In
@@ -98,6 +128,7 @@ static void __cdecl tzset_from_system_nolock() throw()
 {
     _BEGIN_SECURE_CRT_DEPRECATION_DISABLE
     char** tzname = _tzname;
+    wchar_t** wide_tzname = __wide_tzname();
     _END_SECURE_CRT_DEPRECATION_DISABLE
 
     long timezone = 0;
@@ -107,9 +138,9 @@ static void __cdecl tzset_from_system_nolock() throw()
     _ERRCHECK(_get_daylight(&daylight));
     _ERRCHECK(_get_dstbias (&dstbias ));
 
-    // If there is a last_tz already, discard it:
-    _free_crt(last_tz);
-    last_tz = nullptr;
+    // If there is a last_wide_tz already, discard it:
+    _free_crt(last_wide_tz);
+    last_wide_tz = nullptr;
 
     if (GetTimeZoneInformation(&tz_info) != 0xFFFFFFFF)
     {
@@ -141,6 +172,11 @@ static void __cdecl tzset_from_system_nolock() throw()
             dstbias = 0;
         }
 
+        memset(wide_tzname[0], 0, _TZ_STRINGS_SIZE * sizeof(wchar_t));
+        memset(wide_tzname[1], 0, _TZ_STRINGS_SIZE * sizeof(wchar_t));
+        memset(tzname[0], 0, _TZ_STRINGS_SIZE);
+        memset(tzname[1], 0, _TZ_STRINGS_SIZE);
+
         // Try to grab the name strings for both the time zone and the daylight
         // zone.  Note the wide character strings in tz_info must be converted
         // to multibyte character strings.  The locale code page must be used
@@ -155,44 +191,8 @@ static void __cdecl tzset_from_system_nolock() throw()
         // need to be stored per-thread?
         unsigned const code_page = ___lc_codepage_func();
 
-        int used_default_char;
-        int const status0 = __acrt_WideCharToMultiByte(
-            code_page,
-            0,
-            tz_info.StandardName,
-            -1,
-            tzname[0],
-            _TZ_STRINGS_SIZE - 1,
-            nullptr,
-            &used_default_char);
-
-        if (status0 != 0 && !used_default_char)
-        {
-            tzname[0][_TZ_STRINGS_SIZE - 1] = '\0';
-        }
-        else
-        {
-            tzname[0][0] = '\0';
-        }
-
-        int const status1 = __acrt_WideCharToMultiByte(
-            code_page,
-            0,
-            tz_info.DaylightName,
-            -1,
-            tzname[1],
-            _TZ_STRINGS_SIZE - 1,
-            nullptr,
-            &used_default_char);
-
-        if (status1 != 0 && !used_default_char)
-        {
-            tzname[1][_TZ_STRINGS_SIZE - 1] = '\0';
-        }
-        else
-        {
-            tzname[1][0] = '\0';
-        }
+        tzset_os_copy_to_tzname(tz_info.StandardName, wide_tzname[0], tzname[0], code_page);
+        tzset_os_copy_to_tzname(tz_info.DaylightName, wide_tzname[1], tzname[1], code_page);
     }
 
     _set_timezone(timezone);
@@ -200,10 +200,35 @@ static void __cdecl tzset_from_system_nolock() throw()
     _set_dstbias(dstbias);
 }
 
-static void __cdecl tzset_from_environment_nolock(_In_z_ char* tz_env) throw()
+static void __cdecl tzset_env_copy_to_tzname(const wchar_t * const tz_env, wchar_t * const wide_tzname, char * const narrow_tzname, rsize_t const tzname_length)
+{
+    _ERRCHECK(wcsncpy_s(wide_tzname, _TZ_STRINGS_SIZE, tz_env, tzname_length));
+
+    // Historically when getting _tzname via TZ, the narrow environment was used to populate _tzname when getting _tzname.
+    // The narrow environment is always encoded in the ACP (so _tzname was encoded in the ACP when coming from TZ), but
+    // when getting _tzname from the OS, the current active code page (set via setlocale()) was used instead.
+    // To maintain behavior compatibility, we remain intentionally inconsistent with
+    // how _tzname is generated when getting time zone information from the OS by explicitly encoding with the ACP.
+    // UTF-8 mode is opt-in, so we can correct this inconsistency when the current code page is UTF-8.
+
+    // Invalid characters are replaced by closest approximation or default character.
+    // On other failure, simply leave _tzname blank.
+    __acrt_WideCharToMultiByte(
+        __acrt_get_utf8_acp_compatibility_codepage(),
+        0,
+        wide_tzname,
+        static_cast<int>(tzname_length),
+        narrow_tzname,
+        _TZ_STRINGS_SIZE - 1, // Leave room for null terminator
+        nullptr,
+        nullptr);
+}
+
+static void __cdecl tzset_from_environment_nolock(_In_z_ wchar_t* tz_env) throw()
 {
     _BEGIN_SECURE_CRT_DEPRECATION_DISABLE
     char** tzname = _tzname;
+    wchar_t** wide_tzname = __wide_tzname();
     _END_SECURE_CRT_DEPRECATION_DISABLE
 
     long timezone = 0;
@@ -213,71 +238,97 @@ static void __cdecl tzset_from_environment_nolock(_In_z_ char* tz_env) throw()
 
     // Check to see if the TZ value is unchanged from an earlier call to this
     // function.  If it hasn't changed, we have no work to do:
-    if (last_tz != nullptr && strcmp(tz_env, last_tz) == 0)
+    if (last_wide_tz != nullptr && wcscmp(tz_env, last_wide_tz) == 0)
+    {
         return;
+    }
 
-    // Update the global last_tz variable:
-    _free_crt(last_tz);
-    last_tz = _malloc_crt_t(char, strlen(tz_env) + 1).detach();
-    if (last_tz == nullptr)
+    // Update the global last_wide_tz variable:
+    auto new_wide_tz = _malloc_crt_t(wchar_t, wcslen(tz_env) + 1);
+    if (!new_wide_tz)
+    {
         return;
+    }
 
-    _ERRCHECK(strcpy_s(last_tz, strlen(tz_env) + 1, tz_env));
+    _free_crt(last_wide_tz);
+    last_wide_tz = new_wide_tz.detach();
+
+    _ERRCHECK(wcscpy_s(last_wide_tz, wcslen(tz_env) + 1, tz_env));
 
     // Process TZ value and update _tzname, _timezone and _daylight.
-    rsize_t tz_name_length = 3;
-    _ERRCHECK(strncpy_s(tzname[0], _TZ_STRINGS_SIZE, tz_env, tz_name_length));
+    memset(wide_tzname[0], 0, _TZ_STRINGS_SIZE * sizeof(wchar_t));
+    memset(wide_tzname[1], 0, _TZ_STRINGS_SIZE * sizeof(wchar_t));
+    memset(tzname[0], 0, _TZ_STRINGS_SIZE);
+    memset(tzname[1], 0, _TZ_STRINGS_SIZE);
+
+    rsize_t const tzname_length = 3;
+
+    // Copy standard time zone name (index 0)
+    tzset_env_copy_to_tzname(tz_env, wide_tzname[0], tzname[0], tzname_length);
 
     // Skip first few characters if present.
-    while (tz_name_length > 0 && *tz_env)
+    for (rsize_t i = 0; i < tzname_length; ++i)
     {
-        tz_name_length -= 1;
-        tz_env += 1;
+        if (*tz_env)
+        {
+            ++tz_env;
+        }
     }
 
     // The time difference is of the form:
     //     [+|-]hh[:mm[:ss]]
     // Check for the minus sign first:
-    bool const is_negative_difference = *tz_env == '-';
+    bool const is_negative_difference = *tz_env == L'-';
     if (is_negative_difference)
+    {
         ++tz_env;
+    }
+
+    wchar_t * dummy;
+    int const decimal_base = 10;
 
     // process, then skip over, the hours
-    timezone = atol(tz_env) * 3600;
-    while (*tz_env == '+' || (*tz_env >= '0' && *tz_env <= '9'))
+    timezone = wcstol(tz_env, &dummy, decimal_base) * 3600;
+    while (*tz_env == '+' || (*tz_env >= L'0' && *tz_env <= L'9'))
+    {
         ++tz_env;
+    }
+
 
     // Check if minutes were specified:
-    if (*tz_env == ':')
+    if (*tz_env == L':')
     {
         // Process, then skip over, the minutes
-        timezone += atol(++tz_env) * 60;
-        while (*tz_env >= '0' && *tz_env <= '9')
+        timezone += wcstol(++tz_env, &dummy, decimal_base) * 60;
+        while (*tz_env >= L'0' && *tz_env <= L'9')
+        {
             ++tz_env;
+        }
 
         // Check if seconds were specified:
-        if (*tz_env == ':')
+        if (*tz_env == L':')
         {
             // Process, then skip over, the seconds:
-            timezone += atol(++tz_env);
-            while (*tz_env >= '0' && *tz_env <= '9')
+            timezone += wcstol(++tz_env, &dummy, decimal_base);
+            while (*tz_env >= L'0' && *tz_env <= L'9')
+            {
                 ++tz_env;
+            }
         }
     }
 
     if (is_negative_difference)
+    {
         timezone = -timezone;
+    }
 
     // Finally, check for a DST zone suffix:
     daylight = *tz_env ? 1 : 0;
 
     if (daylight)
     {
-        _ERRCHECK(strncpy_s(tzname[1], _TZ_STRINGS_SIZE, tz_env, 3));
-    }
-    else
-    {
-        *tzname[1] = '\0';
+        // Copy daylight time zone name (index 1)
+        tzset_env_copy_to_tzname(tz_env, wide_tzname[1], tzname[1], tzname_length);
     }
 
     _set_timezone(timezone);
@@ -294,12 +345,12 @@ static void __cdecl tzset_nolock() throw()
     dststart.yr = dstend.yr = -1;
 
     // Get the value of the TZ environment variable:
-    char local_env_buffer[local_env_buffer_size];
-    char* const tz_env = get_tz_environment_variable(local_env_buffer);
+    wchar_t local_env_buffer[local_env_buffer_size];
+    wchar_t* const tz_env = get_tz_environment_variable(local_env_buffer);
 
     // If the buffer ended up being dynamically allocated, make sure we
     // clean it up before we return:
-    __crt_unique_heap_ptr<char> tz_env_cleanup(tz_env == local_env_buffer
+    __crt_unique_heap_ptr<wchar_t> tz_env_cleanup(tz_env == local_env_buffer
         ? nullptr
         : tz_env);
 
@@ -318,7 +369,7 @@ static void __cdecl tzset_nolock() throw()
 // Daylight Savings Time.  This reads the TZ environment variable, if that
 // variable exists and can be read by the process; otherwise, the system is
 // queried for the current time zone state.  The _daylight, _timezone, and
-// _tzname global varibales are updated accordingly.
+// _tzname global variables are updated accordingly.
 extern "C" void __cdecl _tzset()
 {
     __acrt_lock(__acrt_time_lock);
@@ -339,20 +390,24 @@ extern "C" void __cdecl _tzset()
 // function sets it.
 extern "C" void __cdecl __tzset()
 {
-    static long first_time = 0;
+    auto const first_time = tzset_init_state.dangerous_get_state_array() + __crt_state_management::get_current_state_index();
 
-    if (__crt_interlocked_read(&first_time) != 0)
+    if (__crt_interlocked_read(first_time) != 0)
+    {
         return;
+    }
 
     __acrt_lock(__acrt_time_lock);
     __try
     {
-        if (__crt_interlocked_read(&first_time) != 0)
+        if (__crt_interlocked_read(first_time) != 0)
+        {
             __leave;
+        }
 
         tzset_nolock();
 
-        _InterlockedIncrement(&first_time);
+        _InterlockedIncrement(first_time);
     }
     __finally
     {

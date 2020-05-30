@@ -376,6 +376,10 @@ bool __cdecl __acrt_stdio_begin_temporary_buffering_nolock(
     _Inout_ FILE* stream
     );
 
+bool __cdecl __acrt_should_use_temporary_buffer(
+    _In_ FILE* stream
+);
+
 void __cdecl __acrt_stdio_end_temporary_buffering_nolock(
     _In_    bool  flag,
     _Inout_ FILE* stream

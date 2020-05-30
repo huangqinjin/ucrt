@@ -11,9 +11,11 @@
 #include <corecrt.h>
 #include <corecrt_stdio_config.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 _CRT_BEGIN_C_HEADER
-
-
 
 #define WEOF ((wint_t)(0xFFFF))
 
@@ -308,10 +310,7 @@ _CRT_BEGIN_C_HEADER
 ;
 #else
     {
-        #pragma warning(push)
-        #pragma warning(disable: 4996) // Deprecation
         return _vcwscanf_l(_Format, NULL, _ArgList);
-        #pragma warning(pop)
     }
 #endif
 
@@ -357,10 +356,7 @@ _CRT_BEGIN_C_HEADER
         va_list _ArgList;
         __crt_va_start(_ArgList, _Locale);
 
-        #pragma warning(push)
-        #pragma warning(disable: 4996) // Deprecation
         _Result = _vcwscanf_l(_Format, _Locale, _ArgList);
-        #pragma warning(pop)
 
         __crt_va_end(_ArgList);
         return _Result;
@@ -379,10 +375,7 @@ _CRT_BEGIN_C_HEADER
         va_list _ArgList;
         __crt_va_start(_ArgList, _Format);
 
-        #pragma warning(push)
-        #pragma warning(disable: 4996) // Deprecation
         _Result = _vcwscanf_l(_Format, NULL, _ArgList);
-        #pragma warning(pop)
 
         __crt_va_end(_ArgList);
         return _Result;
@@ -426,6 +419,6 @@ _CRT_BEGIN_C_HEADER
 
 #endif // _CRT_USE_WINAPI_FAMILY_DESKTOP_APP
 
-
-
 _CRT_END_C_HEADER
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS

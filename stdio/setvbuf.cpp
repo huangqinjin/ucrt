@@ -84,7 +84,7 @@ extern "C" int __cdecl setvbuf(
         // Case 2:  Default buffering, CRT-allocated buffer:
         if (buffer == nullptr)
         {
-            char* const crt_buffer = _malloc_crt_t(char, usable_buffer_size).detach();
+            char* const crt_buffer = _calloc_crt_t(char, usable_buffer_size).detach();
             if (!crt_buffer)
             {
                 #ifndef CRTDLL

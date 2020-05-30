@@ -12,6 +12,10 @@
 #include <corecrt.h>
 #include <corecrt_wdirect.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 _CRT_BEGIN_C_HEADER
 
 
@@ -122,4 +126,6 @@ _Check_return_ _ACRTIMP int __cdecl _rmdir(_In_z_ char const* _Path);
 
 
 _CRT_END_C_HEADER
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS
 #endif // _INC_DIRECT

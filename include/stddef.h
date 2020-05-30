@@ -11,6 +11,10 @@
 
 #include <corecrt.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 _CRT_BEGIN_C_HEADER
 
 
@@ -55,4 +59,6 @@ _ACRTIMP extern uintptr_t __cdecl __threadhandle(void);
 
 
 _CRT_END_C_HEADER
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS
 #endif // _INC_STDDEF

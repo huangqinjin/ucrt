@@ -88,8 +88,7 @@ extern "C" char* __cdecl setlocale(int _category, char const* _locale)
             ptloci->lc_category[_category].refcount = nullptr;
         }
 
-        if (!(ptd->_own_locale & _PER_THREAD_LOCALE_BIT) &&
-            !(__globallocalestatus & _GLOBAL_LOCALE_BIT))
+        if (__acrt_should_sync_with_global_locale(ptd))
         {
             if (ptloci->lc_category[_category].refcount != nullptr &&
                 _InterlockedDecrement(ptloci->lc_category[_category].refcount) == 0)

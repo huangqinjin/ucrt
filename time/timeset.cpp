@@ -23,12 +23,21 @@ __crt_state_management::dual_state_global<long> _dstbias;  // DST offset in seco
 #define _PST_STRING "PST"
 #define _PDT_STRING "PDT"
 
+#define L_PST_STRING L"PST"
+#define L_PDT_STRING L"PDT"
+
 static char tzstd_program[_TZ_STRINGS_SIZE] = { _PST_STRING };
 static char tzdst_program[_TZ_STRINGS_SIZE] = { _PDT_STRING };
+
+static wchar_t w_tzstd_program[_TZ_STRINGS_SIZE] = { L_PST_STRING };
+static wchar_t w_tzdst_program[_TZ_STRINGS_SIZE] = { L_PDT_STRING };
 
 #ifdef _CRT_GLOBAL_STATE_ISOLATION
     static char tzstd_os[_TZ_STRINGS_SIZE] = { _PST_STRING };
     static char tzdst_os[_TZ_STRINGS_SIZE] = { _PDT_STRING };
+
+    static wchar_t w_tzstd_os[_TZ_STRINGS_SIZE] = { L_PST_STRING };
+    static wchar_t w_tzdst_os[_TZ_STRINGS_SIZE] = { L_PDT_STRING };
 #endif
 
 static char* tzname_states[__crt_state_management::state_index_count][2] =
@@ -39,7 +48,16 @@ static char* tzname_states[__crt_state_management::state_index_count][2] =
     #endif
 };
 
+static wchar_t* w_tzname_states[__crt_state_management::state_index_count][2] =
+{
+    { w_tzstd_program, w_tzdst_program },
+    #ifdef _CRT_GLOBAL_STATE_ISOLATION
+    { w_tzstd_os,      w_tzdst_os      }
+    #endif
+};
+
 static __crt_state_management::dual_state_global<char **> _tzname;
+static __crt_state_management::dual_state_global<wchar_t **> w_tzname;
 
 // Initializer for the timeset globals:
 _CRT_LINKER_FORCE_INCLUDE(__acrt_timeset_initializer);
@@ -49,12 +67,19 @@ extern "C" int __cdecl __acrt_initialize_timeset()
     _timezone.initialize(8 * 3600L);
     _daylight.initialize(1);
     _dstbias.initialize (-3600);
-    
+
     char*** const first_state = _tzname.dangerous_get_state_array();
     for (unsigned i = 0; i != __crt_state_management::state_index_count; ++i)
     {
         first_state[i] = tzname_states[i];
     }
+
+    wchar_t*** const w_first_state = w_tzname.dangerous_get_state_array();
+    for (unsigned i = 0; i != __crt_state_management::state_index_count; ++i)
+    {
+        w_first_state[i] = w_tzname_states[i];
+    }
+
     return 0;
 }
 
@@ -155,4 +180,9 @@ extern "C" long* __cdecl __timezone()
 extern "C" char** __cdecl __tzname()
 {
     return _tzname.value();
+}
+
+extern "C" wchar_t** __cdecl __wide_tzname()
+{
+    return w_tzname.value();
 }

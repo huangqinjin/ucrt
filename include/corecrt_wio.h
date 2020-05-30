@@ -11,12 +11,11 @@
 #include <corecrt.h>
 #include <corecrt_share.h>
 
-_CRT_BEGIN_C_HEADER
-
-
 #pragma warning(push)
-#pragma warning(disable:4820) /* padding added after data member */
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
 
+_CRT_BEGIN_C_HEADER
 
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
@@ -266,8 +265,6 @@ _ACRTIMP errno_t __cdecl _wsopen_dispatch(
 
 #endif
 
-
-#pragma warning(pop)
-
-
 _CRT_END_C_HEADER
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS

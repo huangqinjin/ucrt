@@ -269,7 +269,7 @@ extern "C" __crt_locale_data* __cdecl __acrt_update_thread_locale_data()
     __crt_locale_data* ptloci = nullptr;
     __acrt_ptd* const ptd = __acrt_getptd();
 
-    if ((ptd->_own_locale & __globallocalestatus) == 0 || ptd->_locale_info == nullptr)
+    if (__acrt_should_sync_with_global_locale(ptd) || ptd->_locale_info == nullptr)
     {
         __acrt_lock(__acrt_locale_lock);
         __try

@@ -91,6 +91,7 @@ static void __cdecl construct_ptd(
     // It is necessary to always have GLOBAL_LOCALE_BIT set in perthread data
     // because when doing bitwise or, we won't get __UPDATE_LOCALE to work when
     // global per thread locale is set.
+    // See _configthreadlocale() and __acrt_should_sync_with_global_locale().
     ptd->_own_locale = _GLOBAL_LOCALE_BIT;
 
     ptd->_multibyte_info = &__acrt_initial_multibyte_data;

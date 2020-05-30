@@ -7,7 +7,11 @@
 //
 #pragma once
 
+#include <corecrt.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
 
 #define _LK_UNLCK  0  // unlock the file region
 #define _LK_LOCK   1  // lock the file region
@@ -22,3 +26,6 @@
     #define LK_RLCK   _LK_RLCK
     #define LK_NBRLCK _LK_NBRLCK
 #endif
+
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS

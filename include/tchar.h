@@ -14,17 +14,14 @@
 ****/
 
 #pragma once
-
-#include <corecrt.h>
-
 #ifndef _INC_TCHAR // include guard for 3rd party interop
 #define _INC_TCHAR
 
-#pragma warning(disable:4514)       /* disable unwanted C++ /W4 warning */
-/* #pragma warning(default:4514) */ /* use this to reenable, if necessary */
+#include <corecrt.h>
 
 #pragma warning(push)
-#pragma warning(disable:4995) /* C4995: name was marked as #pragma deprecated */
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
 
 /* Notes */
 
@@ -653,10 +650,7 @@ __inline void __CRTDECL _tccpy(_Out_ wchar_t *_Pc1, _In_z_ const wchar_t *_Cpc2)
 __inline void __CRTDECL _tccpy_l(_Out_ wchar_t *_Pc1, _In_z_ const wchar_t *_Cpc2, _In_opt_ _locale_t _Locale)
 {
     _CRT_UNUSED(_Locale);
-#pragma warning( push )
-#pragma warning( disable : 28719 )
     _tccpy(_Pc1, _Cpc2);
-#pragma warning( pop )
 }
 _Check_return_ __inline int __CRTDECL _tccmp(_In_z_ const wchar_t *_Cpc1, _In_z_ const wchar_t *_Cpc2) { return (int) ((*_Cpc1)-(*_Cpc2)); }
 #endif  /* __STDC__ || defined (_NO_INLINING) */
@@ -757,10 +751,8 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_3(errno_t, _wcsncpy_s_l, wchar_t, _Dest, _In
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(wchar_t *, __RETURN_POLICY_DST, _wcsncpy_l, _wcsncpy_s_l, _Out_writes_z_(_Size) wchar_t, _Out_writes_(_Count) wchar_t, _Dst, _In_z_ const wchar_t *, _Source, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
 {
     _CRT_UNUSED(_Locale);
-#pragma warning( push )
-#pragma warning( disable : 4996 6054 28719)
+#pragma warning(suppress: 6054) // String may not be zero-terminated
     return wcsncpy(_Dst, _Source, _Count);
-#pragma warning( pop )
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(wchar_t *, __RETURN_POLICY_DST, _wcsncpy_l, _wcsncpy_s_l, _Out_writes_z_(_Size) wchar_t, _Out_writes_(_Count), wchar_t, _Dst, _In_z_ const wchar_t *, _Source, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
@@ -778,11 +770,10 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_3(errno_t, _wcsncat_s_l, wchar_t, _Dest, _In
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(wchar_t *, __RETURN_POLICY_DST, _wcsncat_l, _wcsncat_s_l, _Inout_updates_z_(_Size) wchar_t, _Inout_z_ wchar_t, _Dst, _In_z_ const wchar_t *, _Source, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
 {
     _CRT_UNUSED(_Locale);
-#pragma warning( push )
-#pragma warning( disable : 4996 6054 6059 28719 )
-/* prefast noise VSW 489802 */
+// C6054: String may not be zero-terminated
+// C6059: Incorrect length parameter in call
+#pragma warning(suppress: 6054 6059)
     return wcsncat(_Dst, _Source, _Count);
-#pragma warning( pop )
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(wchar_t *, __RETURN_POLICY_DST, _wcsncat_l, _wcsncat_s_l, _Inout_updates_z_(_Size) wchar_t, _Inout_z_, wchar_t, _Dst, _In_z_ const wchar_t *, _Source, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
@@ -790,14 +781,11 @@ __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(wchar_t *, __RETURN_POLICY_DST, _wcsnc
 _CRT_INSECURE_DEPRECATE(_wcstok_s_l) __inline wchar_t * _wcstok_l(_Inout_opt_z_ wchar_t * _String, _In_z_ const wchar_t * _Delimiters, _In_opt_ _locale_t _Locale)
 {
     _CRT_UNUSED(_Locale);
-#pragma warning(push)
-#pragma warning(disable:4996 28727)
 #ifdef _CRT_NON_CONFORMING_WCSTOK
         return wcstok(_String,_Delimiters);
 #else
         return wcstok(_String,_Delimiters,0);
 #endif
-#pragma warning(pop)
 }
 
 #if __STDC_WANT_SECURE_LIB__
@@ -819,10 +807,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_3(errno_t, _wcsnset_s_l, _Prepost_z_ wchar_t
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(wchar_t *, __RETURN_POLICY_DST, _wcsnset_l, _wcsnset_s_l, _Inout_updates_z_(_Size) wchar_t, _Inout_updates_z_(_MaxCount) wchar_t, _Dst, _In_ wchar_t, _Value, _In_ size_t, _MaxCount, _In_opt_ _locale_t, _Locale)
 {
     _CRT_UNUSED(_Locale);
-#pragma warning( push )
-#pragma warning( disable : 4996 )
     return _wcsnset(_Dst, _Value, _MaxCount);
-#pragma warning( pop )
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(wchar_t *, __RETURN_POLICY_DST, _wcsnset_l, _wcsnset_s_l, _Inout_updates_z_(_Size) wchar_t, _Inout_updates_z_(_MaxCount), wchar_t, _Dst, _In_ wchar_t, _Value, _In_ size_t, _MaxCount, _In_opt_ _locale_t, _Locale)
@@ -838,10 +823,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_2(errno_t, _wcsset_s_l, _Prepost_z_ wchar_t,
 __DECLARE_CPP_OVERLOAD_INLINE_FUNC_0_2_EX(wchar_t *, __RETURN_POLICY_DST, _wcsset_l, _wcsset_s_l, _Inout_updates_z_(_Size) wchar_t, _Inout_z_ wchar_t, _Dst, _In_ wchar_t, _Value, _In_opt_ _locale_t, _Locale)
 {
     _CRT_UNUSED(_Locale);
-#pragma warning( push )
-#pragma warning( disable : 4996 )
     return _wcsset(_Dst, _Value);
-#pragma warning( pop )
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_FUNC_0_2_EX(wchar_t *, __RETURN_POLICY_DST, _wcsset_l, _wcsset_s_l, _Inout_updates_z_(_Size) wchar_t, _Inout_z_, wchar_t, _Dst, _In_ wchar_t, _Value, _In_opt_ _locale_t, _Locale)
@@ -1515,11 +1497,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_2(errno_t, _tcsncat_s, _Prepost_z_ char, _De
 
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_2_EX(char *, __RETURN_POLICY_DST, _tcsncat, _tcsncat_s, _Inout_updates_z_(_Size) char, _Inout_z_ char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
-#pragma warning(disable:28726) // Banned API
     return (char *)_mbsnbcat((unsigned char *)_Dst,(const unsigned char *)_Source,_Count);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_2_EX(char *, __RETURN_POLICY_DST, _tcsncat, _tcsncat_s, _Inout_updates_z_(_Size) char, _Inout_z_, char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count)
@@ -1533,10 +1511,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_3(errno_t, _tcsncat_s_l, _Prepost_z_ char, _
 
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _tcsncat_l, _tcsncat_s_l, _Inout_updates_z_(_Size) char, _Inout_z_ char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
     return (char *)_mbsnbcat_l((unsigned char *)_Dst,(const unsigned char *)_Source,_Count, _Locale);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _tcsncat_l, _tcsncat_s_l, _Inout_updates_z_(_Size) char, _Inout_z_, char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
@@ -1550,11 +1525,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_2(errno_t, _tcsncpy_s, _Post_z_ char, _Dest,
 
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_2_EX(_Success_(return != 0) char *, __RETURN_POLICY_DST, _tcsncpy, _tcsncpy_s, _Out_writes_bytes_(_Count) _Post_maybez_ char, _Out_writes_bytes_(_Count) _Post_maybez_ char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
-#pragma warning(disable:28726) // Banned API
     return (char *)_mbsnbcpy((unsigned char *)_Dst,(const unsigned char *)_Source,_Count);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_2_EX(char *, __RETURN_POLICY_DST, _tcsncpy, _tcsncpy_s, _Out_writes_z_(_Size) char, _Inout_z_, char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count)
@@ -1568,10 +1539,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_3(errno_t, _tcsncpy_s_l, _Post_z_ char, _Des
 
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _tcsncpy_l, _tcsncpy_s_l, _Out_writes_z_(_Size) char, _Out_writes_bytes_(_Count) _Post_maybez_ char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
     return (char *)_mbsnbcpy_l((unsigned char *)_Dst,(const unsigned char *)_Source,_Count, _Locale);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _tcsncpy_l, _tcsncpy_s_l, _Out_writes_z_(_Size) char, _Out_writes_z_(_Count), char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
@@ -1583,11 +1551,7 @@ _Check_return_ __inline _CRPC _tcsstr(_In_z_ _CPC _s1,_In_z_ _CPC _s2) {return (
 
 _Check_return_ _CRT_INSECURE_DEPRECATE(_tcstok_s) __inline char *  _tcstok(_Inout_opt_z_ char * _String,_In_z_ const char * _Delimiters)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
-#pragma warning(disable:28726) // Banned API
         return (char * )_mbstok((unsigned char *)_String,(const unsigned char *)_Delimiters);
-#pragma warning(pop)
 }
 
 _Check_return_ __inline char *  _tcstok_s(_Inout_opt_z_ char * _String,_In_z_ const char * _Delimiters, _Inout_ _Deref_prepost_opt_z_ char **_Current_position)
@@ -1597,10 +1561,7 @@ _Check_return_ __inline char *  _tcstok_s(_Inout_opt_z_ char * _String,_In_z_ co
 
 _Check_return_ _CRT_INSECURE_DEPRECATE(_tcstok_s_l) __inline char *  _tcstok_l(_Inout_opt_z_ char * _String,_In_z_ const char * _Delimiters, _In_opt_ _locale_t _Locale)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
         return (char * )_mbstok_l((unsigned char *)_String,(const unsigned char *)_Delimiters, _Locale);
-#pragma warning(pop)
 }
 
 _Check_return_ __inline char *  _tcstok_s_l(_Inout_opt_z_ char * _String,_In_z_ const char * _Delimiters, _Inout_ _Deref_prepost_opt_z_ char **_Current_position, _In_opt_ _locale_t _Locale)
@@ -1617,10 +1578,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_2(errno_t, _tcsnset_s, _Prepost_z_ char, _De
 
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_2_EX(char *, __RETURN_POLICY_DST, _tcsnset, _tcsnset_s, _Inout_updates_z_(_Size) char, _Inout_updates_z_(_Count) char, _Dst, _In_ unsigned int, _Value , _In_ size_t, _Count)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
     return (char *)_mbsnbset((unsigned char *)_Dst, _Value, _Count);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_2_EX(char *, __RETURN_POLICY_DST, _tcsnset, _tcsnset_s, _Inout_updates_z_(_Size) char, _Inout_updates_z_(_Count), char, _Dst, _In_ unsigned int, _Value , _In_ size_t, _Count)
@@ -1634,10 +1592,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_3(errno_t, _tcsnset_s_l, _Prepost_z_ char, _
 
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _tcsnset_l, _tcsnset_s_l, _Inout_updates_z_(_Size) char, _Inout_updates_z_(_Count) char, _Dst, _In_ unsigned int, _Value , _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
     return (char *)_mbsnbset_l((unsigned char *)_Dst, _Value, _Count, _Locale);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _tcsnset_l, _tcsnset_s_l, _Inout_updates_z_(_Size) char, _Inout_updates_z_(_Count), char, _Dst, _In_ unsigned int, _Value , _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
@@ -1653,10 +1608,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_1(errno_t, _tcsset_s, _Prepost_z_ char, _Des
 
 __DECLARE_CPP_OVERLOAD_INLINE_FUNC_0_1_EX(char *, __RETURN_POLICY_DST, _tcsset, _tcsset_s, _Inout_updates_z_(_Size) char, _Inout_z_ char, _Dst, _In_ unsigned int, _Value)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
     return (char *)_mbsset((unsigned char *)_Dst, _Value);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_FUNC_0_1_EX(char *, __RETURN_POLICY_DST, _tcsset, _tcsset_s, _Inout_updates_z_(_Size) char, _Inout_z_ char, _Dst, _In_ unsigned int, _Value)
@@ -1670,10 +1622,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_2(errno_t, _tcsset_s_l, _Prepost_z_ char, _D
 
 __DECLARE_CPP_OVERLOAD_INLINE_FUNC_0_2_EX(char *, __RETURN_POLICY_DST, _tcsset_l, _tcsset_s_l, _Inout_updates_z_(_Size) char, _Inout_z_ char, _Dst, _In_ unsigned int, _Value, _In_opt_ _locale_t, _Locale)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
     return (char *)_mbsset_l((unsigned char *)_Dst, _Value, _Locale);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_FUNC_0_2_EX(char *, __RETURN_POLICY_DST, _tcsset_l, _tcsset_s_l, _Inout_updates_z_(_Size) char, _Inout_z_, char, _Dst, _In_ unsigned int, _Value, _In_opt_ _locale_t, _Locale)
@@ -1803,11 +1752,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_2(errno_t, _tcsnccat_s, _Prepost_z_ char, _D
 
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_2_EX(char *, __RETURN_POLICY_DST, _tcsnccat, _tcsnccat_s, _Inout_updates_z_(_Size) char, _Inout_z_ char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
-#pragma warning(disable:28726) // Banned API
     return (char *)_mbsncat((unsigned char *)_Dst,(const unsigned char *)_Source, _Count);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_2_EX(char *, __RETURN_POLICY_DST, _tcsnccat, _tcsnccat_s, _Inout_updates_z_(_Size) char, _Inout_z_, char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count)
@@ -1821,10 +1766,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_3(errno_t, _tcsnccat_s_l, _Prepost_z_ char, 
 
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _tcsnccat_l, _tcsnccat_s_l, _Inout_updates_z_(_Size) char, _Inout_z_ char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
     return (char *)_mbsncat_l((unsigned char *)_Dst,(const unsigned char *)_Source, _Count, _Locale);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _tcsnccat_l, _tcsnccat_s_l, _Inout_updates_z_(_Size) char, _Inout_z_, char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
@@ -1838,11 +1780,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_2(errno_t, _tcsnccpy_s, _Post_z_ char, _Dest
 
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_2_EX(char *, __RETURN_POLICY_DST, _tcsnccpy, _tcsnccpy_s, _Out_writes_bytes_(_Size) _Post_maybez_ char, _Pre_notnull_ _Post_maybez_ char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
-#pragma warning(disable:28726) // Banned API
     return (char *)_mbsncpy((unsigned char *)_Dst,(const unsigned char *)_Source, _Count);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_2_EX(char *, __RETURN_POLICY_DST, _tcsnccpy, _tcsnccpy_s, _Out_writes_z_(_Size) char, _Pre_notnull_ _Post_z_, char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count)
@@ -1856,10 +1794,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_3(errno_t, _tcsnccpy_s_l, _Post_z_ char, _De
 
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _tcsnccpy_l, _tcsnccpy_s_l, _Out_writes_z_(_Size) char, _Out_writes_bytes_(_Count) _Post_maybez_ char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
     return (char *)_mbsncpy_l((unsigned char *)_Dst,(const unsigned char *)_Source, _Count, _Locale);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _tcsnccpy_l, _tcsnccpy_s_l, _Out_writes_z_(_Size) char, _Out_writes_bytes_(_Count) _Post_maybez_, char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
@@ -1873,10 +1808,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_2(errno_t, _tcsncset_s, char, _Dest, _In_ un
 
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_2_EX(char *, __RETURN_POLICY_DST, _tcsncset, _tcsncset_s, _Inout_updates_z_(_Size) char, _Inout_updates_bytes_(_Count) char, _Dst, _In_ unsigned int, _Value, _In_ size_t, _Count)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
     return (char *)_mbsnset((unsigned char *)_Dst, _Value, _Count);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_2_EX(char *, __RETURN_POLICY_DST, _tcsncset, _tcsncset_s, _Inout_updates_z_(_Size) char, _Inout_updates_bytes_(_Count), char, _Dst, _In_ unsigned int, _Value, _In_ size_t, _Count)
@@ -1890,10 +1822,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_3(errno_t, _tcsncset_s_l, char, _Dest, _In_ 
 
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _tcsncset_l, _tcsncset_s_l, _Inout_updates_z_(_Size) char, _Inout_updates_bytes_(_Count) char, _Dst, _In_ unsigned int, _Value, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
     return (char *)_mbsnset_l((unsigned char *)_Dst, _Value, _Count, _Locale);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _tcsncset_l, _tcsncset_s_l, _Inout_updates_z_(_Size) char, _Inout_updates_bytes_(_Count), char, _Dst, _In_ unsigned int, _Value, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
@@ -1916,10 +1845,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_0(errno_t, _tcslwr_s, _Prepost_z_ char, _Str
 
 __DECLARE_CPP_OVERLOAD_INLINE_FUNC_0_0_EX(char *, __RETURN_POLICY_DST, _tcslwr, _tcslwr_s, _Inout_updates_z_(_Size) char, _Inout_z_ char, _String)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
     return (char *)_mbslwr((unsigned char *)_String);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_FUNC_0_0_EX(char *, __RETURN_POLICY_DST, _tcslwr, _tcslwr_s, _Inout_updates_z_(_Size) char, _Inout_z_ char, _String)
@@ -1933,10 +1859,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_1(errno_t, _tcslwr_s_l, _Prepost_z_ char, _S
 
 __DECLARE_CPP_OVERLOAD_INLINE_FUNC_0_1_EX(char *, __RETURN_POLICY_DST, _tcslwr_l, _tcslwr_s_l, _Inout_updates_z_(_Size) char, _Inout_z_ char, _String, _In_opt_ _locale_t, _Locale)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
     return (char *)_mbslwr_l((unsigned char *)_String, _Locale);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_FUNC_0_1_EX(char *, __RETURN_POLICY_DST, _tcslwr_l, _tcslwr_s_l, _Inout_updates_z_(_Size) char, _Inout_z_ char, _String, _In_opt_ _locale_t, _Locale)
@@ -1950,10 +1873,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_0(errno_t, _tcsupr_s, _Prepost_z_ char, _Str
 
 __DECLARE_CPP_OVERLOAD_INLINE_FUNC_0_0_EX(char *, __RETURN_POLICY_DST, _tcsupr, _tcsupr_s, _Inout_updates_z_(_Size) char, _Inout_z_ char, _String)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
     return (char *)_mbsupr((unsigned char *)_String);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_FUNC_0_0_EX(char *, __RETURN_POLICY_DST, _tcsupr, _tcsupr_s, _Inout_updates_z_(_Size) char, _Inout_z_ char, _String)
@@ -1967,10 +1887,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_1(errno_t, _tcsupr_s_l, _Prepost_z_ char, _S
 
 __DECLARE_CPP_OVERLOAD_INLINE_FUNC_0_1_EX(char *, __RETURN_POLICY_DST, _tcsupr_l, _tcsupr_s_l, _Inout_updates_z_(_Size) char, _Inout_z_ char, _String, _In_opt_ _locale_t, _Locale)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
     return (char *)_mbsupr_l((unsigned char *)_String, _Locale);
-#pragma warning(pop)
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_FUNC_0_1_EX(char *, __RETURN_POLICY_DST, _tcsupr_l, _tcsupr_s_l, _Inout_updates_z_(_Size) char, _Inout_z_ char, _String, _In_opt_ _locale_t, _Locale)
@@ -1986,11 +1903,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_2(errno_t, _tccpy_s, _Post_z_ char, _Dest, _
 
 _CRT_INSECURE_DEPRECATE(_tccpy_s) __inline void _tccpy(_Out_writes_z_(2) char * _Destination, _In_z_ const char * _Source)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
-#pragma warning(disable:28726) // Banned API
     _mbccpy((unsigned char *)_Destination, (const unsigned char *)_Source);
-#pragma warning(pop)
 }
 
 _Check_return_wat_ __inline errno_t _tccpy_s_l(_Out_writes_z_(_SizeInBytes) char * _Destination, _In_ size_t _SizeInBytes, _Out_opt_ int *_PCopied, _In_z_ const char * _Source, _In_opt_ _locale_t _Locale)
@@ -2002,10 +1915,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_3(errno_t, _tccpy_s_l, _Post_z_ char, _Dest,
 
 _CRT_INSECURE_DEPRECATE(_tccpy_s_l) __inline void _tccpy_l(_Out_writes_z_(2) char * _Destination, _In_z_ const char * _Source, _In_opt_ _locale_t _Locale)
 {
-#pragma warning(push)
-#pragma warning(disable:4996)
     _mbccpy_l((unsigned char *)_Destination,( const unsigned char *)_Source, _Locale);
-#pragma warning(pop)
 }
 
 /* inline helper */
@@ -2219,18 +2129,14 @@ typedef unsigned char * PTBYTE;
 #else  /* __STDC__ || defined (_NO_INLINING) */
 _Check_return_ __inline size_t __CRTDECL _tclen(_In_z_ const char *_cpc)
 {
-    /* avoid compiler warning */
-    (void *)_cpc;
+    _CRT_UNUSED(_cpc);
     return 1;
 }
 __inline void __CRTDECL _tccpy(_Out_ char *_pc1, _In_z_ const char *_cpc2) { *_pc1 = *_cpc2; }
 __inline void __CRTDECL _tccpy_l(_Out_ char *_Pc1, _In_z_ const char *_Cpc2, _In_opt_ _locale_t _Locale)
 {
     _CRT_UNUSED(_Locale);
-#pragma warning( push )
-#pragma warning( disable : 28719 )
     _tccpy(_Pc1, _Cpc2);
-#pragma warning( pop )
 }
 _Check_return_ __inline int __CRTDECL _tccmp(_In_z_ const char *_cpc1, _In_z_ const char *_cpc2) { return (int) (((unsigned char)*_cpc1)-((unsigned char)*_cpc2)); }
 #endif  /* __STDC__ || defined (_NO_INLINING) */
@@ -2329,10 +2235,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_3(errno_t, _strncpy_s_l, _Post_z_ char, _Des
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _strncpy_l, _strncpy_s_l, _Out_writes_z_(_Size) char, _Out_writes_(_Count) char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
 {
     _CRT_UNUSED(_Locale);
-#pragma warning( push )
-#pragma warning( disable : 4995 4996 28719 )
     return strncpy(_Dst, _Source, _Count);
-#pragma warning( pop )
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _strncpy_l, _strncpy_s_l, _Out_writes_z_(_Size) char, _Out_writes_(_Count), char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
@@ -2350,10 +2253,8 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_3(errno_t, _strncat_s_l, _Prepost_z_ char, _
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _strncat_l, _strncat_s_l, _Inout_updates_z_(_Size) char, _Inout_z_ char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
 {
     _CRT_UNUSED(_Locale);
-#pragma warning( push )
-#pragma warning( disable : 4995 4996 6054 28719 )
+#pragma warning(suppress: 6054) // String may not be zero-terminated
     return strncat(_Dst, _Source, _Count);
-#pragma warning( pop )
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _strncat_l, _strncat_s_l, _Inout_updates_z_(_Size) char, _Inout_z_, char, _Dst, _In_z_ const char *, _Source, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
@@ -2361,10 +2262,7 @@ __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _strncat_
 _Check_return_ _CRT_INSECURE_DEPRECATE(_strtok_s_l) __inline char *  _strtok_l(_Inout_opt_z_ char * _String, _In_z_ const char * _Delimiters, _In_opt_ _locale_t _Locale)
 {
     _CRT_UNUSED(_Locale);
-#pragma warning(push)
-#pragma warning(disable:4996 28727)
     return strtok(_String,_Delimiters);
-#pragma warning(pop)
 }
 
 #if __STDC_WANT_SECURE_LIB__
@@ -2386,10 +2284,8 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_3(errno_t, _strnset_s_l, _Prepost_z_ char, _
 __DECLARE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _strnset_l, _strnset_s_l, _Inout_updates_z_(_Size) char, _Inout_updates_z_(_MaxCount) char, _Dst, _In_ int, _Value, _In_ size_t, _MaxCount, _In_opt_ _locale_t, _Locale)
 {
     _CRT_UNUSED(_Locale);
-#pragma warning( push )
-#pragma warning( disable : 4996 6054 )
+#pragma warning(suppress: 6054) // String may not be zero-terminated
     return _strnset(_Dst, _Value, _MaxCount);
-#pragma warning( pop )
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(char *, __RETURN_POLICY_DST, _strnset_l, _strnset_s_l, _Inout_updates_z_(_Size) char, _Inout_updates_z_(_MaxCount), char, _Dst, _In_ int, _Value, _In_ size_t, _Count, _In_opt_ _locale_t, _Locale)
@@ -2405,10 +2301,7 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_2(errno_t, _strset_s_l, _Prepost_z_ char, _D
 __DECLARE_CPP_OVERLOAD_INLINE_FUNC_0_2_EX(char *, __RETURN_POLICY_DST, _strset_l, _strset_s_l, _Inout_updates_z_(_Size) char, _Inout_z_ char, _Dst, _In_ int, _Value, _In_opt_ _locale_t, _Locale)
 {
     _CRT_UNUSED(_Locale);
-#pragma warning( push )
-#pragma warning( disable : 4996 )
     return _strset(_Dst, _Value);
-#pragma warning( pop )
 }
 
 __DEFINE_CPP_OVERLOAD_INLINE_FUNC_0_2_EX(char *, __RETURN_POLICY_DST, _strset_l, _strset_s_l, _Inout_updates_z_(_Size) char, _Inout_z_, char, _Dst, _In_ int, _Value, _In_opt_ _locale_t, _Locale)
@@ -2431,8 +2324,7 @@ __DEFINE_CPP_OVERLOAD_INLINE_FUNC_0_2_EX(char *, __RETURN_POLICY_DST, _strset_l,
 #ifdef __cplusplus
 }   /* ... extern "C" */
 #endif  /* __cplusplus */
-
-#pragma warning(pop)
-
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS
 #endif  /* _INC_TCHAR */
 

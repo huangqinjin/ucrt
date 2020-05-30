@@ -309,7 +309,7 @@ static __crt_multibyte_data* __cdecl update_thread_multibyte_data_internal(
 {
         __crt_multibyte_data* ptmbci = nullptr;
 
-        if ((ptd->_own_locale & __globallocalestatus) == 0 || ptd->_locale_info == nullptr)
+        if (__acrt_should_sync_with_global_locale(ptd) || ptd->_locale_info == nullptr)
         {
             __acrt_lock(__acrt_multibyte_cp_lock);
             __try
@@ -447,8 +447,7 @@ static int __cdecl setmbcp_internal(
     ptd->_multibyte_info = mb_data.detach();
 
     // If this thread has its own locale, do not update the global codepage:
-    if ((ptd->_own_locale & _PER_THREAD_LOCALE_BIT) ||
-        (__globallocalestatus & _GLOBAL_LOCALE_BIT))
+    if (!__acrt_should_sync_with_global_locale(ptd))
     {
         return setmbcp_status;
     }
@@ -537,7 +536,7 @@ static const wchar_t* CPtoLocaleName (int codepage)
 *       codepage - user requested code page/world script
 *
 *       Docs specify:
-*          _MB_CP_SBCS    0 - Use a single byte codepage 
+*          _MB_CP_SBCS    0 - Use a single byte codepage
 *          _MB_CP_OEM    -2 - use the OEMCP
 *          _MB_CP_ANSI   -3 - use the ACP
 *          _MB_CP_LOCALE -4 - use the codepage for a previous setlocale call
@@ -609,7 +608,7 @@ static void setSBUpLow (__crt_multibyte_data* ptmbci)
     if (ptmbci->mbcodepage != CP_UTF8 && GetCPInfo(ptmbci->mbcodepage, &cpInfo) != 0)
     {
         // This code attempts to generate casing tables for characters 0-255
-        // For DBCS codepages that will be basically ASCII casing but won't help DBCS mapping. 
+        // For DBCS codepages that will be basically ASCII casing but won't help DBCS mapping.
         // For SBCS codepages that will include the codepage-specific characters.
         // Mappings do not appear to include Turkish-i variations.
 

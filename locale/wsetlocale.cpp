@@ -72,12 +72,14 @@ int __cdecl _configthreadlocale(int i)
 {
     /*
      * ownlocale flag struct:
-     * bits: 000000000000000000000000000000P1
+     * bits: 000000000000000000000000 000W 00P1
      * P is set when _ENABLE_PER_THREAD_LOCALE is called for this thread
      * or _ENABLE_PER_THREAD_LOCALE_NEW was set when this thread was created.
+     * W is set when _WSETLOCALE_AVOID_SYNC_LOCALE_BIT is set by _wsetlocale.
+     * It is used to disable global-ptd resynchronization during a call to _wsetlocale.
      *
      * __globallocalestatus structure:
-     * bits: 11111111111111111111111111111N1G
+     * bits: 111111111111111111111111 1111 1N1G
      * G is set if _ENABLE_PER_THREAD_LOCALE_GLOBAL is set.
      * G is 0 if _ENABLE_PER_THREAD_LOCALE_GLOBAL is not set.
      * N is set if _ENABLE_PER_THREAD_LOCALE_NEW is set.
@@ -88,29 +90,30 @@ int __cdecl _configthreadlocale(int i)
 
     switch(i)
     {
-        case _ENABLE_PER_THREAD_LOCALE :
+        case _ENABLE_PER_THREAD_LOCALE:
+            // same behavior as __acrt_disable_global_locale_sync()
             ptd->_own_locale = ptd->_own_locale | _PER_THREAD_LOCALE_BIT;
             break;
 
-        case _DISABLE_PER_THREAD_LOCALE :
+        case _DISABLE_PER_THREAD_LOCALE:
+            // same behavior as __acrt_enable_global_locale_sync()
             ptd->_own_locale = ptd->_own_locale & ~_PER_THREAD_LOCALE_BIT;
             break;
 
-        case 0 :
+        case 0:
             break;
 
         /* used only during dll startup for linkopt */
-        case -1 :
-            __globallocalestatus=-1;
+        case -1:
+            __globallocalestatus = -1;
             break;
 
-        default :
+        default:
             _VALIDATE_RETURN(("Invalid parameter for _configthreadlocale",0),EINVAL,-1);
             break;
     }
 
     return retval;
-
 }
 
 extern "C" void __cdecl __acrt_uninitialize_locale()
@@ -463,11 +466,17 @@ wchar_t * __cdecl _wsetlocale (
     __acrt_eagerly_load_locale_apis();
 
     __acrt_update_thread_locale_data();
-    // Note here that we increment the _own_locale for this thread. We need this
-    // to make sure that the locale is not updated to some other locale by call to
-    // stricmp().
-    // Don't set any flag that aligns with N, P or G
-    ptd->_own_locale |= 0x10;
+
+    // Prevent global locale resynchronization - we call things like stricmp() further down
+    // without passing our _locale_t which would trigger a resynchronization.
+    // Use _WSETLOCALE_AVOID_SYNC_LOCALE_BIT to avoid interfering with other locale settings
+    // (see _configthreadlocale() for details).
+
+    // This may not be necessary anymore and may be a hold-over from when _wsetlocale called
+    // setlocale instead of the other way around.
+    // (MSFT:20394962 - Investigate whether _WSETLOCALE_AVOID_SYNC_LOCALE_BIT is needed)
+    __acrt_disable_global_locale_sync(ptd, _WSETLOCALE_AVOID_SYNC_LOCALE_BIT);
+
     __crt_call_and_cleanup([&]
     {
         if ((ptloci = _calloc_crt_t(__crt_locale_data, 1).detach()) != nullptr)
@@ -499,6 +508,9 @@ wchar_t * __cdecl _wsetlocale (
                     __acrt_release_locale_ref(ptloci);
                     // Note that after incrementing _own_locale, if this thread doesn't
                     // have its own locale, _own_locale variable should be 1.
+
+                    // Do not use __acrt_should_sync_with_global_locale() because
+                    // _WSETLOCALE_AVOID_SYNC_LOCALE_BIT will interfere.
                     if (!(ptd->_own_locale & _PER_THREAD_LOCALE_BIT) &&
                         !(__globallocalestatus & _GLOBAL_LOCALE_BIT))
                     {
@@ -514,7 +526,7 @@ wchar_t * __cdecl _wsetlocale (
             });
         }
     },
-    [&]{ ptd->_own_locale &= ~0x10; });
+    [&]{ __acrt_enable_global_locale_sync(ptd, _WSETLOCALE_AVOID_SYNC_LOCALE_BIT); });
 
     return retval;
 }

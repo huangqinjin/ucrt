@@ -66,7 +66,7 @@ static int __cdecl common_show_message_box(
 
     // If the current process isn't attached to a visible window station (e.g.
     // a non-interactive service), then we need to set the MB_SERVICE_NOTIFICATION
-    // flag, otherwise the message box will be invisible, hanging the program.
+    // flag, otherwise the message box will be invisible, stalling the program.
     if (!__acrt_is_interactive())
     {
         return traits::message_box(nullptr, text, caption, type | MB_SERVICE_NOTIFICATION);

@@ -10,6 +10,10 @@
 
 #include <corecrt.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 _CRT_BEGIN_C_HEADER
 
 
@@ -157,9 +161,6 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
 //
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 #if !defined RC_INVOKED && !defined __midl && !defined _INC_WTIME_INL && !defined _CRT_NO_TIME_T
-    #pragma warning(push)
-    #pragma warning(disable: 4996)
-
     #ifdef _USE_32BIT_TIME_T
 
         _Check_return_
@@ -199,10 +200,8 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
         }
 
     #endif // !_USE_32BIT_TIME_T
-
-    #pragma warning(pop)
 #endif
 
-
-
 _CRT_END_C_HEADER
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS

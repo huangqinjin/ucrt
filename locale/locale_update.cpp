@@ -13,7 +13,7 @@ extern "C" void __acrt_update_locale_info(
     __crt_locale_data** const locale_info
     )
 {
-    if (*locale_info != __acrt_current_locale_data.value() && (ptd->_own_locale & __globallocalestatus) == 0)
+    if (*locale_info != __acrt_current_locale_data.value() && __acrt_should_sync_with_global_locale(ptd))
     {
         *locale_info = __acrt_update_thread_locale_data();
     }
@@ -24,7 +24,7 @@ extern "C" void __acrt_update_multibyte_info(
     __crt_multibyte_data** const multibyte_info
     )
 {
-    if (*multibyte_info != __acrt_current_multibyte_data.value() && (ptd->_own_locale & __globallocalestatus) == 0)
+    if (*multibyte_info != __acrt_current_multibyte_data.value() && __acrt_should_sync_with_global_locale(ptd))
     {
         *multibyte_info = __acrt_update_thread_multibyte_data();
     }

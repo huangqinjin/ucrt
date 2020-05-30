@@ -29,7 +29,7 @@ extern "C" errno_t __cdecl wmemmove_s(
     _VALIDATE_RETURN_ERRCODE(source != nullptr, EINVAL);
     _VALIDATE_RETURN_ERRCODE(size_in_elements >= count, ERANGE);
 
-#pragma warning(suppress:__WARNING_BANNED_API_USAGEL2 __WARNING_BUFFER_COPY_NO_KNOWN_SIZEEXPR) /* 28726 22104 */
+#pragma warning(suppress:__WARNING_BANNED_API_USAGEL2) /* 28726 */
     wmemmove(destination, source, count);
     return 0;
 }

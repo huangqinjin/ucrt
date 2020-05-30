@@ -207,7 +207,7 @@ struct __crt_integer_traits<long long>
 //     * Therefore, characters cannot be modified according to locale.
 // CP_ACP - Environment Initialization
 //     * This is done at startup and does not change based off of locale, so using the ACP is correct.
-// GetConsoleCP() - write_double_translated_ansi_nolock (via _write)
+// GetConsoleOutputCP() - write_double_translated_ansi_nolock (via _write)
 // GetConsoleCP() - _getch
 // CP_UTF8 - write_text_utf8_nolock (via _write)
 //
@@ -232,6 +232,7 @@ struct __crt_integer_traits<long long>
 // * _unlink
 // * Wildcard parsing in argv with setargv.obj
 // * Calls to get the current module name for debug pop-up windows and assert messages (via __acrt_GetModuleFileNameA)
+// * Setting _tzname when value provided via TZ environment variable.
 //
 
 inline size_t __crt_compute_required_transform_buffer_count(

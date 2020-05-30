@@ -12,19 +12,64 @@
 //
 #include <corecrt_internal.h>
 #include <corecrt_internal_fltintrn.h>
+#include <fenv.h>
 #include <string.h>
 #include <stddef.h>
 
 
-#pragma warning(disable:__WARNING_UNRELATED_LOOP_TERMINATION) // 22102
 #pragma warning(disable:__WARNING_BUFFER_UNDERFLOW) // 26001
 
+static bool should_round_up(char const * const mantissa_it, int const sign, __acrt_has_trailing_digits const trailing_digits, __acrt_rounding_mode const rounding_mode)
+{
+
+    if (rounding_mode == __acrt_rounding_mode::legacy) {
+        return *mantissa_it >= '5';
+    }
+
+    int const round_mode = fegetround();
+
+    if (round_mode == FE_TONEAREST)
+    {
+        if (*mantissa_it > '5')
+        {
+            return true;
+        }
+
+        if (*mantissa_it < '5')
+        {
+            return false;
+        }
+
+        // If there are trailing digits we are in a scenario like this .5000000001 and should round up
+        if (trailing_digits == __acrt_has_trailing_digits::trailing)
+        {
+            return true;
+        }
+
+        // If the previous digit is odd we should round to the closest even.
+        return *(mantissa_it - 1) % 2;
+    }
+
+    if (round_mode == FE_UPWARD)
+    {
+        return *mantissa_it != '0' && sign != '-';
+    }
+
+    if (round_mode == FE_DOWNWARD)
+    {
+        return *mantissa_it != '0' && sign == '-';
+    }
+
+    return false;
+}
 extern "C" errno_t __cdecl __acrt_fp_strflt_to_string(
-    char*  const buffer,
-    size_t const buffer_count,
-    int          digits,
-    STRFLT const pflt
-    )
+    char*                        const buffer,
+    size_t                       const buffer_count,
+    int                                digits,
+    STRFLT                       const pflt,
+    __acrt_has_trailing_digits   const trailing_digits,
+    __acrt_rounding_mode         const rounding_mode
+)
 {
     _VALIDATE_RETURN_ERRCODE(buffer != nullptr, EINVAL);
     _VALIDATE_RETURN_ERRCODE(buffer_count > 0,  EINVAL);
@@ -58,7 +103,7 @@ extern "C" errno_t __cdecl __acrt_fp_strflt_to_string(
     // Do any rounding which may be needed.  Note:  if digits < 0, we don't do
     // any rounding because in this case, the rounding occurs in a digit which
     // will not be output because of the precision requested.
-    if (digits >= 0 && *mantissa_it >= '5')
+    if (digits >= 0 && should_round_up(mantissa_it, pflt->sign, trailing_digits, rounding_mode))
     {
         buffer_it--;
 

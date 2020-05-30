@@ -12,6 +12,10 @@
 #include <corecrt.h>
 #include <corecrt_wstdio.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 _CRT_BEGIN_C_HEADER
 
 /* Buffered I/O macros */
@@ -94,10 +98,11 @@ typedef __int64 fpos_t;
             );
 
         _Check_return_wat_
+        _Success_(return == 0)
         _ACRTIMP errno_t __cdecl fopen_s(
-            _Outptr_result_maybenull_ FILE**      _Stream,
-            _In_z_                    char const* _FileName,
-            _In_z_                    char const* _Mode
+            _Outptr_result_nullonfailure_ FILE**      _Stream,
+            _In_z_                        char const* _FileName,
+            _In_z_                        char const* _Mode
             );
 
         _Check_return_opt_
@@ -435,14 +440,11 @@ typedef __int64 fpos_t;
         _Always_(_Post_z_) char, _Buffer
         )
 
-#pragma warning(push)
-#pragma warning(disable: 28726) // __WARNING_BANNED_API_USAGEL2
 __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
         _Success_(return != 0)
         char*, __RETURN_POLICY_DST, _ACRTIMP, tmpnam,
         _Pre_maybenull_ _Always_(_Post_z_), char, _Buffer
         )
-#pragma warning(pop)
 
     _Success_(return != EOF)
     _Check_return_opt_
@@ -1407,10 +1409,7 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
     ;
     #else
     {
-        #pragma warning(push)
-        #pragma warning(disable: 4996) // Deprecation
         return _vsnprintf_l(_Buffer, _BufferCount, _Format, NULL, _ArgList);
-        #pragma warning(pop)
     }
     #endif
 
@@ -1419,7 +1418,7 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
         // redefinition" with a subsequent line indicating where the previous definition
         // of vsnprintf was.  This makes it easier to find where vsnprintf was defined.
         #pragma warning(push, 1)
-        #pragma warning(1: 4005)
+        #pragma warning(1: 4005) // macro redefinition
         #define vsnprintf Do not define vsnprintf as a macro
         #pragma warning(pop)
         #error Macro definition of vsnprintf conflicts with Standard Library function declaration
@@ -1457,10 +1456,7 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
     ;
     #else
     {
-        #pragma warning(push)
-        #pragma warning(disable: 4996) // Deprecation
         return _vsnprintf_l(_Buffer, (size_t)-1, _Format, _Locale, _ArgList);
-        #pragma warning(pop)
     }
     #endif
 
@@ -1475,10 +1471,7 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
     ;
     #else
     {
-        #pragma warning(push)
-        #pragma warning(disable: 4996) // Deprecation
         return _vsnprintf_l(_Buffer, (size_t)-1, _Format, NULL, _ArgList);
-        #pragma warning(pop)
     }
     #endif
 
@@ -1759,10 +1752,7 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
         va_list _ArgList;
         __crt_va_start(_ArgList, _Locale);
 
-        #pragma warning(push)
-        #pragma warning(disable: 4996) // Deprecation
         _Result = _vsprintf_l(_Buffer, _Format, _Locale, _ArgList);
-        #pragma warning(pop)
 
         __crt_va_end(_ArgList);
         return _Result;
@@ -1783,27 +1773,19 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
         va_list _ArgList;
         __crt_va_start(_ArgList, _Format);
 
-        #pragma warning(push)
-        #pragma warning(disable: 4996) // Deprecation
         _Result = _vsprintf_l(_Buffer, _Format, NULL, _ArgList);
-        #pragma warning(pop)
 
         __crt_va_end(_ArgList);
         return _Result;
     }
     #endif
 
-    #pragma warning(push)
-    #pragma warning(disable: 4996)
-    #pragma warning(disable: 28719) // __WARNING_BANNED_API_USAGE
-    #pragma warning(disable: 28726) // __WARNING_BANNED_API_USAGEL2
     __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_1_ARGLIST(
         _Success_(return >= 0)
         int, __RETURN_POLICY_SAME, __EMPTY_DECLSPEC, __CRTDECL, sprintf, vsprintf,
         _Pre_notnull_ _Always_(_Post_z_), char,        _Buffer,
         _In_z_ _Printf_format_string_     char const*, _Format
         )
-    #pragma warning(pop)
 
     _Success_(return >= 0)
     _Check_return_opt_
@@ -1914,10 +1896,7 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
         va_list _ArgList;
         __crt_va_start(_ArgList, _Locale);
 
-        #pragma warning(push)
-        #pragma warning(disable: 4996) // Deprecation
         _Result = _vsnprintf_l(_Buffer, _BufferCount, _Format, _Locale, _ArgList);
-        #pragma warning(pop)
 
         __crt_va_end(_ArgList);
         return _Result;
@@ -1929,7 +1908,7 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
         // redefinition" with a subsequent line indicating where the previous definition
         // of snprintf was.  This makes it easier to find where snprintf was defined.
         #pragma warning(push, 1)
-        #pragma warning(1: 4005)
+        #pragma warning(1: 4005) // macro redefinition
         #define snprintf Do not define snprintf as a macro
         #pragma warning(pop)
         #error Macro definition of snprintf conflicts with Standard Library function declaration
@@ -1949,7 +1928,6 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
         int _Result;
         va_list _ArgList;
         __crt_va_start(_ArgList, _Format);
-    #pragma warning(suppress:28719)    // 28719
         _Result = vsnprintf(_Buffer, _BufferCount, _Format, _ArgList);
         __crt_va_end(_ArgList);
         return _Result;
@@ -1970,7 +1948,6 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
         int _Result;
         va_list _ArgList;
         __crt_va_start(_ArgList, _Format);
-    #pragma warning(suppress:28719)    // 28719
         _Result = _vsnprintf(_Buffer, _BufferCount, _Format, _ArgList);
         __crt_va_end(_ArgList);
         return _Result;
@@ -2213,7 +2190,7 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
     #if __STDC_WANT_SECURE_LIB__
 
         #pragma warning(push)
-        #pragma warning(disable:6530)
+        #pragma warning(disable: 6530) // Unrecognized SAL format string
 
         _Check_return_opt_
         _CRT_STDIO_INLINE int __CRTDECL vsscanf_s(
@@ -2311,10 +2288,7 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
             va_list _ArgList;
             __crt_va_start(_ArgList, _Format);
 
-            #pragma warning(push)
-            #pragma warning(disable: 4996) // Deprecation
             _Result = vsscanf_s(_Buffer, _Format, _ArgList);
-            #pragma warning(pop)
 
             __crt_va_end(_ArgList);
             return _Result;
@@ -2324,7 +2298,7 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
     #endif
 
     #pragma warning(push)
-    #pragma warning(disable:6530)
+    #pragma warning(disable: 6530) // Unrecognized SAL format string
 
     _Check_return_opt_ _CRT_INSECURE_DEPRECATE(_snscanf_s_l)
     _CRT_STDIO_INLINE int __CRTDECL _snscanf_l(
@@ -2469,4 +2443,6 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
 
 
 _CRT_END_C_HEADER
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS
 #endif // _INC_STDIO

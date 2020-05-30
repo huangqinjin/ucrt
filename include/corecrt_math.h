@@ -11,13 +11,11 @@
 
 #include <corecrt.h>
 
-_CRT_BEGIN_C_HEADER
-
 #pragma warning(push)
-#pragma warning(disable:4738) // storing 32-bit float result in memory, possible loss of performance
-#pragma warning(disable:4820) // padding added after data member
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
 
-
+_CRT_BEGIN_C_HEADER
 
 #ifndef __assembler
     // Definition of the _exception struct, which is passed to the matherr function
@@ -988,8 +986,7 @@ extern "C++"
 
 #endif // _CRT_INTERNAL_NONSTDC_NAMES
 
-
-#pragma warning(pop)
-
 _CRT_END_C_HEADER
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS
 #endif /* _INC_MATH */

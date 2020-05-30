@@ -12,6 +12,10 @@
 #include <corecrt.h>
 #include <ctype.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 _CRT_BEGIN_C_HEADER
 
 
@@ -99,7 +103,7 @@ _ACRTIMP int __cdecl _getmbcp(void);
 
     // BEGIN _MBLEADTRAIL_DEFINED
     // Lead and trail bytes do not apply correctly to all encodings, including UTF-8.  Applications
-    // are recommended to use the system codepage conversion APIs and not attempt to reverse 
+    // are recommended to use the system codepage conversion APIs and not attempt to reverse
     // engineer the behavior of any particular encoding.  Lead and trail are always FALSE for UTF-8.
     _When_(_Ch == 0, _Post_equal_to_(0))
     _Check_return_ _DCRTIMP int __cdecl _ismbblead (_In_ unsigned int _Ch);
@@ -164,4 +168,6 @@ _ACRTIMP int __cdecl _getmbcp(void);
 #endif
 
 _CRT_END_C_HEADER
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS
 #endif // _INC_MBCTYPE

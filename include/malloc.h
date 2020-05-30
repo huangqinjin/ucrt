@@ -12,6 +12,10 @@
 #include <corecrt.h>
 #include <corecrt_malloc.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 _CRT_BEGIN_C_HEADER
 
 
@@ -35,16 +39,12 @@ _CRT_BEGIN_C_HEADER
 #define _FREEENTRY      0
 #define _USEDENTRY      1
 
-
-
 typedef struct _heapinfo
 {
     int* _pentry;
     size_t _size;
     int _useflag;
 } _HEAPINFO;
-
-
 
 #define _mm_free(a)      _aligned_free(a)
 #define _mm_malloc(a, b) _aligned_malloc(a, b)
@@ -67,7 +67,7 @@ void* __cdecl _alloca(_In_ size_t _Size);
         _ACRTIMP int __cdecl _heapwalk(_Inout_ _HEAPINFO* _EntryInfo);
     #endif
 
-    #ifdef _CRT_USE_WINAPI_FAMILY_DESKTOP_APP
+    #if defined _CRT_USE_WINAPI_FAMILY_DESKTOP_APP || defined _CRT_USE_WINAPI_FAMILY_GAMES
         _Check_return_ _DCRTIMP int __cdecl _heapchk(void);
     #endif
 
@@ -87,7 +87,8 @@ void* __cdecl _alloca(_In_ size_t _Size);
 
 
     #pragma warning(push)
-    #pragma warning(disable:6540)
+    #pragma warning(disable: 6540) // C6540: attribute annotations on this function will invalidate all
+                                   // of its existing __declspec annotations
 
     __inline void* _MarkAllocaS(_Out_opt_ __crt_typefix(unsigned int*) void* _Ptr, unsigned int _Marker)
     {
@@ -112,7 +113,8 @@ void* __cdecl _alloca(_In_ size_t _Size);
 
 
 #ifdef _DEBUG
-
+// C6255: _alloca indicates failure by raising a stack overflow exception
+// C6386: buffer overrun
     #ifndef _CRTDBG_MAP_ALLOC
         #undef _malloca
         #define _malloca(size)                                                           \
@@ -144,7 +146,7 @@ void* __cdecl _alloca(_In_ size_t _Size);
     #undef _freea
 
     #pragma warning(push)
-    #pragma warning(disable: 6014)
+    #pragma warning(disable: 6014) // leaking memory
     __inline void __CRTDECL _freea(_Pre_maybenull_ _Post_invalid_ void* _Memory)
     {
         unsigned int _Marker;
@@ -177,4 +179,6 @@ void* __cdecl _alloca(_In_ size_t _Size);
 
 
 _CRT_END_C_HEADER
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS
 #endif // _INC_MALLOC

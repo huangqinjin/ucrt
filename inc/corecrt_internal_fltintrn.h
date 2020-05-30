@@ -97,6 +97,19 @@ enum class __acrt_fp_class : uint32_t
     indeterminate,
 };
 
+enum class __acrt_has_trailing_digits
+{
+    trailing,
+    no_trailing
+};
+
+// This rounding mode is used to know if we are using functions like gcvt vs printf
+enum class __acrt_rounding_mode
+{
+    legacy,
+    standard
+};
+
 inline __acrt_fp_class __cdecl __acrt_fp_classify(double const& value) throw()
 {
     using floating_traits = __acrt_floating_type_traits<double>;
@@ -162,15 +175,16 @@ _CRT_BEGIN_C_HEADER
 
 _Success_(return == 0)
 errno_t __cdecl __acrt_fp_format(
-    _In_                                                   double const* value,
-    _Maybe_unsafe_(_Inout_updates_z_, result_buffer_count) char*         result_buffer,
-    _In_fits_precision_(precision)                         size_t        result_buffer_count,
-    _Out_writes_(scratch_buffer_count)                     char*         scratch_buffer,
-    _In_                                                   size_t        scratch_buffer_count,
-    _In_                                                   int           format,
-    _In_                                                   int           precision,
-    _In_                                                   uint64_t      options,
-    _In_opt_                                               _locale_t     locale
+    _In_                                                   double const*        value,
+    _Maybe_unsafe_(_Inout_updates_z_, result_buffer_count) char*                result_buffer,
+    _In_fits_precision_(precision)                         size_t               result_buffer_count,
+    _Out_writes_(scratch_buffer_count)                     char*                scratch_buffer,
+    _In_                                                   size_t               scratch_buffer_count,
+    _In_                                                   int                  format,
+    _In_                                                   int                  precision,
+    _In_                                                   uint64_t             options,
+    _In_opt_                                               _locale_t            locale,
+    _In_                                                   __acrt_rounding_mode rounding_mode
     );
 
 errno_t __cdecl __acrt_fp_strflt_to_string(
@@ -179,10 +193,12 @@ errno_t __cdecl __acrt_fp_strflt_to_string(
     _When_((digits <= 0), _In_ _Pre_satisfies_(buffer_count > 1))
     _In_                         size_t buffer_count,
     _In_                         int    digits,
-    _Inout_                      STRFLT value
+    _Inout_                      STRFLT value,
+    _In_                         __acrt_has_trailing_digits trailing_digits,
+    _In_                         __acrt_rounding_mode rounding_mode
     );
 
-void __cdecl __acrt_fltout(
+__acrt_has_trailing_digits __cdecl __acrt_fltout(
     _In_                         _CRT_DOUBLE value,
     _In_                         unsigned    precision,
     _Out_                        STRFLT      result,

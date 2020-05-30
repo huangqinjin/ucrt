@@ -10,10 +10,19 @@
 
 #include <corecrt.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 _CRT_BEGIN_C_HEADER
 
-#define __STDC_UTF_16__
-#define __STDC_UTF_32__
+#ifndef __STDC_UTF_16__
+    #define __STDC_UTF_16__ 1
+#endif
+
+#ifndef __STDC_UTF_32__
+    #define __STDC_UTF_32__ 1
+#endif
 
 typedef unsigned short _Char16_t;
 typedef unsigned int _Char32_t;
@@ -31,6 +40,8 @@ _Check_return_ _ACRTIMP size_t __cdecl mbrtoc32(_Out_opt_ char32_t *_Pc32, _In_r
 _Check_return_ _ACRTIMP size_t __cdecl c32rtomb(_Out_writes_opt_(4) char *_S, _In_ char32_t _C32, _Inout_ mbstate_t *_Ps);
 
 _CRT_END_C_HEADER
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS
 
 /*
  * Copyright (c) 1992-2013 by P.J. Plauger.  ALL RIGHTS RESERVED.

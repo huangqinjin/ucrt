@@ -126,16 +126,20 @@ extern "C++"
     }                                                                                        \
     __pragma(warning(pop))
 
-
+extern size_t const _sys_first_posix_error;
+extern size_t const _sys_last_posix_error;
+extern char const* const _sys_posix_errlist[];
 
 _Ret_z_
 __inline char const* _get_sys_err_msg(size_t const m)
 {
     _BEGIN_SECURE_CRT_DEPRECATION_DISABLE
-    if (m >= (size_t)_sys_nerr)
+    if (m > _sys_last_posix_error || ((size_t)_sys_nerr < m && m < _sys_first_posix_error))
         return _sys_errlist[_sys_nerr];
-
-    return _sys_errlist[m];
+    if (m <= (size_t)_sys_nerr)
+        return _sys_errlist[m];
+    else
+        return _sys_posix_errlist[m - _sys_first_posix_error];
     _END_SECURE_CRT_DEPRECATION_DISABLE
 }
 
@@ -403,8 +407,9 @@ void __cdecl __acrt_initialize_thread_local_exit_callback(_In_opt_ void * encode
 #define LC_STR_TYPE  1
 #define LC_WSTR_TYPE 2
 
-#define _PER_THREAD_LOCALE_BIT  0x2
-#define _GLOBAL_LOCALE_BIT      0x1
+#define _WSETLOCALE_AVOID_SYNC_LOCALE_BIT   0x10
+#define _PER_THREAD_LOCALE_BIT              0x2
+#define _GLOBAL_LOCALE_BIT                  0x1
 
 
 
@@ -897,7 +902,7 @@ typedef struct __acrt_ptd
     __crt_locale_data*                     _locale_info;
     __crt_qualified_locale_data            _setloc_data;
     __crt_qualified_locale_data_downlevel* _setloc_downlevel_data;
-    int                                    _own_locale;   // If 1, this thread owns its locale
+    int                                    _own_locale;   // See _configthreadlocale() and __acrt_should_sync_with_global_locale()
 
     // The buffer used by _putch(), and the flag indicating whether the buffer
     // is currently in use or not.
@@ -1800,11 +1805,60 @@ extern "C++"
         _Inout_ __crt_multibyte_data** const data
         );
 
+    extern "C" __inline bool __acrt_should_sync_with_global_locale(
+        _In_ __acrt_ptd* const ptd
+        )
+    {
+        // Check whether per-thread locales are enabled either:
+        //  * On the thread (_ptd->_own_locale & _PER_THREAD_LOCALE_BIT is set)
+        //  * Globally (__globallocalestatus & _GLOBAL_LOCALE_BIT is set)
+
+        // If neither are enabled then we want to check the global locale setting
+        // and synchronize it to our per-thread-data.
+
+        // _own_locale
+        // bits: 000000000000000000000000 000W 00P1
+        // P is set after _configthreadlocale(_ENABLE_PER_THREAD_LOCALE).
+        // W is set in _wsetlocale to prevent resynchronization during _wsetlocale.
+        // Note that this means when _wsetlocale is ask whether it should to synchronize,
+        // it should not use __acrt_should_sync_with_global_locale.
+
+        // __globallocalestatus
+        // bits: 111111111111111111111111 1111 1N1G
+        // G is set if threadlocale.obj was linked to (via _configthreadlocale(-1)).
+        // N is whether new locales use the global locale and is unrelated to locale ptd sync.
+
+        // if _ENABLE_PER_THREAD_LOCALE is not set and threadlocale.obj is not linked to
+        return (ptd->_own_locale & __globallocalestatus) == 0;
+    }
+
+    // The per-thread locale is sometimes temporarily protected from resynchronization from
+    // the global locale to ensure calling the public API surface without locale information
+    // will not cause the locale to be reloaded half way through a call.
+
+    // This is only to protect us from ourselves - a future change can correct the need for these calls.
+    // Allows different 'bit_value' so that _wsetlocale can also use this.
+    extern "C" __inline void __acrt_disable_global_locale_sync(
+        _In_ __acrt_ptd* const ptd,
+        _In_ int         const bit_value = _PER_THREAD_LOCALE_BIT
+        )
+    {
+        ptd->_own_locale |= bit_value;
+    }
+
+    extern "C" __inline void __acrt_enable_global_locale_sync(
+        _In_ __acrt_ptd* const ptd,
+        _In_ int         const bit_value = _PER_THREAD_LOCALE_BIT
+        )
+    {
+        ptd->_own_locale &= ~bit_value;
+    }
+
     class _LocaleUpdate
     {
     public:
 
-        _LocaleUpdate(_locale_t const locale) throw()
+        explicit _LocaleUpdate(_locale_t const locale) throw()
             : _updated(false)
         {
             if (locale)
@@ -1823,9 +1877,12 @@ extern "C++"
 
                 __acrt_update_locale_info   (_ptd, &_locale_pointers.locinfo);
                 __acrt_update_multibyte_info(_ptd, &_locale_pointers.mbcinfo);
+
                 if ((_ptd->_own_locale & _PER_THREAD_LOCALE_BIT) == 0)
                 {
-                    _ptd->_own_locale |= _PER_THREAD_LOCALE_BIT;
+                    // Skip re-synchronization with the global locale to prevent the
+                    // locale from changing half-way through the call.
+                    __acrt_disable_global_locale_sync(_ptd);
                     _updated = true;
                 }
             }
@@ -1835,7 +1892,7 @@ extern "C++"
         {
             if (_updated)
             {
-                _ptd->_own_locale = _ptd->_own_locale & ~_PER_THREAD_LOCALE_BIT;
+                __acrt_enable_global_locale_sync(_ptd);
             }
         }
 
@@ -1847,6 +1904,8 @@ extern "C++"
     private:
 
         __acrt_ptd*           _ptd;
+        // Using the locale data from the PTD ensures their lifetime
+        // will last through the end of the call - no need to increment/decrement reference count.
         __crt_locale_pointers _locale_pointers;
         bool                  _updated;
 

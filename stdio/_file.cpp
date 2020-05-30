@@ -13,10 +13,10 @@
 // FILE descriptors for stdin, stdout, and stderr
 extern "C" __crt_stdio_stream_data _iob[_IOB_ENTRIES] =
 {
-    // ptr      _base,   _cnt, _flag,                                    _file, _charbuf, _bufsiz
-    {  nullptr, nullptr, 0,    _IOALLOCATED | _IOREAD,                   0,     0,        0        }, // stdin
-    {  nullptr, nullptr, 0,    _IOALLOCATED | _IOWRITE,                  1,     0,        0        }, // stdout
-    {  nullptr, nullptr, 0,    _IOALLOCATED | _IOWRITE | _IOBUFFER_NONE, 2,     0,        0        }, // stderr
+    // ptr      _base,   _cnt, _flag,                   _file, _charbuf, _bufsiz
+    {  nullptr, nullptr, 0,    _IOALLOCATED | _IOREAD,  0,     0,        0}, // stdin
+    {  nullptr, nullptr, 0,    _IOALLOCATED | _IOWRITE, 1,     0,        0}, // stdout
+    {  nullptr, nullptr, 0,    _IOALLOCATED | _IOWRITE, 2,     0,        0}, // stderr
 };
 
 extern "C" FILE* __cdecl __acrt_iob_func(unsigned const id)

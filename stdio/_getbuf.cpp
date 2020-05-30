@@ -11,7 +11,7 @@
 
 
 // Allocates a buffer for the provided stream.  This function assumes that the
-// caller has already checked to ensure that the stream does not always have a
+// caller has already checked to ensure that the stream does not already have a
 // buffer.
 extern "C" void __cdecl __acrt_stdio_allocate_buffer_nolock(FILE* const public_stream)
 {
@@ -24,7 +24,7 @@ extern "C" void __cdecl __acrt_stdio_allocate_buffer_nolock(FILE* const public_s
     #endif
 
     // Try to get a big buffer:
-    stream->_base = _malloc_crt_t(char, _INTERNAL_BUFSIZ).detach();
+    stream->_base = _calloc_crt_t(char, _INTERNAL_BUFSIZ).detach();
     if (stream->_base != nullptr)
     {
         stream.set_flags(_IOBUFFER_CRT);

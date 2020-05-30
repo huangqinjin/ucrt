@@ -111,7 +111,7 @@ static write_result __cdecl write_double_translated_ansi_nolock(
 {
     HANDLE      const os_handle  = reinterpret_cast<HANDLE>(_osfhnd(fh));
     char const* const buffer_end = buffer + buffer_size;
-    UINT        const console_cp = GetConsoleCP();
+    UINT        const console_cp = GetConsoleOutputCP();
     _LocaleUpdate _loc_update(nullptr);
     const bool is_utf8 = _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage == CP_UTF8;
 

@@ -39,7 +39,7 @@ extern "C" errno_t __cdecl wmemcpy_s(
         return EINVAL;
     }
 
-#pragma warning(suppress:__WARNING_BANNED_API_USAGEL2 __WARNING_BUFFER_COPY_NO_KNOWN_SIZEEXPR) /* 28726 22104 */
+#pragma warning(suppress:__WARNING_BANNED_API_USAGEL2) /* 28726 */
     wmemcpy(destination, source, count);
     return 0;
 }

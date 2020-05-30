@@ -67,7 +67,8 @@ extern "C" errno_t __cdecl _gcvt_s(
             'e',
             precision - 1,
             _CRT_INTERNAL_PRINTF_LEGACY_THREE_DIGIT_EXPONENTS,
-            nullptr);
+            nullptr,
+            __acrt_rounding_mode::legacy);
 
         if (e != 0)
         {
@@ -87,7 +88,8 @@ extern "C" errno_t __cdecl _gcvt_s(
             'f',
             precision - strflt.decpt,
             _CRT_INTERNAL_PRINTF_LEGACY_THREE_DIGIT_EXPONENTS,
-            nullptr);
+            nullptr,
+            __acrt_rounding_mode::legacy);
 
         if (e != 0)
         {

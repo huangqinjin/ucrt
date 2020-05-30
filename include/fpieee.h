@@ -18,15 +18,15 @@
 
 #include <corecrt.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 _CRT_BEGIN_C_HEADER
 
 
 
 #ifndef __assembler
-
-    // Disable C4324: structure was padded due to __declspec(align())
-    #pragma warning(push)
-    #pragma warning(disable: 4324)
 
     // Define floating point IEEE compare result values.
     typedef enum
@@ -433,7 +433,6 @@ _CRT_BEGIN_C_HEADER
 
     } _FPIEEE_VALUE;
 
-
     typedef struct
     {
         unsigned int Inexact          : 1;
@@ -469,11 +468,11 @@ _CRT_BEGIN_C_HEADER
         _In_ _FpieeFltHandlerType        _Handler
         );
 
-    #pragma warning(pop)
-
 #endif // __assembler
 
 _CRT_END_C_HEADER
 
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS
 #endif // __midl
 #endif // _INC_FPIEEE

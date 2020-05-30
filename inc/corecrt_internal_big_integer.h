@@ -33,8 +33,9 @@ namespace __crt_strtox {
 // We require sufficient precision to represent the reciprocal of the smallest
 // representable value (the smallest denormal, 2^-1074).  During parsing, we may
 // also consider up to 768 decimal digits.  For this, we require an additional
-// log2(10^768) bits of precision.  Finally, we require 32 bits of space for
-// pre-division numerator shifting.
+// log2(10^768) bits of precision.  Finally, we require 54 bits of space for
+// pre-division numerator shifting, because double explicitly stores 52 bits,
+// implicitly stores 1 bit, and we need 1 more bit for rounding.
 //
 // PERFORMANCE NOTE:  We intentionally do not initialize the _data array when a
 // big_integer object is constructed.  Profiling showed that zero initialization
@@ -70,7 +71,7 @@ struct big_integer
         maximum_bits  =
             1074 + // 1074 bits required to represent 2^1074
             2552 + // ceil(log2(10^768))
-            32,    // shift space
+            54,    // shift space
             
         element_bits  = sizeof(uint32_t) * CHAR_BIT,
 
@@ -207,21 +208,23 @@ __forceinline bool __cdecl shift_left(big_integer& x, uint32_t const n) throw()
     bool const bit_shifts_into_next_unit = bit_shift > (big_integer::element_bits - bit_scan_reverse(x._data[x._used - 1]));
 
     bool const unit_shift_will_overflow = x._used + unit_shift > big_integer::element_count;
-    bool const bit_shift_will_overflow =
-        x._used + unit_shift == big_integer::element_count &&
-        bit_shifts_into_next_unit;
 
-    if (unit_shift_will_overflow || bit_shift_will_overflow)
+    if (unit_shift_will_overflow)
     {
         x = big_integer{};
         return false;
     }
 
-    uint32_t const max_destination_index = __min(x._used + unit_shift, big_integer::element_count - 1);
+    uint32_t const new_used =
+        x._used + unit_shift + static_cast<uint32_t>(bit_shifts_into_next_unit);
 
-    for (uint32_t destination_index = max_destination_index;
-         destination_index != static_cast<uint32_t>(-1) && destination_index >= unit_shift;
-         --destination_index)
+    if (new_used > big_integer::element_count)
+    {
+        x = big_integer{};
+        return false;
+    }
+
+    for (uint32_t destination_index = new_used - 1; destination_index != unit_shift - 1; --destination_index)
     {
         uint32_t const upper_source_index = destination_index - unit_shift;
         uint32_t const lower_source_index = destination_index - unit_shift - 1;
@@ -242,9 +245,7 @@ __forceinline bool __cdecl shift_left(big_integer& x, uint32_t const n) throw()
         x._data[destination_index] = 0;
     }
 
-    x._used = bit_shifts_into_next_unit
-        ? max_destination_index + 1
-        : max_destination_index;
+    x._used = new_used;
 
     return true;
 }

@@ -13,6 +13,10 @@
 #include <corecrt.h>
 #include <stdint.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 _CRT_BEGIN_C_HEADER
 
 
@@ -332,4 +336,6 @@ _CRT_END_C_HEADER
  * Consult your license regarding permissions and restrictions.
 V5.30:0009 */
 
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS
 #endif // _INTTYPES

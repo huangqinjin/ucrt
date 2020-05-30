@@ -57,9 +57,10 @@ namespace
 
 
 // This function converts a finite, positive floating point value into its
-// decimal representation.  The decimal mantissa and exponent are returned
-// via the out parameters.  If the value is zero, negative, infinity, or nan,
-// the behavior is undefined.
+// decimal representation. The decimal mantissa and exponent are returned
+// via the out parameters and the return value affirms if there were trailing
+// digits. If the value is zero, negative, infinity, or nan, the behavior is
+// undefined.
 //
 // This function is based on the digit generation algorithm described in the
 // paper "Printing floating point numbers quickly and accurately," by Robert G.
@@ -75,7 +76,7 @@ namespace
 // digits have been generated for a %f specifier with the requested precision,
 // or [3] all remaining digits are known to be zero.
 template <typename FloatingType>
-__forceinline static void __cdecl convert_to_fos_high_precision(
+__forceinline static __acrt_has_trailing_digits __cdecl convert_to_fos_high_precision(
     FloatingType const value,
     uint32_t     const precision,
     int*         const exponent,
@@ -95,6 +96,7 @@ __forceinline static void __cdecl convert_to_fos_high_precision(
     // we expand the mantissa, and [2] increment the exponent to account for the
     // extra shift.
     bool const is_denormal = value_components._exponent == 0;
+    bool only_zeros_remaining = true;
 
     uint64_t const mantissa_adjustment = is_denormal
         ? 0
@@ -235,6 +237,8 @@ __forceinline static void __cdecl convert_to_fos_high_precision(
         multiply(r, digits_per_iteration_multiplier);
         uint32_t quotient = static_cast<uint32_t>(divide(r, s));
 
+        only_zeros_remaining = is_zero(r);
+
         _ASSERTE(quotient < digits_per_iteration_multiplier);
 
         // Decompose the quotient into its nine component digits by repeatedly
@@ -249,6 +253,11 @@ __forceinline static void __cdecl convert_to_fos_high_precision(
             // ignore the ones for which we do not have room:
             if (static_cast<uint32_t>(mantissa_last - mantissa_it) < i)
             {
+                if (d != '0')
+                {
+                    only_zeros_remaining = false;
+                }
+
                 continue;
             }
 
@@ -259,9 +268,12 @@ __forceinline static void __cdecl convert_to_fos_high_precision(
     }
 
     *mantissa_it = '\0';
+    return only_zeros_remaining ?
+        __acrt_has_trailing_digits::no_trailing :
+        __acrt_has_trailing_digits::trailing;
 }
 
-extern "C" void __cdecl __acrt_fltout(
+extern "C" __acrt_has_trailing_digits __cdecl __acrt_fltout(
     _CRT_DOUBLE       value,
     unsigned    const precision,
     STRFLT      const flt,
@@ -279,12 +291,14 @@ extern "C" void __cdecl __acrt_fltout(
     flt->sign     = components._sign == 1 ? '-' : ' ';
     flt->mantissa = result;
 
-    bool const value_is_zero = components._exponent == 0 && components._mantissa == 0;
+    unsigned int float_control;
+    _controlfp_s(&float_control, 0, 0);
+    bool const value_is_zero = components._exponent == 0 && (components._mantissa == 0 || float_control & _DN_FLUSH);
     if (value_is_zero)
     {
         flt->decpt = 0;
         _ERRCHECK(strcpy_s(result, result_count, "0"));
-        return;
+        return __acrt_has_trailing_digits::no_trailing;
     }
 
     // Handle special cases:
@@ -296,10 +310,10 @@ extern "C" void __cdecl __acrt_fltout(
 
     switch (classification)
     {
-    case __acrt_fp_class::infinity:      _ERRCHECK(strcpy_s(result, result_count, "1#INF" )); return;
-    case __acrt_fp_class::quiet_nan:     _ERRCHECK(strcpy_s(result, result_count, "1#QNAN")); return;
-    case __acrt_fp_class::signaling_nan: _ERRCHECK(strcpy_s(result, result_count, "1#SNAN")); return;
-    case __acrt_fp_class::indeterminate: _ERRCHECK(strcpy_s(result, result_count, "1#IND" )); return;
+    case __acrt_fp_class::infinity:      _ERRCHECK(strcpy_s(result, result_count, "1#INF" )); return __acrt_has_trailing_digits::trailing;
+    case __acrt_fp_class::quiet_nan:     _ERRCHECK(strcpy_s(result, result_count, "1#QNAN")); return __acrt_has_trailing_digits::no_trailing;
+    case __acrt_fp_class::signaling_nan: _ERRCHECK(strcpy_s(result, result_count, "1#SNAN")); return __acrt_has_trailing_digits::no_trailing;
+    case __acrt_fp_class::indeterminate: _ERRCHECK(strcpy_s(result, result_count, "1#IND" )); return __acrt_has_trailing_digits::no_trailing;
     }
 
     // Make the number positive before we pass it to the digit generator:
@@ -308,5 +322,5 @@ extern "C" void __cdecl __acrt_fltout(
     // The digit generator produces a truncated sequence of digits.  To allow
     // our caller to correctly round the mantissa, we need to generate an extra
     // digit.
-    convert_to_fos_high_precision(value.x, precision + 1, &flt->decpt, result, result_count);
+    return convert_to_fos_high_precision(value.x, precision + 1, &flt->decpt, result, result_count);
 }

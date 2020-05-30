@@ -12,6 +12,10 @@
 #include <corecrt.h>
 #include <corecrt_wtime.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 _CRT_BEGIN_C_HEADER
 
 
@@ -371,10 +375,7 @@ _ACRTIMP int __cdecl _timespec64_get(
             _In_ time_t const* const _Time
             )
         {
-            #pragma warning(push)
-            #pragma warning(disable: 4996)
             return _ctime32(_Time);
-            #pragma warning(pop)
         }
 
         _Check_return_
@@ -391,10 +392,7 @@ _ACRTIMP int __cdecl _timespec64_get(
             _In_ time_t const* const _Time
             )
         {
-            #pragma warning(push)
-            #pragma warning(disable: 4996)
             return _gmtime32(_Time);
-            #pragma warning(pop)
         }
 
         _Check_return_ _CRT_INSECURE_DEPRECATE(localtime_s)
@@ -402,10 +400,7 @@ _ACRTIMP int __cdecl _timespec64_get(
             _In_ time_t const* const _Time
             )
         {
-            #pragma warning(push)
-            #pragma warning(disable: 4996)
             return _localtime32(_Time);
-            #pragma warning(pop)
         }
 
         _Check_return_
@@ -477,10 +472,7 @@ _ACRTIMP int __cdecl _timespec64_get(
             _In_ time_t const* const _Time
             )
         {
-            #pragma warning(push)
-            #pragma warning(disable: 4996)
             return _ctime64(_Time);
-            #pragma warning(pop)
         }
 
         _Check_return_
@@ -496,10 +488,7 @@ _ACRTIMP int __cdecl _timespec64_get(
         static __inline struct tm* __CRTDECL gmtime(
             _In_ time_t const* const _Time)
         {
-            #pragma warning(push)
-            #pragma warning(disable: 4996)
             return _gmtime64(_Time);
-            #pragma warning(pop)
         }
 
         _CRT_INSECURE_DEPRECATE(localtime_s)
@@ -507,10 +496,7 @@ _ACRTIMP int __cdecl _timespec64_get(
             _In_ time_t const* const _Time
             )
         {
-            #pragma warning(push)
-            #pragma warning(disable: 4996)
             return _localtime64(_Time);
-            #pragma warning(pop)
         }
 
         _Check_return_
@@ -599,4 +585,6 @@ _ACRTIMP int __cdecl _timespec64_get(
 
 
 _CRT_END_C_HEADER
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS
 #endif // _INC_TIME

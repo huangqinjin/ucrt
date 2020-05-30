@@ -14,6 +14,10 @@
 #include <corecrt_memcpy_s.h>
 #include <vcruntime_string.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 #ifndef __midl
 
 _CRT_BEGIN_C_HEADER
@@ -114,3 +118,5 @@ _ACRTIMP int __cdecl _memicmp_l(
 _CRT_END_C_HEADER
 
 #endif // !__midl
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS

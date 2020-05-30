@@ -12,6 +12,10 @@
 #include <corecrt.h>
 #include <corecrt_wctype.h>
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 _CRT_BEGIN_C_HEADER
 #if !defined __midl && !defined RC_INVOKED
 
@@ -135,7 +139,7 @@ __inline int __CRTDECL __acrt_locale_get_ctype_array_value(
 
     #define __ascii_isalpha(c)   ( __chvalidchk(c, _ALPHA))
     #define __ascii_isdigit(c)   ( __chvalidchk(c, _DIGIT))
-    
+
     #ifdef _CRT_DEFINE_ASCII_CTYPE_MACROS
         #define __ascii_tolower(c)   ( (((c) >= 'A') && ((c) <= 'Z')) ? ((c) - 'A' + 'a') : (c) )
         #define __ascii_toupper(c)   ( (((c) >= 'a') && ((c) <= 'z')) ? ((c) - 'a' + 'A') : (c) )
@@ -299,4 +303,6 @@ __inline int __CRTDECL __acrt_locale_get_ctype_array_value(
 
 #endif // !defined __midl && !defined RC_INVOKED
 _CRT_END_C_HEADER
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS
 #endif // _INC_CTYPE

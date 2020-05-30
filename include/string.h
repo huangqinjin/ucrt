@@ -16,6 +16,10 @@
 
 #ifndef __midl
 
+#pragma warning(push)
+#pragma warning(disable: _UCRT_DISABLED_WARNINGS)
+_UCRT_DISABLE_CLANG_WARNINGS
+
 _CRT_BEGIN_C_HEADER
 
 
@@ -84,15 +88,11 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_1(
 
 #ifndef RC_INVOKED
 
-#pragma warning(push)
-#pragma warning(disable: 28719) // __WARNING_BANNED_API_USAGE
-#pragma warning(disable: 28726) // __WARNING_BANNED_API_USAGEL2
     __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_1(
         char*, __RETURN_POLICY_DST, __EMPTY_DECLSPEC, strcat,
         _Inout_updates_z_(_String_length_(_Destination) + _String_length_(_Source) + 1), char,        _Destination,
         _In_z_                                                                           char const*, _Source
         )
-#pragma warning(pop)
 
 #endif // RC_INVOKED
 
@@ -127,15 +127,11 @@ __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_1(
     _In_z_   char const*, _Source
     )
 
-#pragma warning(push)
-#pragma warning(disable: 28719) // __WARNING_BANNED_API_USAGE
-#pragma warning(disable: 28726) // __WARNING_BANNED_API_USAGEL2
 __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_1(
     char*, __RETURN_POLICY_DST, __EMPTY_DECLSPEC, strcpy,
     _Out_writes_z_(_String_length_(_Source) + 1), char,        _Destination,
     _In_z_                                        char const*, _Source
     )
-#pragma warning(pop)
 
 _Check_return_
 _ACRTIMP size_t __cdecl strcspn(
@@ -590,6 +586,7 @@ extern "C++"
 
 
 _CRT_END_C_HEADER
-
+_UCRT_RESTORE_CLANG_WARNINGS
+#pragma warning(pop) // _UCRT_DISABLED_WARNINGS
 #endif // !__midl
 #endif // _INC_STRING
