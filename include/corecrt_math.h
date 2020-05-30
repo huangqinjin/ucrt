@@ -41,7 +41,7 @@ _CRT_BEGIN_C_HEADER
             double x, y; // real and imaginary parts
         };
 
-        #if _CRT_INTERNAL_NONSTDC_NAMES && !defined __cplusplus
+        #if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES && !defined __cplusplus
             // Non-ANSI name for compatibility
             #define complex _complex
         #endif
@@ -960,7 +960,7 @@ extern "C++"
 
 #endif // _CRT_FUNCTIONS_REQUIRED
 
-#if _CRT_INTERNAL_NONSTDC_NAMES
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
 
     #define DOMAIN      _DOMAIN
     #define SING        _SING

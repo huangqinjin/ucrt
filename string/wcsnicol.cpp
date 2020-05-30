@@ -63,18 +63,7 @@ extern "C" int __cdecl _wcsnicoll_l (
 
     if ( _loc_update.GetLocaleT()->locinfo->locale_name[LC_COLLATE] == nullptr )
     {
-        wchar_t f, l;
-
-        do
-        {
-            f = __ascii_towlower(*_string1);
-            l = __ascii_towlower(*_string2);
-            _string1++;
-            _string2++;
-        }
-        while ( (--count) && f && (f == l) );
-
-        return (int)(f - l);
+        return __ascii_wcsnicmp(_string1, _string2, count);
     }
 
     if ( 0 == (ret = __acrt_CompareStringW(
@@ -100,23 +89,12 @@ extern "C" int __cdecl _wcsnicoll (
 {
     if (!__acrt_locale_changed())
     {
-        wchar_t f, l;
-
         /* validation section */
         _VALIDATE_RETURN(_string1 != nullptr, EINVAL, _NLSCMPERROR);
         _VALIDATE_RETURN(_string2 != nullptr, EINVAL, _NLSCMPERROR);
         _VALIDATE_RETURN(count <= INT_MAX, EINVAL, _NLSCMPERROR);
 
-        do
-        {
-            f = __ascii_towlower(*_string1);
-            l = __ascii_towlower(*_string2);
-            _string1++;
-            _string2++;
-        }
-        while ( (--count) && f && (f == l) );
-
-        return (int)(f - l);
+        return __ascii_wcsnicmp(_string1, _string2, count);
     }
     else
     {

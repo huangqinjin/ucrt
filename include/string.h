@@ -528,7 +528,7 @@ extern "C++"
 
 
 
-#if _CRT_INTERNAL_NONSTDC_NAMES
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
 
     #pragma push_macro("strdup")
     #undef strdup

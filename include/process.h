@@ -229,7 +229,7 @@ _ACRTIMP void __cdecl _endthreadex(
 
 
 
-#if _CRT_INTERNAL_NONSTDC_NAMES
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
 
     #define P_WAIT          _P_WAIT
     #define P_NOWAIT        _P_NOWAIT

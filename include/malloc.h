@@ -170,7 +170,7 @@ void* __cdecl _alloca(_In_ size_t _Size);
 
 
 
-#if _CRT_INTERNAL_NONSTDC_NAMES
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
     #define alloca _alloca
 #endif
 

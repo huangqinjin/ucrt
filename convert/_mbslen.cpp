@@ -59,7 +59,7 @@ static size_t __cdecl common_mbstrlen_l(
     size_t size = 0; // Number of bytes read
     for (char const* it = string; size < max_size && *it; ++n, ++it, ++size)
     {
-        if (_isleadbyte_l(static_cast<unsigned char>(*it), locale_update.GetLocaleT()))
+        if (_isleadbyte_fast_internal(static_cast<unsigned char>(*it), locale_update.GetLocaleT()))
         {
             ++size;
             if (size >= max_size)
@@ -81,7 +81,7 @@ extern "C" size_t __cdecl _mbstrlen_l(
     _locale_t   const locale
     )
 {
-    return common_mbstrlen_l(string, SIZE_MAX, locale);
+    return common_mbstrlen_l(string, _CRT_UNBOUNDED_BUFFER_SIZE, locale);
 }
 
 extern "C" size_t __cdecl _mbstrlen(char const* const string)

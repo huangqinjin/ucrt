@@ -49,7 +49,7 @@ _CRT_BEGIN_C_HEADER
             );
     #endif
 
-    #if _CRT_INTERNAL_NONSTDC_NAMES
+    #if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
         #define diskfree_t _diskfree_t
     #endif
 

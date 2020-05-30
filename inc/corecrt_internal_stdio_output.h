@@ -422,17 +422,17 @@ private:
 // position until '\0' is seen.  This function updates the buffer in place.
 inline void __cdecl force_decimal_point(_Inout_z_ char* buffer, _locale_t const locale) throw()
 {
-    if (tolower(*buffer) != 'e')
+    if (_tolower_fast_internal(static_cast<unsigned char>(*buffer), locale) != 'e')
     {
         do
         {
             ++buffer;
         }
-        while (isdigit(static_cast<unsigned char>(*buffer)));
+        while (_isdigit_fast_internal(static_cast<unsigned char>(*buffer), locale));
     }
 
     // Check if the buffer is in hexadecimal format (cfr %a or %A and fp_format_a):
-    if (tolower(*buffer) == 'x')
+    if (_tolower_fast_internal(*buffer, locale) == 'x')
     {
         // The buffer is in the form: [-]0xhP+d, and buffer points to the 'x':
         // we want to put the decimal point after the h digit: [-]0xh.P+d
@@ -979,7 +979,7 @@ protected:
 
     template <typename... Ts>
     standard_base(Ts&&... arguments) throw()
-        : output_adapter_data{arguments...     },
+        : output_adapter_data<Character, OutputAdapter>{arguments...     },
           _current_pass      {pass::not_started}
     {
     }
@@ -1083,7 +1083,7 @@ protected:
 
     template <typename... Ts>
     format_validation_base(Ts&&... arguments) throw()
-        : standard_base{arguments...}
+        : standard_base<Character, OutputAdapter>{arguments...}
     {
     }
 
@@ -1132,7 +1132,7 @@ protected:
 
     template <typename... Ts>
     positional_parameter_base(Ts&&... arguments) throw()
-        : format_validation_base{arguments...     },
+        : format_validation_base<Character, OutputAdapter>{arguments...     },
           _current_pass         {pass::not_started},
           _format_mode          {mode::unknown    },
           _format               {_format_it       },

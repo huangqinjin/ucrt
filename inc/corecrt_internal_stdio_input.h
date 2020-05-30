@@ -1252,7 +1252,7 @@ private:
 
         size_t const buffer_count{buffer != nullptr && secure_buffers()
             ? va_arg(_valist, unsigned)
-            : static_cast<size_t>(-1)
+            : _CRT_UNBOUNDED_BUFFER_SIZE
         };
 
         if (buffer_count == 0)
@@ -1277,7 +1277,7 @@ private:
         BufferCharacter _UNALIGNED* buffer_pointer  {buffer      };
         size_t                      buffer_remaining{buffer_count};
 
-        if (mode != conversion_mode::character && buffer_remaining != static_cast<size_t>(-1))
+        if (mode != conversion_mode::character && buffer_remaining != _CRT_UNBOUNDED_BUFFER_SIZE)
         {
             --buffer_remaining; // Leave room for terminator when scanning strings
         }
@@ -1367,7 +1367,7 @@ private:
         wchar_t const c
         ) throw()
     {
-        if (buffer_count == static_cast<size_t>(-1))
+        if (buffer_count == _CRT_UNBOUNDED_BUFFER_SIZE)
         {
             int narrow_count{0};
             if (_ERRCHECK_EINVAL_ERANGE(wctomb_s(&narrow_count, buffer_pointer, MB_LEN_MAX, c)) == 0)
@@ -1447,7 +1447,7 @@ private:
         UNREFERENCED_PARAMETER(buffer);
         UNREFERENCED_PARAMETER(buffer_remaining);
 
-        if (buffer_count == static_cast<size_t>(-1))
+        if (buffer_count == _CRT_UNBOUNDED_BUFFER_SIZE)
             return;
 
         _FILL_STRING(buffer, buffer_count, buffer_count - buffer_remaining);
@@ -1461,7 +1461,7 @@ private:
     {
         UNREFERENCED_PARAMETER(buffer);
 
-        if (buffer_count == static_cast<size_t>(-1))
+        if (buffer_count == _CRT_UNBOUNDED_BUFFER_SIZE)
             return;
 
         _RESET_STRING(buffer, buffer_count);

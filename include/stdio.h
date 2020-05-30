@@ -375,7 +375,7 @@ typedef __int64 fpos_t;
         _In_z_ char const* _FileName
         );
 
-    #if _CRT_INTERNAL_NONSTDC_NAMES
+    #if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
 
         _CRT_NONSTDC_DEPRECATE(_unlink)
         _ACRTIMP int __cdecl unlink(
@@ -2434,7 +2434,7 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
     // Non-ANSI Names for Compatibility
     //
     //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    #if _CRT_INTERNAL_NONSTDC_NAMES
+    #if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
 
         #define SYS_OPEN  _SYS_OPEN
 

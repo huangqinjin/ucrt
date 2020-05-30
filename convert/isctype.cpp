@@ -73,7 +73,7 @@ extern "C" int __cdecl _isctype_l(int const c, int const mask, _locale_t const l
 
     int  buffer_length;
     char buffer[buffer_count];
-    if (_isleadbyte_l(c >> 8 & 0xff, locale_update.GetLocaleT()))
+    if (_isleadbyte_fast_internal(c >> 8 & 0xff, locale_update.GetLocaleT()))
     {
         buffer[0] = (c >> 8 & 0xff); // Put lead-byte at start of the string
         buffer[1] = static_cast<char>(c);

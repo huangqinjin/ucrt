@@ -1,5 +1,5 @@
 /***
-*wcsnicmp.c - compare n chars of wide-character strings, ignoring case
+*wcsnicmp.cpp - compare n chars of wide-character strings, ignoring case
 *
 *       Copyright (c) Microsoft Corporation. All rights reserved.
 *
@@ -15,7 +15,7 @@
 #include <string.h>
 
 /***
-*int _wcsnicmp(first, last, count) - compares count wchar_t of strings,
+*int _wcsnicmp(lhs, rhs, count) - compares count wchar_t of strings,
 *       ignore case
 *
 *Purpose:
@@ -26,14 +26,14 @@
 *       converted to lower case (wide-characters).
 *
 *Entry:
-*       wchar_t *first, *last - strings to compare
+*       wchar_t *lhs, *rhs - strings to compare
 *       size_t count - maximum number of characters to compare
 *
 *Exit:
-*       Returns -1 if first < last
-*       Returns 0 if first == last
-*       Returns 1 if first > last
-*       Returns _NLSCMPERROR is something went wrong
+*       Returns -1 if lhs < rhs
+*       Returns 0 if lhs == rhs
+*       Returns 1 if lhs > rhs
+*       Returns _NLSCMPERROR if something went wrong
 *       This range of return values may differ from other *cmp/*coll functions.
 *
 *Exceptions:
@@ -42,85 +42,91 @@
 *******************************************************************************/
 
 extern "C" int __cdecl _wcsnicmp_l (
-        const wchar_t * first,
-        const wchar_t * last,
-        size_t count,
-        _locale_t plocinfo
+        wchar_t const * const lhs,
+        wchar_t const * const rhs,
+        size_t          const count,
+        _locale_t       const plocinfo
         )
 {
-    wchar_t f,l;
-    int result = 0;
+    /* validation section */
+    _VALIDATE_RETURN(lhs != nullptr, EINVAL, _NLSCMPERROR);
+    _VALIDATE_RETURN(rhs != nullptr, EINVAL, _NLSCMPERROR);
 
-    if ( count )
+    if (count == 0)
     {
-        /* validation section */
-        _VALIDATE_RETURN(first != nullptr, EINVAL, _NLSCMPERROR);
-        _VALIDATE_RETURN(last != nullptr, EINVAL, _NLSCMPERROR);
-
-        _LocaleUpdate _loc_update(plocinfo);
-
-        if ( _loc_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE] == nullptr )
-        {
-            do
-            {
-                f = __ascii_towlower(*first);
-                l = __ascii_towlower(*last);
-                first++;
-                last++;
-            }
-            while ( (--count) && f && (f == l) );
-        }
-        else
-        {
-            do
-            {
-                f = _towlower_l( (unsigned short)(*first),_loc_update.GetLocaleT());
-                l = _towlower_l( (unsigned short)(*last),_loc_update.GetLocaleT());
-                first++;
-                last++;
-            }
-            while ( (--count) && f && (f == l) );
-        }
-
-        result = (int)(f - l);
+        return 0;
     }
+
+    _LocaleUpdate _loc_update(plocinfo);
+
+    // This check is still worth doing for wide but not narrow because
+    // we need to consult the UTF-16 ctype map for towlower operations.
+    if (_loc_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE] == nullptr)
+    {
+        return __ascii_wcsnicmp(lhs, rhs, count);
+    }
+
+    unsigned short const * lhs_ptr = reinterpret_cast<unsigned short const *>(lhs);
+    unsigned short const * rhs_ptr = reinterpret_cast<unsigned short const *>(rhs);
+
+    int result;
+    int lhs_value;
+    int rhs_value;
+    size_t remaining = count;
+    do
+    {
+        lhs_value = _towlower_internal(*lhs_ptr++, _loc_update.GetLocaleT());
+        rhs_value = _towlower_internal(*rhs_ptr++, _loc_update.GetLocaleT());
+        result = lhs_value - rhs_value;
+    }
+    while (result == 0 && lhs_value != 0 && --remaining != 0);
+
+    return result;
+}
+
+extern "C" int __cdecl __ascii_wcsnicmp(
+        wchar_t const * const lhs,
+        wchar_t const * const rhs,
+        size_t          const count
+        )
+{
+    if (count == 0)
+    {
+        return 0;
+    }
+
+    unsigned short const * lhs_ptr = reinterpret_cast<unsigned short const *>(lhs);
+    unsigned short const * rhs_ptr = reinterpret_cast<unsigned short const *>(rhs);
+
+    int result;
+    int lhs_value;
+    int rhs_value;
+    size_t remaining = count;
+    do
+    {
+        lhs_value = __ascii_towlower(*lhs_ptr++);
+        rhs_value = __ascii_towlower(*rhs_ptr++);
+        result = lhs_value - rhs_value;
+    }
+    while (result == 0 && lhs_value != 0 && --remaining != 0);
+
     return result;
 }
 
 extern "C" int __cdecl _wcsnicmp (
-        const wchar_t * first,
-        const wchar_t * last,
-        size_t count
+        wchar_t const * const lhs,
+        wchar_t const * const rhs,
+        size_t          const count
         )
 {
     if (!__acrt_locale_changed())
     {
+        /* validation section */
+        _VALIDATE_RETURN(lhs != nullptr, EINVAL, _NLSCMPERROR);
+        _VALIDATE_RETURN(rhs != nullptr, EINVAL, _NLSCMPERROR);
 
-        wchar_t f,l;
-        int result = 0;
-
-        if(count)
-        {
-            /* validation section */
-            _VALIDATE_RETURN(first != nullptr, EINVAL, _NLSCMPERROR);
-            _VALIDATE_RETURN(last != nullptr, EINVAL, _NLSCMPERROR);
-
-            do {
-                f = __ascii_towlower(*first);
-                l = __ascii_towlower(*last);
-                first++;
-                last++;
-            } while ( (--count) && f && (f == l) );
-
-            result = (int)(f-l);
-        }
-
-        return result;
-
+        return __ascii_wcsnicmp(lhs, rhs, count);
     }
-    else
-    {
-        return _wcsnicmp_l(first, last, count, nullptr);
-    }
+
+    return _wcsnicmp_l(lhs, rhs, count, nullptr);
 }
-

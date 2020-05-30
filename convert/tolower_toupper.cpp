@@ -10,51 +10,16 @@
 #include <corecrt_internal.h>
 #include <ctype.h>
 #include <locale.h>
+#include <stdio.h>
 
+typedef unsigned char  (__cdecl internal_map_type)(unsigned char, _locale_t);
 
-
-typedef bool (__cdecl internal_istype_l_type)(int, _locale_t);
-typedef int  (__cdecl internal_map_type     )(int, _locale_t);
-
-static bool __cdecl internal_islower_l(int const c, _locale_t const locale) throw()
+static __forceinline int __cdecl common_tox_win_lookup(int const c, DWORD const map_flag, _locale_t const locale) throw()
 {
-    return _islower_l(c, locale) != 0;
-}
-
-static bool __cdecl internal_isupper_l(int const c, _locale_t const locale) throw()
-{
-    return _isupper_l(c, locale) != 0;
-}
-
-static int __cdecl internal_map_lower(int const c, _locale_t const locale) throw()
-{
-    return locale->locinfo->pclmap[c];
-}
-
-static int __cdecl internal_map_upper(int const c, _locale_t const locale) throw()
-{
-    return locale->locinfo->pcumap[c];
-}
-
-
-
-template <internal_istype_l_type& IsType, internal_map_type& MapType>
-static int __cdecl common_tox_l(int const c, DWORD const map_flag, _locale_t const locale) throw()
-{
-    _LocaleUpdate locale_update(locale);
-
-    if (static_cast<unsigned>(c) < 256)
-    {
-        if (IsType(c, locale_update.GetLocaleT()))
-            return MapType(c, locale_update.GetLocaleT());
-
-        return c;
-    }
-
     // Convert the character to a multibyte string:
     size_t        in_count    {};
     unsigned char in_buffer[3]{};
-    if (locale_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max > 1 && _isleadbyte_l(c >> 8 & 0xff, locale_update.GetLocaleT()))
+    if (locale->locinfo->_public._locale_mb_cur_max > 1 && _isleadbyte_l(c >> 8 & 0xff, locale))
     {
         in_buffer[0] = c >> 8 & 0xff; // Put the lead byte at start of the string
         in_buffer[1] = static_cast<unsigned char>(c);
@@ -73,31 +38,51 @@ static int __cdecl common_tox_l(int const c, DWORD const map_flag, _locale_t con
     // Convert the wide character equivalent to the target case:
     unsigned char out_buffer[3]{};
     int const out_count = __acrt_LCMapStringA(
-        locale_update.GetLocaleT(),
-        locale_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE],
+        locale,
+        locale->locinfo->locale_name[LC_CTYPE],
         map_flag,
         reinterpret_cast<char const*>(in_buffer),
         static_cast<int>(in_count),
         reinterpret_cast<char*>(out_buffer),
         static_cast<int>(_countof(out_buffer)),
-        locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+        locale->locinfo->_public._locale_lc_codepage,
         TRUE);
 
     if (out_count == 0)
+    {
         return c;
+    }
 
     // Form the integer return value:
     if (out_count == 1)
+    {
         return static_cast<int>(out_buffer[0]);
+    }
 
     return static_cast<int>(out_buffer[1]) | (static_cast<int>(out_buffer[0]) << 8);
 }
 
+template <internal_map_type& MapType>
+static __forceinline int __cdecl common_tox_l(int const c, DWORD const map_flag, _locale_t const locale) throw()
+{
+    if (c == EOF)
+    {
+        return EOF;
+    }
 
+    _LocaleUpdate locale_update(locale);
+
+    if (static_cast<unsigned>(c) < 256)
+    {
+        return MapType(static_cast<unsigned char>(c), locale_update.GetLocaleT());
+    }
+
+    return common_tox_win_lookup(c, map_flag, locale_update.GetLocaleT());
+}
 
 extern "C" int __cdecl _tolower_l(int const c, _locale_t const locale)
 {
-    return common_tox_l<internal_isupper_l, internal_map_lower>(c, LCMAP_LOWERCASE, locale);
+    return common_tox_l<_tolower_fast_internal>(c, LCMAP_LOWERCASE, locale);
 }
 
 extern "C" int __cdecl tolower(int const c)
@@ -116,7 +101,7 @@ extern "C" int (__cdecl _tolower)(int const c)
 
 extern "C" int __cdecl _toupper_l(int const c, _locale_t const locale)
 {
-    return common_tox_l<internal_islower_l, internal_map_upper>(c, LCMAP_UPPERCASE, locale);
+    return common_tox_l<_toupper_fast_internal>(c, LCMAP_UPPERCASE, locale);
 }
 
 extern "C" int __cdecl toupper(int const c)

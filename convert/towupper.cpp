@@ -1,5 +1,5 @@
 /***
-*towupper.c - convert wide character to upper case
+*towupper.cpp - convert wide character to upper case
 *
 *       Copyright (c) Microsoft Corporation. All rights reserved.
 *
@@ -33,20 +33,23 @@ extern "C" wint_t __cdecl _towupper_l (
     wint_t widechar;
 
     if (c == WEOF)
+    {
         return c;
+    }
 
     _LocaleUpdate _loc_update(plocinfo);
 
-    if ( _loc_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE] == nullptr )
-        return __ascii_towupper(c);
-
     /* if checking case of c does not require API call, do it */
-    if ( c < 256 ) {
-        if ( !iswlower(c) ) {
-            return c;
-        } else {
-            return _loc_update.GetLocaleT()->locinfo->pcumap[c];
-        }
+    if ( c < 256 )
+    {
+        return _towupper_fast_internal(static_cast<unsigned char>(c), _loc_update.GetLocaleT());
+    }
+
+    if ( _loc_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE] == nullptr )
+    {
+        /* If the locale is C, then the only characters that would be transformed are <256
+           and have been processed already. */
+        return c;
     }
 
     /* convert wide char to uppercase */

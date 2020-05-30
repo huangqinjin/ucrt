@@ -1,5 +1,5 @@
 /***
-*ismbdgt.c - Test if character is a digit (MBCS)
+*ismbdgt.cpp - Test if character is a digit (MBCS)
 *
 *       Copyright (c) Microsoft Corporation.  All rights reserved.
 *
@@ -42,7 +42,7 @@ extern "C" int __cdecl _ismbcdigit_l(unsigned int const c, _locale_t const local
 
     if (c <= 0x00FF)
     {
-        return _isdigit_l(c, locale_update.GetLocaleT());
+        return _isdigit_fast_internal(static_cast<unsigned char>(c), locale_update.GetLocaleT());
     }
 
     return __dcrt_multibyte_check_type(c, locale_update.GetLocaleT(), _DIGIT, true);

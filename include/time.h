@@ -586,7 +586,7 @@ _ACRTIMP int __cdecl _timespec64_get(
 // Non-ANSI Names for Compatibility
 //
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-#if _CRT_INTERNAL_NONSTDC_NAMES
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
 
     #define CLK_TCK CLOCKS_PER_SEC
 

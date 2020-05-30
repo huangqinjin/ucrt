@@ -10,6 +10,7 @@
 #include <corecrt.h>
 #include <corecrt_startup.h>
 #include <corecrt_terminate.h>
+#include <corecrt_wctype.h>
 #include <crtdbg.h>
 #include <ctype.h>
 #include <errno.h>
@@ -65,14 +66,15 @@ _CRT_BEGIN_C_HEADER
 //
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // This macro can be used to annotate a buffer when it has the option that
-// SIZE_MAX may be passed as it's size in order to invoke unsafe behavior.
+// _CRT_UNBOUNDED_BUFFER_SIZE may be passed as its size in order to invoke unsafe behavior.
 // void example(
 //    _Maybe_unsafe_(_Out_writes_z_, buffer_count) char * const buffer,
 //    _In_                                         size_t const buffer_size
 // )
-#define _Maybe_unsafe_(buffer_annotation, expr)                                                 \
-        _When_((expr < static_cast<size_t>(-1)), buffer_annotation(expr))                       \
-        _When_((expr >= static_cast<size_t>(-1)), buffer_annotation(_Inexpressible_("unsafe")))
+#define _CRT_UNBOUNDED_BUFFER_SIZE (static_cast<size_t>(-1))
+#define _Maybe_unsafe_(buffer_annotation, expr)                                                    \
+        _When_((expr < _CRT_UNBOUNDED_BUFFER_SIZE), buffer_annotation(expr))                       \
+        _When_((expr >= _CRT_UNBOUNDED_BUFFER_SIZE), buffer_annotation(_Inexpressible_("unsafe")))
 
 
 
@@ -617,24 +619,36 @@ int __cdecl __acrt_WideCharToMultiByte(
 // Case-insensitive ASCII comparisons
 _Check_return_
 int __cdecl __ascii_memicmp(
-    _In_reads_bytes_opt_(size) void const* buffer1,
-    _In_reads_bytes_opt_(size) void const* buffer2,
-    _In_                       size_t      size
+    _In_reads_bytes_(count) void const * lhs,
+    _In_reads_bytes_(count) void const * rhs,
+    _In_                    size_t       count
     );
 
 _Check_return_
 int __cdecl __ascii_stricmp(
-    _In_z_ char const* string1,
-    _In_z_ char const* string2
+    _In_z_ char const * lhs,
+    _In_z_ char const * rhs
     );
 
 _Check_return_
 int __cdecl __ascii_strnicmp(
-    _In_reads_or_z_(max_count) char const* string1,
-    _In_reads_or_z_(max_count) char const* string2,
-    _In_                       size_t      max_count
+    _In_reads_or_z_(count) char const * lhs,
+    _In_reads_or_z_(count) char const * rhs,
+    _In_                   size_t       count
     );
 
+_Check_return_
+int __cdecl __ascii_wcsicmp(
+    _In_z_ const wchar_t * lhs,
+    _In_z_ const wchar_t * rhs
+    );
+
+_Check_return_
+int __cdecl __ascii_wcsnicmp(
+    _In_reads_or_z_(count) const wchar_t * lhs,
+    _In_reads_or_z_(count) const wchar_t * rhs,
+    _In_                  size_t          count
+    );
 
 
 // Locale reference counting
@@ -1442,6 +1456,114 @@ int __cdecl __dcrt_set_variable_in_wide_environment_nolock(
     _In_                int      is_top_level_call
     );
 
+//-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// Internal fast locale functions with no extra checks
+//
+//-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// Only use these when the input char is validated to be an unsigned char and not EOF.
+// Ensure locale has already been updated.
+_Check_return_ __forceinline unsigned char __cdecl _toupper_fast_internal(
+    _In_ unsigned char const c,
+    _In_ _locale_t const     locale
+    )
+{
+    return locale->locinfo->pcumap[c];
+}
+
+_Check_return_ __forceinline unsigned char __cdecl _tolower_fast_internal(
+    _In_ unsigned char const c,
+    _In_ _locale_t const     locale
+    )
+{
+    return locale->locinfo->pclmap[c];
+}
+
+extern const unsigned short _wctype[];
+
+_Check_return_ __forceinline wint_t _towupper_fast_internal(
+    _In_ unsigned char const c,
+    _In_ _locale_t const     locale
+    )
+{
+    // Check for iswlower required because upper map assumes using narrow ctype categories.
+    // towupper uses a locale-sensitive transformation, but only if the wide character
+    // is considered lowercase in UTF-16.
+    // _wctype starts at EOF. Add one to map to characters.
+    if (_wctype[c + 1] & _LOWER)
+    {
+        return _toupper_fast_internal(c, locale);
+    }
+    return c;
+}
+
+_Check_return_ inline wint_t _towupper_internal(
+    _In_ unsigned short const c,
+    _In_ _locale_t const      locale
+    )
+{
+    if (c < 256)
+    {
+        return _towupper_fast_internal((unsigned char) c, locale);
+    }
+
+    return _towupper_l(c, locale);
+}
+
+_Check_return_ __forceinline wint_t _towlower_fast_internal(
+    _In_ unsigned char const c,
+    _In_ _locale_t const     locale
+    )
+{
+    // Check for iswupper required because lower map assumes using narrow ctype categories.
+    // towlower uses a locale-sensitive transformation, but only if the wide character
+    // is considered uppercase in UTF-16.
+    // _wctype starts at EOF. Add one to map to characters.
+    if (_wctype[c + 1] & _UPPER)
+    {
+        return _tolower_fast_internal(c, locale);
+    }
+
+    return c;
+}
+
+_Check_return_ inline wint_t _towlower_internal(
+    _In_ unsigned short const c,
+    _In_ _locale_t const      locale
+    )
+{
+    if (c < 256)
+    {
+        return _towlower_fast_internal((unsigned char) c, locale);
+    }
+
+    return _towlower_l(c, locale);
+}
+
+_Check_return_ __forceinline unsigned short __cdecl _ctype_fast_check_internal(
+    _In_ unsigned char const c,
+    _In_ int const           _Mask,
+    _In_ _locale_t const     locale
+    )
+{
+    return locale->locinfo->_public._locale_pctype[c] & _Mask;
+}
+
+_Check_return_ __forceinline unsigned short __cdecl _isdigit_fast_internal(
+    _In_ unsigned char const c,
+    _In_ _locale_t const     locale
+    )
+{
+    return _ctype_fast_check_internal(c, _DIGIT, locale);
+}
+
+_Check_return_ __forceinline unsigned short __cdecl _isleadbyte_fast_internal(
+    _In_ unsigned char const c,
+    _In_ _locale_t const     locale
+    )
+{
+    return _ctype_fast_check_internal(c, _LEADBYTE, locale);
+}
 
 
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -1450,7 +1572,7 @@ int __cdecl __dcrt_set_variable_in_wide_environment_nolock(
 //
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // Invoke Watson if _ExpressionError is not 0; otherwise simply return
-// _EspressionError.
+// _ExpressionError.
 _CRT_SECURITYCRITICAL_ATTRIBUTE
 __forceinline void _invoke_watson_if_error(
     _In_       errno_t        expression_error,

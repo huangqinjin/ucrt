@@ -1,5 +1,5 @@
 /***
-*strnicmp.c - compare n chars of strings, ignoring case
+*strnicmp.cpp - compare n chars of strings, ignoring case
 *
 *       Copyright (c) Microsoft Corporation. All rights reserved.
 *
@@ -14,7 +14,7 @@
 #include <string.h>
 
 /***
-*int _strnicmp(first, last, count) - compares count char of strings, ignore case
+*int _strnicmp(lhs, rhs, count) - compares count char of strings, ignore case
 *
 *Purpose:
 *       Compare the two strings for ordinal order.  Stops the comparison
@@ -24,14 +24,14 @@
 *       converted to lower case.
 *
 *Entry:
-*       char *first, *last - strings to compare
+*       char *lhs, *rhs - strings to compare
 *       size_t count - maximum number of characters to compare
 *
 *Exit:
-*       returns <0 if first < last
-*       returns 0 if first == last
-*       returns >0 if first > last
-*       Returns _NLSCMPERROR is something went wrong
+*       returns <0 if lhs < rhs
+*       returns 0 if lhs == rhs
+*       returns >0 if lhs > rhs
+*       Returns _NLSCMPERROR if something went wrong
 *
 *Exceptions:
 *       Input parameters are validated. Refer to the validation section of the function.
@@ -39,99 +39,91 @@
 *******************************************************************************/
 
 extern "C" int __cdecl _strnicmp_l (
-        const char * dst,
-        const char * src,
-        size_t count,
-        _locale_t plocinfo
+        char const * const lhs,
+        char const * const rhs,
+        size_t       const count,
+        _locale_t    const plocinfo
         )
 {
-    int f,l;
+    /* validation section */
+    _VALIDATE_RETURN(lhs != nullptr, EINVAL, _NLSCMPERROR);
+    _VALIDATE_RETURN(rhs != nullptr, EINVAL, _NLSCMPERROR);
+    _VALIDATE_RETURN(count <= INT_MAX, EINVAL, _NLSCMPERROR);
 
-    if ( count )
+    if (count == 0)
     {
-        _LocaleUpdate _loc_update(plocinfo);
-
-        /* validation section */
-        _VALIDATE_RETURN(dst != nullptr, EINVAL, _NLSCMPERROR);
-        _VALIDATE_RETURN(src != nullptr, EINVAL, _NLSCMPERROR);
-        _VALIDATE_RETURN(count <= INT_MAX, EINVAL, _NLSCMPERROR);
-
-        if ( _loc_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE] == nullptr )
-        {
-            return __ascii_strnicmp(dst, src, count);
-        }
-        else
-        {
-            do
-            {
-                f = _tolower_l( (unsigned char)(*(dst++)), _loc_update.GetLocaleT() );
-                l = _tolower_l( (unsigned char)(*(src++)), _loc_update.GetLocaleT() );
-            }
-            while (--count && f && (f == l) );
-        }
-        return( f - l );
+        return 0;
     }
 
-    return( 0 );
+    unsigned char const * lhs_ptr = reinterpret_cast<unsigned char const *>(lhs);
+    unsigned char const * rhs_ptr = reinterpret_cast<unsigned char const *>(rhs);
+
+    _LocaleUpdate _loc_update(plocinfo);
+
+    int result;
+    int lhs_value;
+    int rhs_value;
+    size_t remaining = count;
+    do
+    {
+        lhs_value = _tolower_fast_internal(*lhs_ptr++, _loc_update.GetLocaleT());
+        rhs_value = _tolower_fast_internal(*rhs_ptr++, _loc_update.GetLocaleT());
+        result = lhs_value - rhs_value;
+    }
+    while (result == 0 && lhs_value != 0 && --remaining != 0);
+
+    return result;
 }
 
 
 #if !defined(_M_IX86) || defined(_M_HYBRID_X86_ARM64)
 
 extern "C" int __cdecl __ascii_strnicmp (
-        const char * first,
-        const char * last,
-        size_t count
+        char const * const lhs,
+        char const * const rhs,
+        size_t       const count
         )
 {
-    if(count)
-    {
-        int f=0;
-        int l=0;
-
-        do
-        {
-
-            if ( ((f = (unsigned char)(*(first++))) >= 'A') &&
-                    (f <= 'Z') )
-                f -= 'A' - 'a';
-
-            if ( ((l = (unsigned char)(*(last++))) >= 'A') &&
-                    (l <= 'Z') )
-                l -= 'A' - 'a';
-
-        }
-        while ( --count && f && (f == l) );
-
-        return ( f - l );
-    }
-    else
+    if (count == 0)
     {
         return 0;
     }
+
+    unsigned char const * lhs_ptr = reinterpret_cast<unsigned char const *>(lhs);
+    unsigned char const * rhs_ptr = reinterpret_cast<unsigned char const *>(rhs);
+
+    int result;
+    int lhs_value;
+    int rhs_value;
+    size_t remaining = count;
+    do
+    {
+        lhs_value = __ascii_tolower(*lhs_ptr++);
+        rhs_value = __ascii_tolower(*rhs_ptr++);
+        result = lhs_value - rhs_value;
+    }
+    while (result == 0 && lhs_value != 0 && --remaining != 0);
+
+    return result;
 }
 
 #endif  /* !_M_IX86 || _M_HYBRID_X86_ARM64 */
 
 extern "C" int __cdecl _strnicmp (
-        const char * dst,
-        const char * src,
-        size_t count
+        char const * const lhs,
+        char const * const rhs,
+        size_t       const count
         )
 {
-
     if (!__acrt_locale_changed())
     {
         /* validation section */
-        _VALIDATE_RETURN(dst != nullptr, EINVAL, _NLSCMPERROR);
-        _VALIDATE_RETURN(src != nullptr, EINVAL, _NLSCMPERROR);
+        _VALIDATE_RETURN(lhs != nullptr, EINVAL, _NLSCMPERROR);
+        _VALIDATE_RETURN(rhs != nullptr, EINVAL, _NLSCMPERROR);
         _VALIDATE_RETURN(count <= INT_MAX, EINVAL, _NLSCMPERROR);
 
-        return __ascii_strnicmp(dst, src, count);
-    }
-    else
-    {
-        return _strnicmp_l(dst, src, count, nullptr);
+        return __ascii_strnicmp(lhs, rhs, count);
     }
 
+    return _strnicmp_l(lhs, rhs, count, nullptr);
 }

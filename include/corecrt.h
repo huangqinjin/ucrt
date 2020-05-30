@@ -209,7 +209,7 @@ extern "C++"
    #define _CRT_HAS_CXX17   0
   #endif /* _MSVC_LANG > 201402 */
  #else /* _MSVC_LANG */
-  #if __cplusplus > 201402
+  #if defined __cplusplus && __cplusplus > 201402
    #define _CRT_HAS_CXX17   1
   #else /* __cplusplus > 201402 */
    #define _CRT_HAS_CXX17   0
@@ -317,11 +317,12 @@ _ACRTIMP void __cdecl _invoke_watson(
 #define _CRT_WARNING_MESSAGE(NUMBER, MESSAGE) \
     __FILE__ "(" _CRT_STRINGIZE(__LINE__) "): warning " NUMBER ": " MESSAGE
 
-#define _CRT_INTERNAL_NONSTDC_NAMES                                            \
-    (                                                                          \
-        ( defined _CRT_DECLARE_NONSTDC_NAMES && _CRT_DECLARE_NONSTDC_NAMES) || \
-        (!defined _CRT_DECLARE_NONSTDC_NAMES && !__STDC__                 )    \
-    )
+#if ( defined _CRT_DECLARE_NONSTDC_NAMES && _CRT_DECLARE_NONSTDC_NAMES) || \
+    (!defined _CRT_DECLARE_NONSTDC_NAMES && !__STDC__                 )
+    #define _CRT_INTERNAL_NONSTDC_NAMES 1
+#else
+    #define _CRT_INTERNAL_NONSTDC_NAMES 0
+#endif
 
 #if defined _CRT_NONSTDC_NO_DEPRECATE && !defined _CRT_NONSTDC_NO_WARNINGS
     #define _CRT_NONSTDC_NO_WARNINGS

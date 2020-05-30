@@ -570,7 +570,7 @@ extern "C++" {
 // Non-Standard Names
 //
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-#if _CRT_INTERNAL_NONSTDC_NAMES
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
     #if defined _DEBUG && defined _CRTDBG_MAP_ALLOC
         #pragma push_macro("wcsdup")
         #undef wcsdup

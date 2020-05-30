@@ -432,7 +432,7 @@ struct __finddata64_t
 
 
 
-    #if _CRT_INTERNAL_NONSTDC_NAMES
+    #if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
         // Suppress warnings about double deprecation
         #pragma warning(push)
         #pragma warning(disable: 4141)

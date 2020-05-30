@@ -185,7 +185,7 @@ extern "C++"
 
 
 
-#if _CRT_INTERNAL_NONSTDC_NAMES
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
 
     _Check_return_ _CRT_NONSTDC_DEPRECATE(_lfind)
     _ACRTIMP void* __cdecl lfind(

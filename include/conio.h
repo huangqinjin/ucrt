@@ -427,7 +427,7 @@ _CRT_BEGIN_C_HEADER
     _Check_return_opt_ _DCRTIMP int __cdecl _putch_nolock  (_In_ int _Ch);
     _Check_return_opt_ _DCRTIMP int __cdecl _ungetch_nolock(_In_ int _Ch);
 
-    #if _CRT_INTERNAL_NONSTDC_NAMES
+    #if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
 
         // Suppress double-deprecation warnings:
         #pragma warning(push)

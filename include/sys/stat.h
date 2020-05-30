@@ -84,7 +84,7 @@ struct _stat64
 
 #define __stat64 _stat64 // For legacy compatibility
 
-#if _CRT_INTERNAL_NONSTDC_NAMES && !defined _CRT_NO_TIME_T
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES && !defined _CRT_NO_TIME_T
     struct stat
     {
         _dev_t         st_dev;
@@ -117,7 +117,7 @@ struct _stat64
 #define _S_IWRITE 0x0080 // Write permission, owner
 #define _S_IEXEC  0x0040 // Execute/search permission, owner
 
-#if _CRT_INTERNAL_NONSTDC_NAMES
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
     #define S_IFMT   _S_IFMT
     #define S_IFDIR  _S_IFDIR
     #define S_IFCHR  _S_IFCHR
@@ -214,7 +214,7 @@ _ACRTIMP int __cdecl _wstat64(
 
 
 
-#if !defined RC_INVOKED && !defined __midl && _CRT_INTERNAL_NONSTDC_NAMES && !defined _CRT_NO_TIME_T
+#if !defined RC_INVOKED && !defined __midl && defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES && !defined _CRT_NO_TIME_T
     #ifdef _USE_32BIT_TIME_T
 
         static __inline int __CRTDECL fstat(int const _FileHandle, struct stat* const _Stat)

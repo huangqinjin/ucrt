@@ -82,7 +82,7 @@ _Check_return_ _ACRTIMP int __cdecl _rmdir(_In_z_ char const* _Path);
 
 
 
-#if _CRT_INTERNAL_NONSTDC_NAMES
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
 
     #ifdef _CRT_USE_WINAPI_FAMILY_DESKTOP_APP
 

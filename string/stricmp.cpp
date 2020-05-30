@@ -1,10 +1,10 @@
 /***
-*stricmp.c - contains case-insensitive string comp routine _stricmp/_strcmpi
+*stricmp.cpp - contains case-insensitive string comp routine _stricmp
 *
 *       Copyright (c) Microsoft Corporation. All rights reserved.
 *
 *Purpose:
-*       contains _stricmp(), also known as _strcmpi()
+*       contains _stricmp()
 *
 *******************************************************************************/
 #include <corecrt_internal.h>
@@ -15,7 +15,7 @@
 #pragma warning(disable:__WARNING_POTENTIAL_BUFFER_OVERFLOW_NULLTERMINATED) // 26018 Prefast can't see that we are checking for terminal nul.
 
 /***
-*int _strcmpi(dst, src), _strcmpi(dst, src) - compare strings, ignore case
+*int _stricmp(lhs, rhs) - compare strings, ignore case
 *
 *Purpose:
 *       _stricmp/_strcmpi perform a case-insensitive string comparision.
@@ -23,13 +23,13 @@
 *       Thus, "abc_" < "ABCD" since "_" < "d".
 *
 *Entry:
-*       char *dst, *src - strings to compare
+*       char *lhs, *rhs - strings to compare
 *
 *Return:
-*       Returns <0 if dst < src
-*       Returns 0 if dst = src
-*       Returns >0 if dst > src
-*       Returns _NLSCMPERROR is something went wrong
+*       Returns <0 if lhs < rhs
+*       Returns 0 if lhs = rhs
+*       Returns >0 if lhs > rhs
+*       Returns _NLSCMPERROR if something went wrong
 *
 *Exceptions:
 *       Input parameters are validated. Refer to the validation section of the function.
@@ -37,68 +37,69 @@
 *******************************************************************************/
 
 extern "C" int __cdecl _stricmp_l (
-        const char * dst,
-        const char * src,
-        _locale_t plocinfo
+        char const * const lhs,
+        char const * const rhs,
+        _locale_t    const plocinfo
         )
 {
-    int f,l;
+    /* validation section */
+    _VALIDATE_RETURN(lhs != nullptr, EINVAL, _NLSCMPERROR);
+    _VALIDATE_RETURN(rhs != nullptr, EINVAL, _NLSCMPERROR);
+
+    unsigned char const * lhs_ptr = reinterpret_cast<unsigned char const *>(lhs);
+    unsigned char const * rhs_ptr = reinterpret_cast<unsigned char const *>(rhs);
+
     _LocaleUpdate _loc_update(plocinfo);
 
-    /* validation section */
-    _VALIDATE_RETURN(dst != nullptr, EINVAL, _NLSCMPERROR);
-    _VALIDATE_RETURN(src != nullptr, EINVAL, _NLSCMPERROR);
-
-    if ( _loc_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE] == nullptr )
+    int result;
+    int lhs_value;
+    int rhs_value;
+    do
     {
-        return __ascii_stricmp(dst, src);
+        lhs_value = _tolower_fast_internal(*lhs_ptr++, _loc_update.GetLocaleT());
+        rhs_value = _tolower_fast_internal(*rhs_ptr++, _loc_update.GetLocaleT());
+        result = lhs_value - rhs_value;
     }
-    else
-    {
-        do
-        {
-            f = _tolower_l( (unsigned char)(*(dst++)), _loc_update.GetLocaleT() );
-            l = _tolower_l( (unsigned char)(*(src++)), _loc_update.GetLocaleT() );
-        } while ( f && (f == l) );
-    }
+    while (result == 0 && lhs_value != 0);
 
-    return(f - l);
+    return result;
 }
 
 extern "C" int __cdecl __ascii_stricmp (
-        const char * dst,
-        const char * src
+        char const * const lhs,
+        char const * const rhs
         )
 {
-    int f, l;
+    unsigned char const * lhs_ptr = reinterpret_cast<unsigned char const *>(lhs);
+    unsigned char const * rhs_ptr = reinterpret_cast<unsigned char const *>(rhs);
 
+    int result;
+    int lhs_value;
+    int rhs_value;
     do
     {
-        if ( ((f = (unsigned char)(*(dst++))) >= 'A') && (f <= 'Z') )
-            f -= 'A' - 'a';
-        if ( ((l = (unsigned char)(*(src++))) >= 'A') && (l <= 'Z') )
-            l -= 'A' - 'a';
+        lhs_value = __ascii_tolower(*lhs_ptr++);
+        rhs_value = __ascii_tolower(*rhs_ptr++);
+        result = lhs_value - rhs_value;
     }
-    while ( f && (f == l) );
+    while (result == 0 && lhs_value != 0);
 
-    return(f - l);
+    return result;
 }
 
 extern "C" int __cdecl _stricmp (
-        const char * dst,
-        const char * src
+        char const * const lhs,
+        char const * const rhs
         )
 {
     if (!__acrt_locale_changed())
     {
         /* validation section */
-        _VALIDATE_RETURN(dst != nullptr, EINVAL, _NLSCMPERROR);
-        _VALIDATE_RETURN(src != nullptr, EINVAL, _NLSCMPERROR);
+        _VALIDATE_RETURN(lhs != nullptr, EINVAL, _NLSCMPERROR);
+        _VALIDATE_RETURN(rhs != nullptr, EINVAL, _NLSCMPERROR);
 
-        return __ascii_stricmp(dst, src);
+        return __ascii_stricmp(lhs, rhs);
     }
-    else
-    {
-        return _stricmp_l(dst, src, nullptr);
-    }
+
+    return _stricmp_l(lhs, rhs, nullptr);
 }

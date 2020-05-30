@@ -316,7 +316,7 @@ typedef struct _CrtMemState
         #define _wgetdcwd(d, s, le)       _wgetdcwd_dbg(d, s, le, _NORMAL_BLOCK, __FILE__, __LINE__)
         #define _wtempnam(s1, s2)         _wtempnam_dbg(s1, s2, _NORMAL_BLOCK, __FILE__, __LINE__)
 
-        #if _CRT_INTERNAL_NONSTDC_NAMES
+        #if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
             #define   strdup(s)          _strdup_dbg(s, _NORMAL_BLOCK, __FILE__, __LINE__)
             #define   wcsdup(s)          _wcsdup_dbg(s, _NORMAL_BLOCK, __FILE__, __LINE__)
             #define   tempnam(s1, s2)    _tempnam_dbg(s1, s2, _NORMAL_BLOCK, __FILE__, __LINE__)

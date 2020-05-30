@@ -325,7 +325,7 @@ _Check_return_ _ACRTIMP int    __cdecl _fpclass(_In_ double _X);
 // Nonstandard Names for Compatibility
 //
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-#if _CRT_INTERNAL_NONSTDC_NAMES
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
 
     #define clear87   _clear87
     #define status87  _status87

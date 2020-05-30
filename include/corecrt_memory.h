@@ -73,7 +73,7 @@ _ACRTIMP int __cdecl _memicmp_l(
 
 
 
-#if _CRT_INTERNAL_NONSTDC_NAMES
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
 
     _CRT_NONSTDC_DEPRECATE(_memccpy)
     _ACRTIMP void* __cdecl memccpy(

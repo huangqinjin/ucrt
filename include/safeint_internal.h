@@ -2036,7 +2036,7 @@ public:
 template < typename E > class AdditionHelper < __int64, unsigned __int64, E, AdditionState_ManualCheckInt64Uint64 >
 {
 public:
-    static SafeIntError Addition( const __int64& lhs, const unsigned __int64& rhs, __int64& result ) throw()
+    static SafeIntError Addition( const __int64& lhs, const unsigned __int64& rhs, __int64& result )
     {
         // rhs is unsigned __int64, lhs __int64
         __int64 tmp = lhs + (__int64)rhs;

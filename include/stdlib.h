@@ -76,7 +76,7 @@ _ACRTIMP unsigned int __cdecl _set_abort_behavior(
     #endif
 #endif
 
-#if _CRT_INTERNAL_NONSTDC_NAMES
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
     // Non-ANSI name for compatibility
     #define onexit_t _onexit_t
 #endif
@@ -1283,7 +1283,7 @@ _DCRTIMP wchar_t*** __cdecl __p__wenviron(void);
 // Non-ANSI Names for Compatibility
 //
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-#if _CRT_INTERNAL_NONSTDC_NAMES
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
 
     #ifndef __cplusplus
         #define max(a,b) (((a) > (b)) ? (a) : (b))

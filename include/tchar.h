@@ -175,7 +175,7 @@ typedef wint_t      _TINT;
 #define __TCHAR_DEFINED
 #endif  /* __TCHAR_DEFINED */
 
-#if _CRT_INTERNAL_NONSTDC_NAMES
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
 #ifndef _TCHAR_DEFINED
 typedef wchar_t     TCHAR;
 typedef wchar_t *   PTCHAR;
@@ -1264,7 +1264,7 @@ typedef unsigned int    _TINT;
 #define __TCHAR_DEFINED
 #endif  /* __TCHAR_DEFINED */
 
-#if _CRT_INTERNAL_NONSTDC_NAMES
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
 #ifndef _TCHAR_DEFINED
 typedef char            TCHAR;
 typedef char *          PTCHAR;
@@ -2102,7 +2102,7 @@ typedef int             _TINT;
 #define __TCHAR_DEFINED
 #endif  /* __TCHAR_DEFINED */
 
-#if _CRT_INTERNAL_NONSTDC_NAMES
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES
 #ifndef _TCHAR_DEFINED
 typedef char            TCHAR;
 typedef char *          PTCHAR;

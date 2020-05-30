@@ -215,5 +215,5 @@ extern "C" size_t __cdecl wcslen(
     wchar_t const* const string
     )
 {
-    return common_strnlen<unbounded>(reinterpret_cast<uint16_t const*>(string), SIZE_MAX);
+    return common_strnlen<unbounded>(reinterpret_cast<uint16_t const*>(string), _CRT_UNBOUNDED_BUFFER_SIZE);
 }
