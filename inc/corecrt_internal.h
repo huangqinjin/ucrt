@@ -7,12 +7,6 @@
 //
 #pragma once
 
-#if !defined _CORECRT_BUILD
-    // This is an internal C Runtime header file.  It is used when building the
-    // C Runtime only.  It is not to be used as a public header file.
-    #error ERROR: Use of C Runtime library internal header file.
-#endif
-
 #include <corecrt.h>
 #include <corecrt_startup.h>
 #include <corecrt_terminate.h>
@@ -27,8 +21,6 @@
 #include <stdlib.h>
 #include <vcruntime_startup.h>
 #include <windows.h>
-#include <corecrt_internal_fls.h>
-#include <corecrt_internal_state_isolation.h>
 
 #ifdef __cplusplus
     #include <roapi.h>
@@ -62,13 +54,14 @@ _CRT_BEGIN_C_HEADER
         "/include:"                     \
         _CRT_LINKER_SYMBOL_PREFIX #name \
         ))
-        
+
+
+
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 // CRT SAL Annotations
 //
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
 // This macro can be used to annotate a buffer when it has the option that 
 // SIZE_MAX may be passed as it's size in order to invoke unsafe behavior.
 // void example(
@@ -80,14 +73,43 @@ _CRT_BEGIN_C_HEADER
         _When_((expr >= static_cast<size_t>(-1)), buffer_annotation(_Inexpressible_("unsafe")))
 
 
+
+//-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// Forward declarations of __crt_state_management types
+//
+//-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#ifdef __cplusplus
+extern "C++"
+{
+    namespace __crt_state_management
+    {
+        template <typename T>
+        class dual_state_global;
+    }
+}
+#endif
+
+
+
+//-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// Dual-state globals (that shouldn't be exported directly)
+//
+//-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#ifdef __cplusplus
+    extern __crt_state_management::dual_state_global<int>               _fmode;
+    extern __crt_state_management::dual_state_global<unsigned char*>    _mbctype;
+    extern __crt_state_management::dual_state_global<unsigned char*>    _mbcasemap;
+#endif
+
+
+
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 // Dynamic Initialization Support
 //
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-
-
 #define _CORECRT_GENERATE_FORWARDER(prefix, callconv, name, callee_name)                     \
     __pragma(warning(push))                                                                  \
     __pragma(warning(disable: 4100)) /* unreferenced formal parameter */                     \
@@ -220,8 +242,8 @@ DWORD __cdecl __acrt_GetTempPathA(
 #define DBGRPT_INVALIDMSG "_CrtDbgReport: String too long or Invalid characters in String"
 
 #ifdef __cplusplus
-extern "C++" {
-
+extern "C++"
+{
     template <typename Character>
     struct __crt_report_hook_node
     {
@@ -232,8 +254,7 @@ extern "C++" {
         unsigned                refcount;
         hook_type               hook;
     };
-
-} // extern "C++"
+}
 #endif
 
 
@@ -679,15 +700,18 @@ extern __crt_multibyte_data  __acrt_initial_multibyte_data;
 extern __crt_locale_data     __acrt_initial_locale_data;
 extern __crt_locale_pointers __acrt_initial_locale_pointers;
 
-#if defined _CORECRT_BUILD && defined __cplusplus
+#ifdef __cplusplus
 
     extern __crt_state_management::dual_state_global<
         __crt_locale_data*
     > __acrt_current_locale_data;
 
+    extern __crt_state_management::dual_state_global<
+        __crt_multibyte_data*
+    > __acrt_current_multibyte_data;
+
 #endif
 
-extern __crt_multibyte_data* __acrt_current_multibyte_data;
 
 // The current lconv structure:
 extern struct lconv* __acrt_lconv;
@@ -824,6 +848,7 @@ typedef struct __acrt_ptd
 } __acrt_ptd;
 
 __acrt_ptd* __cdecl __acrt_getptd(void);
+__acrt_ptd* __cdecl __acrt_getptd_head(void);
 __acrt_ptd* __cdecl __acrt_getptd_noexit(void);
 void        __cdecl __acrt_freeptd(void);
 
@@ -881,7 +906,7 @@ extern "C++"
             [lock_id]() { __acrt_unlock(lock_id); });
     }
 }
-#endif // __cplusplus
+#endif
 
 
 
@@ -1143,7 +1168,6 @@ extern "C++"
     typedef __crt_unique_handle_t<__crt_hmodule_traits>  __crt_unique_hmodule;
     typedef __crt_unique_handle_t<__crt_findfile_traits> __crt_findfile_handle;
 
-
 } // extern "C++"
 #endif // __cplusplus
 
@@ -1175,6 +1199,23 @@ BOOL WINAPI __acrt_EnumSystemLocalesEx(
     _In_opt_ LPVOID            reserved
     );
 
+DWORD WINAPI __acrt_FlsAlloc(
+    _In_opt_ PFLS_CALLBACK_FUNCTION lpCallback
+    );
+
+BOOL WINAPI __acrt_FlsFree(
+    _In_ DWORD dwFlsIndex
+    );
+
+PVOID WINAPI __acrt_FlsGetValue(
+    _In_ DWORD dwFlsIndex
+    );
+
+BOOL WINAPI __acrt_FlsSetValue(
+    _In_     DWORD dwFlsIndex,
+    _In_opt_ PVOID lpFlsData
+    );
+
 int WINAPI __acrt_GetDateFormatEx(
     _In_opt_                       LPCWSTR           locale_name,
     _In_                           DWORD             flags,
@@ -1186,14 +1227,6 @@ int WINAPI __acrt_GetDateFormatEx(
     );
 
 DWORD64 WINAPI __acrt_GetEnabledXStateFeatures(void);
-
-_Success_(return != 0)
-BOOL WINAPI __acrt_GetFileInformationByHandleEx(
-    _In_                            HANDLE                    file,
-    _In_                            FILE_INFO_BY_HANDLE_CLASS file_information_class,
-    _Out_writes_bytes_(buffer_size) LPVOID                    file_information,
-    _In_                            DWORD                     buffer_size
-    );
 
 int WINAPI __acrt_GetLocaleInfoEx(
     _In_opt_                       LPCWSTR locale_name,
@@ -1303,6 +1336,7 @@ BOOL WINAPI __acrt_SetThreadStackGuarantee(
 
 bool __cdecl __acrt_can_show_message_box(void);
 bool __cdecl __acrt_can_use_vista_locale_apis(void);
+void __cdecl __acrt_eagerly_load_locale_apis(void);
 bool __cdecl __acrt_can_use_xstate_apis(void);
 HWND __cdecl __acrt_get_parent_window(void);
 bool __cdecl __acrt_is_interactive(void);
@@ -1371,7 +1405,7 @@ __crt_signal_handler_t __cdecl __acrt_get_sigabrt_handler(void);
 // DesktopCRT Environment
 //
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-#if defined _CORECRT_BUILD && defined __cplusplus
+#ifdef __cplusplus
     extern __crt_state_management::dual_state_global<char**>    _environ_table;
     extern __crt_state_management::dual_state_global<wchar_t**> _wenviron_table;
 #endif
@@ -1495,7 +1529,7 @@ __forceinline errno_t _invoke_watson_if_oneof(
 #ifndef _SECURECRT_FILL_BUFFER_THRESHOLD
 // _SECURECRT_FILL_BUFFER_THRESHOLD must be a constant for Prefast due to the
 // double evaluation. Making it something unique like 42 would pollute Prefast's warnings.
-    #if defined(_PREFAST_) || !defined(_DEBUG)
+    #if defined _PREFAST_ || !defined _DEBUG
         #define _SECURECRT_FILL_BUFFER_THRESHOLD ((size_t)0)
     #else
         #define _SECURECRT_FILL_BUFFER_THRESHOLD (_CrtGetDebugFillThreshold())
@@ -1754,3 +1788,7 @@ extern "C++"
 
 
 _CRT_END_C_HEADER
+
+
+
+#include <corecrt_internal_state_isolation.h>

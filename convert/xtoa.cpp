@@ -38,6 +38,9 @@ static errno_t __cdecl common_xtox(
                                     bool            const   is_negative
     ) throw()
 {
+// OACR isn't able to track that p stays within the bounds of [buffer, buffer + buffer_count) so manually verified and disabled warning
+#pragma warning(push)
+#pragma warning(disable:26014)
     Character* p      = buffer; // pointer to traverse the string
     size_t     length = 0;      // current length of string
 
@@ -95,6 +98,7 @@ static errno_t __cdecl common_xtox(
     while (first_digit < p);
 
     return 0;
+#pragma warning(pop)    
 }
 
 template <typename UnsignedInteger, typename Character>

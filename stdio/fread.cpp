@@ -167,6 +167,12 @@ extern "C" size_t __cdecl _fread_nolock_s(
                 _VALIDATE_RETURN(("buffer too small", 0), ERANGE, 0)
             }
 
+            // We are about to read data directly from the underlying file
+            // descriptor, bypassing the stream buffer.  We reset the stream
+            // buffer state to ensure that future seeks do not incorrectly
+            // assume that the buffer contents are valid.
+            __acrt_stdio_reset_buffer(stream);
+
             // Do the read.  Note that if the stream is open in text mode, the
             // bytes_read may not be the same as the bytes_to_read, due to
             // newline translation.

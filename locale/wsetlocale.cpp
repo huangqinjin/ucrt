@@ -159,18 +159,18 @@ int __cdecl _configthreadlocale(int i)
 
 extern "C" void __cdecl __acrt_uninitialize_locale()
 {
-    if (__acrt_current_locale_data.value() != &__acrt_initial_locale_data)
+    __acrt_lock_and_call(__acrt_locale_lock, [&]
     {
-        __acrt_lock(__acrt_locale_lock);
-        __try
+        __acrt_current_locale_data.uninitialize([](__crt_locale_data*& locale)
         {
-            __acrt_current_locale_data.value() = _updatetlocinfoEx_nolock(&__acrt_current_locale_data.value(), &__acrt_initial_locale_data);
-        }
-        __finally
-        {
-            __acrt_unlock(__acrt_locale_lock);
-        }
-    }
+            if (locale == &__acrt_initial_locale_data)
+            {
+                return;
+            }
+            
+            locale = _updatetlocinfoEx_nolock(&locale, &__acrt_initial_locale_data);
+        });
+    });
 }
 
 /***
@@ -441,6 +441,22 @@ wchar_t * __cdecl _wsetlocale (
     _VALIDATE_RETURN(LC_MIN <= _category && _category <= LC_MAX, EINVAL, nullptr);
     
     __acrt_ptd* const ptd = __acrt_getptd();
+
+    // Deadlock Avoidance:  When a new thread is created in the process, we
+    // create a new PTD for the thread.  The PTD initialization function is
+    // called under the loader lock.  This initialization function will also
+    // acquire the locale lock in order to acquire a reference to the current
+    // global locale for the new thread.
+    //
+    // Some of the locale APIs are not available on all supported target OSes.
+    // We dynamically obtain these libraries via LoadLibrary/GetProcAddress.
+    // We must ensure that no call to LoadLibrary is made while we hold the
+    // locale lock, lest we deadlock due to lock order inversion between the
+    // loader lock and the locale lock.
+    //
+    // This function call here will ensure that any required modules are loaded
+    // before we acquire the locale lock.
+    __acrt_eagerly_load_locale_apis();
 
     __acrt_update_thread_locale_data();
     // Note here that we increment the _own_locale for this thread. We need this

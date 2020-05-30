@@ -212,7 +212,7 @@ static __forceinline __acrt_ptd* try_get_ptd_head() throw()
     return ptd_head;
 }
 
-static __forceinline __acrt_ptd* get_ptd_head() throw()
+static __forceinline __acrt_ptd* internal_get_ptd_head() throw()
 {
     __acrt_ptd* const existing_ptd_head = try_get_ptd_head();
     if (existing_ptd_head)
@@ -243,7 +243,7 @@ static __forceinline __acrt_ptd* __cdecl internal_getptd_noexit() throw()
 {
     __crt_scoped_get_last_error_reset const last_error_reset;
 
-    __acrt_ptd* const ptd_head = get_ptd_head();
+    __acrt_ptd* const ptd_head = internal_get_ptd_head();
     if (!ptd_head)
     {
         return nullptr;
@@ -266,6 +266,17 @@ extern "C" __acrt_ptd* __cdecl __acrt_getptd()
     }
 
     return ptd;
+}
+
+extern "C" __acrt_ptd* __cdecl __acrt_getptd_head()
+{
+    __acrt_ptd* const ptd_head = internal_get_ptd_head();
+    if (!ptd_head)
+    {
+        abort();
+    }
+
+    return ptd_head;
 }
 
 

@@ -127,4 +127,47 @@ _ACRTIMP unsigned int __cdecl ___lc_collate_cp_func (void);
 
 
 
+
+// Time-related functions
+_Success_(return != 0)
+_Ret_z_
+_ACRTIMP char*    __cdecl _Getdays(void);
+
+_Success_(return != 0)
+_Ret_z_
+_ACRTIMP char*    __cdecl _Getmonths(void);
+
+_ACRTIMP void*    __cdecl _Gettnames(void);
+
+_Success_(return != 0)
+_Ret_z_
+_ACRTIMP wchar_t* __cdecl _W_Getdays(void);
+
+_Success_(return != 0)
+_Ret_z_
+_ACRTIMP wchar_t* __cdecl _W_Getmonths(void);
+
+_ACRTIMP void*    __cdecl _W_Gettnames(void);
+
+struct tm;
+
+_Success_(return > 0)
+_ACRTIMP size_t __cdecl _Strftime(
+    _Out_writes_z_(_Max_size) char*           _Buffer,
+    _In_                     size_t           _Max_size,
+    _In_z_                   char const*      _Format,
+    _In_                     struct tm const* _Timeptr,
+    _In_opt_                 void*            _Lc_time_arg);
+
+_Success_(return > 0)
+_ACRTIMP size_t __cdecl _Wcsftime(
+    _Out_writes_z_(_Max_size) wchar_t*        _Buffer,
+    _In_                     size_t           _Max_size,
+    _In_z_                   wchar_t const*   _Format,
+    _In_                     struct tm const* _Timeptr,
+    _In_opt_                 void*            _Lc_time_arg
+    );
+
+
+
 _CRT_END_C_HEADER

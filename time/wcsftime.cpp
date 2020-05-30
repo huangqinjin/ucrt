@@ -1186,12 +1186,12 @@ extern "C" size_t __cdecl _Wcsftime_l(
     }
 }
 
-extern "C" _Success_(return > 0) size_t __cdecl _Wcsftime(
-    _Out_writes_z_(max_size) wchar_t*       const buffer,
-    _In_                     size_t         const max_size,
-    _In_z_                   wchar_t const* const format,
-    _In_                     tm const*      const timeptr,
-    _In_opt_                 void*          const lc_time_arg
+extern "C" size_t __cdecl _Wcsftime(
+    wchar_t*       const buffer,
+    size_t         const max_size,
+    wchar_t const* const format,
+    tm const*      const timeptr,
+    void*          const lc_time_arg
     )
 {
     return _Wcsftime_l(buffer, max_size, format, timeptr, lc_time_arg, nullptr);

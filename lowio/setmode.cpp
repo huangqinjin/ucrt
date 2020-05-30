@@ -101,7 +101,7 @@ extern "C" errno_t __cdecl _set_fmode(int const mode)
     _VALIDATE_RETURN_ERRCODE(mode == _O_TEXT || mode == _O_BINARY || mode == _O_WTEXT, EINVAL);
 
     _BEGIN_SECURE_CRT_DEPRECATION_DISABLE
-    _InterlockedExchange(reinterpret_cast<long*>(&_fmode), mode);
+    _InterlockedExchange(reinterpret_cast<long*>(&_fmode.value()), mode);
     _END_SECURE_CRT_DEPRECATION_DISABLE
 
     return 0;
@@ -114,7 +114,7 @@ extern "C" errno_t __cdecl _get_fmode(int* const pMode)
     _VALIDATE_RETURN_ERRCODE(pMode != nullptr, EINVAL);
 
     _BEGIN_SECURE_CRT_DEPRECATION_DISABLE
-    *pMode = __crt_interlocked_read(&_fmode);
+    *pMode = __crt_interlocked_read(&_fmode.value());
     _END_SECURE_CRT_DEPRECATION_DISABLE
 
     return 0;

@@ -46,7 +46,7 @@ _CRT_BEGIN_C_HEADER
     #define FLT_EVAL_METHOD -1
 #else
     #ifdef _M_IX86
-        #if _M_IX86_FP == 2
+        #if _M_IX86_FP >= 2
             #define FLT_EVAL_METHOD 0
         #else
             #define FLT_EVAL_METHOD 2

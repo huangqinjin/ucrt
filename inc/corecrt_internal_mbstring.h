@@ -19,25 +19,15 @@ _CRT_BEGIN_C_HEADER
  // Multibyte full-width-latin upper/lower info
 #define NUM_ULINFO 6
 
-// Global variable to indicate current code page */
-extern int __mbcodepage;
-
-// Global flag indicating if the current code page is a multibyte code page
-extern int __ismbcodepage;
-
-// Global variable to indicate current full-width-latin upper/lower info
-extern unsigned short __mbulinfo[NUM_ULINFO];
-
-
 
 #define _ismbbtruelead(_lb,_ch) (!(_lb) && _ismbblead((_ch)))
 
 /* internal use macros since tolower/toupper are locale-dependent */
-#define _mbbisupper(_c) ((_mbctype[(_c) + 1] & _SBUP) == _SBUP)
-#define _mbbislower(_c) ((_mbctype[(_c) + 1] & _SBLOW) == _SBLOW)
+#define _mbbisupper(_c) ((_mbctype.value()[(_c) + 1] & _SBUP) == _SBUP)
+#define _mbbislower(_c) ((_mbctype.value()[(_c) + 1] & _SBLOW) == _SBLOW)
 
-#define _mbbtolower(_c) (_mbbisupper(_c) ? _mbcasemap[_c] : _c)
-#define _mbbtoupper(_c) (_mbbislower(_c) ? _mbcasemap[_c] : _c)
+#define _mbbtolower(_c) (_mbbisupper(_c) ? _mbcasemap.value()[_c] : _c)
+#define _mbbtoupper(_c) (_mbbislower(_c) ? _mbcasemap.value()[_c] : _c)
 
 #define _ismbbtruelead_l(_lb,_ch,p)   (!(_lb) && _ismbblead_l((_ch), p))
 #define _mbbisupper_l(_c, p)      ((p->mbcinfo->mbctype[(_c) + 1] & _SBUP) == _SBUP)
@@ -46,14 +36,6 @@ extern unsigned short __mbulinfo[NUM_ULINFO];
 #define _mbbtoupper_l(_c, p)      (_mbbislower_l(_c, p) ? p->mbcinfo->mbcasemap[_c] : _c)
 
 /* define full-width-latin upper/lower ranges */
-
-#define _MBUPPERLOW1    __mbulinfo[0]
-#define _MBUPPERHIGH1   __mbulinfo[1]
-#define _MBCASEDIFF1    __mbulinfo[2]
-
-#define _MBUPPERLOW2    __mbulinfo[3]
-#define _MBUPPERHIGH2   __mbulinfo[4]
-#define _MBCASEDIFF2    __mbulinfo[5]
 
 #define _MBUPPERLOW1_MT(p)  p->mbcinfo->mbulinfo[0]
 #define _MBUPPERHIGH1_MT(p) p->mbcinfo->mbulinfo[1]

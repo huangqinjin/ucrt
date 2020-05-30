@@ -88,9 +88,10 @@ static int __cdecl common_vsscanf(
     _VALIDATE_RETURN(buffer != nullptr, EINVAL, EOF);
     _VALIDATE_RETURN(format != nullptr, EINVAL, EOF);
 
-    size_t const buffer_count_for_stream = buffer_count != SIZE_MAX
-        ? buffer_count
-        : char_traits::tcslen(buffer);
+    // The number of elements to consider when scanning is the lesser of [1] the
+    // specified number of elements in the buffer or [2] the length of the string
+    // in the buffer.
+    size_t const buffer_count_for_stream = char_traits::tcsnlen(buffer, buffer_count);
 
     _LocaleUpdate locale_update(locale);
 

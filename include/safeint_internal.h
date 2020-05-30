@@ -83,6 +83,7 @@ public:
 
 #pragma warning(push)
 #pragma warning(disable:4310)
+#pragma warning(disable:4804) // suppress warning about '<<' being an unsafe operation when T is bool
     const static T maxInt = isSigned ? ((T)~((T)1 << (T)(bitCount-1))) : ((T)(~(T)0));
     const static T minInt = isSigned ? ((T)((T)1 << (T)(bitCount-1)))  : ((T)0);
 #pragma warning(pop)
@@ -1125,7 +1126,7 @@ public:
         }
 
         if( LargeIntRegMultiply< unsigned __int64, unsigned __int64, E >::
-            RegMultiply( (unsigned __int64)a1, (unsigned __int64)b1, (unsigned __int64)tmp ) == SafeIntNoError )
+            RegMultiply( (unsigned __int64)a1, (unsigned __int64)b1, tmp ) == SafeIntNoError )
         {
             // The unsigned multiplication didn't overflow
             if( aNegative ^ bNegative )
@@ -1221,7 +1222,7 @@ public:
         }
 
         if( LargeIntRegMultiply< unsigned __int64, unsigned __int32, E >::
-            RegMultiply( (unsigned __int64)a1, (unsigned __int32)b1, (unsigned __int64)tmp ) == SafeIntNoError )
+            RegMultiply( (unsigned __int64)a1, (unsigned __int32)b1, tmp ) == SafeIntNoError )
         {
             // The unsigned multiplication didn't overflow
             if( aNegative ^ bNegative )

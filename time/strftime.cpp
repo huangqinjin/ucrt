@@ -8,22 +8,11 @@
 //
 #include <corecrt_internal_time.h>
 
-// CRT_REFACTOR TODO: This declaration should be moved to a public header that both CRT and STL can use (time.h)
-_Success_(return > 0)
-extern "C" size_t __cdecl _Strftime(
-    _Out_writes_z_(_Maxsize) char *,
-    _In_ size_t _Maxsize,
-    _In_z_ const char *,
-    _In_ const tm *,
-    void *);
-
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 // Day and Month Name and Time Locale Information Fetching Functions
 //
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-_Success_(return != 0)
-_Ret_z_
 extern "C" char* __cdecl _Getdays_l(_locale_t const locale)
 {
     _LocaleUpdate locale_update(locale);
@@ -176,18 +165,23 @@ extern "C" size_t __cdecl _Strftime_l (
         return 0;
     }
 
-    size_t const result = _Wcsftime_l(wstring.get(), maxsize, wformat.get(), timeptr, lc_time_arg, locale);
-    if (result == 0)
+    size_t const wcsftime_result = _Wcsftime_l(wstring.get(), maxsize, wformat.get(), timeptr, lc_time_arg, locale);
+    if (wcsftime_result == 0)
+    {
         return 0;
+    }
 
     // Copy output from wide char string
-    if (!WideCharToMultiByte(lc_time_cp, 0, wstring.get(), -1, string, static_cast<int>(maxsize), nullptr, nullptr))
+    int const conversion_result = WideCharToMultiByte(lc_time_cp, 0, wstring.get(), -1, string, static_cast<int>(maxsize), nullptr, nullptr);
+    if (conversion_result == 0)
     {
         __acrt_errno_map_os_error(GetLastError());
         return 0;
     }
 
-    return result;
+    // The WideCharToMultiByte result includes the null terminator; the strftime
+    // function result does not:
+    return conversion_result - 1;
 }
 
 extern "C" size_t __cdecl _Strftime(

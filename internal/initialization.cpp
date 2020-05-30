@@ -158,12 +158,15 @@ static bool __cdecl uninitialize_vcruntime(const bool /* terminating */)
 
 static bool __cdecl uninitialize_allocated_memory(bool const /* terminating */)
 {
-    if (_InterlockedDecrement(&__acrt_current_multibyte_data->refcount) == 0 &&
-        __acrt_current_multibyte_data != &__acrt_initial_multibyte_data)
+    __acrt_current_multibyte_data.uninitialize([](__crt_multibyte_data*& multibyte_data)
     {
-        _free_crt(__acrt_current_multibyte_data);
-        __acrt_current_multibyte_data = &__acrt_initial_multibyte_data;
-    }
+        if (_InterlockedDecrement(&multibyte_data->refcount) == 0 &&
+            multibyte_data != &__acrt_initial_multibyte_data)
+        {
+            _free_crt(multibyte_data);
+            multibyte_data = &__acrt_initial_multibyte_data;
+        }
+    });
 
     _free_crt(__acrt_stdout_buffer);
     __acrt_stdout_buffer = nullptr;

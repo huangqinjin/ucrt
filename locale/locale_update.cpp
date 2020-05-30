@@ -24,7 +24,7 @@ extern "C" void __acrt_update_multibyte_info(
     __crt_multibyte_data** const multibyte_info
     )
 {
-    if (*multibyte_info != __acrt_current_multibyte_data && (ptd->_own_locale & __globallocalestatus) == 0)
+    if (*multibyte_info != __acrt_current_multibyte_data.value() && (ptd->_own_locale & __globallocalestatus) == 0)
     {
         *multibyte_info = __acrt_update_thread_multibyte_data();
     }

@@ -116,11 +116,6 @@ _ACRTIMP int __cdecl _strcoll_l(
     _In_opt_ _locale_t   _Locale
     );
 
-char* __cdecl strcpy(
-    _Out_writes_z_(_String_length_(_Source) + 1) char*       _Dest,
-    _In_z_                                       char const* _Source
-    );
-
 __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_1(
     errno_t, strcpy_s,
     _Post_z_ char,        _Destination,
@@ -252,12 +247,6 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_1_EX(
     _In_opt_                 _locale_t, _Locale
     )
 
-_ACRTIMP char* __cdecl strncat(
-    _Inout_updates_z_(_Count) char*       _Dest,
-    _In_reads_or_z_(_Count)   char const* _Source,
-    _In_                      size_t      _Count
-    );
-
 __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_2(
     errno_t, strncat_s,
     _Prepost_z_             char,        _Destination,
@@ -380,12 +369,6 @@ _ACRTIMP size_t __cdecl strnlen(
 
 #endif
 
-_ACRTIMP char* __cdecl _strnset(
-    _Inout_updates_z_(_Count) char*  _Dest,
-    _In_                      int    _Val,
-    _In_                      size_t _Count
-    );
-
 _Check_return_wat_
 _ACRTIMP errno_t __cdecl _strnset_s(
     _Inout_updates_z_(_SizeInBytes) char*  _String,
@@ -437,11 +420,6 @@ __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_1(
     _Inout_z_, char, _Destination,
     _In_       int,  _Value
     )
-
-char* __cdecl _strset(
-    _Inout_z_ char* _Dest,
-    _In_      int   _Value
-    );
 
 _Check_return_
 _ACRTIMP size_t __cdecl strspn(

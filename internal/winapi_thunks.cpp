@@ -44,7 +44,6 @@ extern "C" WINBASEAPI PVOID WINAPI LocateXStateFeature(
     _APPLY(api_ms_win_appmodel_runtime_l1_1_1,           "api-ms-win-appmodel-runtime-l1-1-1"          ) \
     _APPLY(api_ms_win_core_datetime_l1_1_1,              "api-ms-win-core-datetime-l1-1-1"             ) \
     _APPLY(api_ms_win_core_fibers_l1_1_1,                "api-ms-win-core-fibers-l1-1-1"               ) \
-    _APPLY(api_ms_win_core_file_l2_1_1,                  "api-ms-win-core-file-l2-1-1"                 ) \
     _APPLY(api_ms_win_core_localization_l1_2_1,          "api-ms-win-core-localization-l1-2-1"         ) \
     _APPLY(api_ms_win_core_localization_obsolete_l1_2_0, "api-ms-win-core-localization-obsolete-l1-2-0") \
     _APPLY(api_ms_win_core_processthreads_l1_1_2,        "api-ms-win-core-processthreads-l1-1-2"       ) \
@@ -76,7 +75,6 @@ extern "C" WINBASEAPI PVOID WINAPI LocateXStateFeature(
     _APPLY(GetCurrentPackageId,            ({ api_ms_win_appmodel_runtime_l1_1_1,           ext_ms_win_kernel32_package_current_l1_1_0 })) \
     _APPLY(GetDateFormatEx,                ({ api_ms_win_core_datetime_l1_1_1,              kernel32                                   })) \
     _APPLY(GetEnabledXStateFeatures,       ({ api_ms_win_core_xstate_l2_1_0,                kernel32                                   })) \
-    _APPLY(GetFileInformationByHandleEx,   ({ api_ms_win_core_file_l2_1_1,                  kernel32                                   })) \
     _APPLY(GetLastActivePopup,             ({ ext_ms_win_ntuser_dialogbox_l1_1_0,           user32                                     })) \
     _APPLY(GetLocaleInfoEx,                ({ api_ms_win_core_localization_l1_2_1,          kernel32                                   })) \
     _APPLY(GetProcessWindowStation,        ({ ext_ms_win_ntuser_windowstation_l1_1_0,       user32                                     })) \
@@ -516,22 +514,6 @@ extern "C" DWORD64 WINAPI __acrt_GetEnabledXStateFeatures()
     abort(); // No fallback; callers should check availablility before calling
 }
 
-extern "C" BOOL WINAPI __acrt_GetFileInformationByHandleEx(
-    HANDLE                    const file,
-    FILE_INFO_BY_HANDLE_CLASS const file_information_class,
-    LPVOID                    const file_information,
-    DWORD                     const buffer_size
-    )
-{
-    if (auto const get_file_information_by_handle_ex = try_get_GetFileInformationByHandleEx())
-    {
-        return get_file_information_by_handle_ex(file, file_information_class, file_information, buffer_size);
-    }
-
-    SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
-    return FALSE;
-}
-
 extern "C" int WINAPI __acrt_GetLocaleInfoEx(
     LPCWSTR const locale_name,
     LCTYPE  const lc_type,
@@ -769,6 +751,25 @@ extern "C" bool __cdecl __acrt_can_show_message_box()
 extern "C" bool __cdecl __acrt_can_use_vista_locale_apis()
 {
     return try_get_CompareStringEx() != nullptr;
+}
+
+// This function simply attempts to get each of the locale-related APIs.  This
+// allows a caller to "pre-load" the modules in which these APIs are hosted.  We
+// use this in the _wsetlocale implementation to avoid calls to LoadLibrary while
+// the locale lock is held.
+extern "C" void __cdecl __acrt_eagerly_load_locale_apis()
+{
+    try_get_AreFileApisANSI();
+    try_get_CompareStringEx();
+    try_get_EnumSystemLocalesEx();
+    try_get_GetDateFormatEx();
+    try_get_GetLocaleInfoEx();
+    try_get_GetTimeFormatEx();
+    try_get_GetUserDefaultLocaleName();
+    try_get_IsValidLocaleName();
+    try_get_LCMapStringEx();
+    try_get_LCIDToLocaleName();
+    try_get_LocaleNameToLCID();
 }
 
 extern "C" bool __cdecl __acrt_can_use_xstate_apis()

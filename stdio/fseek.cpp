@@ -49,8 +49,11 @@ static bool __cdecl common_fseek_binary_mode_read_only_fast_track_nolock(
 
     // The ftell function handles a case where _cnt is negative.  It isn't clear
     // why _cnt may be negative, so if _cnt is negative, fall back to the
-    // expensive path.
-    if (stream->_cnt < 0)
+    // expensive path.  If the _cnt is zero, do not assume that the buffer
+    // contents contain the immediately preceding file content; data may have
+    // been read from the file bypassing the buffer.  Fall back to the expensive
+    // path to be sure.
+    if (stream->_cnt <= 0)
     {
         return false;
     }

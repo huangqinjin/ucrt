@@ -107,15 +107,16 @@ extern "C" size_t __cdecl _fwrite_nolock(
             }
 
             // Calculate the number of bytes to write.  The _write API takes a
-            // 32-bit unsigned byte count, so clamp the value to UINT_MAX:
+            // 32-bit unsigned byte count and returns -1 (UINT_MAX) on failure,
+            // so clamp the value to UINT_MAX - 1:
             size_t const max_bytes_to_write = stream_buffer_size > 0
                 ? remaining_bytes - remaining_bytes % stream_buffer_size
                 : remaining_bytes;
 
-            unsigned const bytes_to_write = static_cast<unsigned>(__min(max_bytes_to_write, UINT_MAX));
+            unsigned const bytes_to_write = static_cast<unsigned>(__min(max_bytes_to_write, UINT_MAX - 1));
 
             unsigned const bytes_actually_written = _write(_fileno(stream.public_stream()), data, bytes_to_write);
-            if (bytes_actually_written == static_cast<unsigned>(-1))
+            if (bytes_actually_written == UINT_MAX) // UINT_MAX == -1
             {
                 stream.set_flags(_IOERROR);
                 return (total_bytes - remaining_bytes) / element_size;

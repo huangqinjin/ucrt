@@ -67,23 +67,23 @@ static bool __cdecl is_slash(wchar_t const c) throw()
     return c == L'\\' || c == L'/';
 }
 
-static bool __cdecl compute_size(LARGE_INTEGER const& integer, long& size) throw()
+static bool __cdecl compute_size(BY_HANDLE_FILE_INFORMATION const& file_info, long& size) throw()
 {
     size = 0;
-    _VALIDATE_RETURN_NOEXC(integer.HighPart == 0 && integer.LowPart <= LONG_MAX, EOVERFLOW, false);
+    _VALIDATE_RETURN_NOEXC(file_info.nFileSizeHigh == 0 && file_info.nFileSizeLow <= LONG_MAX, EOVERFLOW, false);
 
-    size = static_cast<long>(integer.LowPart);
+    size = static_cast<long>(file_info.nFileSizeLow);
     return true;
 }
 
-static bool __cdecl compute_size(LARGE_INTEGER const& integer, __int64& size) throw()
+static bool __cdecl compute_size(BY_HANDLE_FILE_INFORMATION const& file_info, __int64& size) throw()
 {
     size = 0;
-    _VALIDATE_RETURN_NOEXC(integer.HighPart <= LONG_MAX, EOVERFLOW, false);
+    _VALIDATE_RETURN_NOEXC(file_info.nFileSizeHigh <= LONG_MAX, EOVERFLOW, false);
 
     size = static_cast<__int64>(
-        static_cast<unsigned __int64>(integer.HighPart) * 0x100000000i64 +
-        static_cast<unsigned __int64>(integer.LowPart));
+        static_cast<unsigned __int64>(file_info.nFileSizeHigh) * 0x100000000i64 +
+        static_cast<unsigned __int64>(file_info.nFileSizeLow));
     return true;
 }
 
@@ -287,28 +287,33 @@ static bool __cdecl is_usable_drive_or_unc_root(wchar_t const* const path) throw
 }
 
 template <typename TimeType>
-static TimeType __cdecl convert_large_integer_time_to_time_t(
-    LARGE_INTEGER const file_time,
-    TimeType      const fallback_time
+static TimeType __cdecl convert_filetime_to_time_t(
+    FILETIME const file_time,
+    TimeType const fallback_time
     ) throw()
 {
     using time_traits = __crt_time_time_t_traits<TimeType>;
 
-    if (file_time.LowPart == 0 && file_time.HighPart == 0)
+    if (file_time.dwLowDateTime == 0 && file_time.dwHighDateTime == 0)
     {
         return fallback_time;
     }
 
     SYSTEMTIME system_time;
     SYSTEMTIME local_time;
-    if (!FileTimeToSystemTime(reinterpret_cast<FILETIME const*>(&file_time), &system_time) ||
+    if (!FileTimeToSystemTime(&file_time, &system_time) ||
         !SystemTimeToTzSpecificLocalTime(nullptr, &system_time, &local_time))
     {
-        __acrt_errno_map_os_error(GetLastError());
+        // Ignore failures from these APIs, for consistency with the logic below
+        // that ignores failures in the conversion from SYSTEMTIME to time_t.
         return -1;
     }
 
-    TimeType const result = time_traits::loctotime(
+    // If the conversion to time_t fails, it will return -1.  We'll use this as
+    // the time_t value instead of failing the entire stat call, to allow callers
+    // to get information about files whose time information is not representable.
+    // (Callers use this API to test for file existence or to get file sizes.)
+    return time_traits::loctotime(
         local_time.wYear,
         local_time.wMonth,
         local_time.wDay,
@@ -316,14 +321,6 @@ static TimeType __cdecl convert_large_integer_time_to_time_t(
         local_time.wMinute,
         local_time.wSecond,
         -1);
-
-    // If the time was invalid or if the conversion to local time failed,
-    // we will already have returned failure.  Thus, if loctotime failed,
-    // it was because of overflow.  Change errno for consistency with the
-    // file size overflow computation:
-    _VALIDATE_RETURN_NOEXC(result != -1, EOVERFLOW, -1);
-
-    return result;
 }
 
 template <typename StatStruct>
@@ -431,41 +428,20 @@ static bool __cdecl common_stat_handle_file_opened(
         result.st_dev  = static_cast<_dev_t>(drive_number - 1); // A=0, B=1, etc.
     }
 
-    FILE_BASIC_INFO basic_info{};
-    if (!__acrt_GetFileInformationByHandleEx(handle, FileBasicInfo, &basic_info, sizeof(basic_info)))
+    BY_HANDLE_FILE_INFORMATION file_info{};
+    if (!GetFileInformationByHandle(handle, &file_info))
     {
         __acrt_errno_map_os_error(GetLastError());
         return false;
     }
 
-    result.st_mode  = convert_to_stat_mode(basic_info.FileAttributes, path);
+    result.st_mode  = convert_to_stat_mode(file_info.dwFileAttributes, path);
 
-    result.st_mtime = convert_large_integer_time_to_time_t(basic_info.LastWriteTime, static_cast<time_type>(0));
-    if (result.st_mtime == -1)
-    {
-        return false;
-    }
+    result.st_mtime = convert_filetime_to_time_t(file_info.ftLastWriteTime, static_cast<time_type>(0));
+    result.st_atime = convert_filetime_to_time_t(file_info.ftLastAccessTime, result.st_mtime);
+    result.st_ctime = convert_filetime_to_time_t(file_info.ftCreationTime, result.st_mtime);
 
-    result.st_atime = convert_large_integer_time_to_time_t(basic_info.LastAccessTime, result.st_mtime);
-    if (result.st_atime == -1)
-    {
-        return false;
-    }
-
-    result.st_ctime = convert_large_integer_time_to_time_t(basic_info.CreationTime, result.st_mtime);
-    if (result.st_ctime == -1)
-    {
-        return false;
-    }
-
-    FILE_STANDARD_INFO standard_info{};
-    if (!__acrt_GetFileInformationByHandleEx(handle, FileStandardInfo, &standard_info, sizeof(standard_info)))
-    {
-        __acrt_errno_map_os_error(GetLastError());
-        return false;
-    }
-
-    if (!compute_size(standard_info.EndOfFile, result.st_size))
+    if (!compute_size(file_info, result.st_size))
     {
         return false;
     }

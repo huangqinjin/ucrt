@@ -16,7 +16,7 @@ extern "C" {
 // Flag set iff DllMain was called with DLL_PROCESS_ATTACH
 static int __acrt_process_attached = 0;
 
-static __declspec(noinline) BOOL DllMainProcessAttach()
+static BOOL DllMainProcessAttach()
 {
     if (!__vcrt_initialize())
         return FALSE;
@@ -32,7 +32,7 @@ static __declspec(noinline) BOOL DllMainProcessAttach()
     return TRUE;
 }
 
-static __declspec(noinline) BOOL DllMainProcessDetach(bool const terminating)
+static BOOL DllMainProcessDetach(bool const terminating)
 {
     // If there was no prior process attach or if it failed, return immediately:
     if (__acrt_process_attached <= 0)
@@ -55,17 +55,8 @@ void __acrt_end_boot()
 }
 #pragma optimize ("", on)
 
-BOOL WINAPI __acrt_DllMain(HINSTANCE, DWORD const fdwReason, LPVOID const lpReserved)
+static __declspec(noinline) BOOL DllMainDispatch(HINSTANCE, DWORD const fdwReason, LPVOID const lpReserved)
 {
-    if (fdwReason == DLL_PROCESS_ATTACH)
-    {
-        // The /GS security cookie must be initialized before any exception
-        // handling targetting the current image is registered.  No function
-        // using exception handling can be called in the current image until
-        // after __security_init_cookie has been called.
-        __security_init_cookie();
-    }
-
     BOOL result = FALSE;
     switch (fdwReason)
     {
@@ -88,6 +79,27 @@ BOOL WINAPI __acrt_DllMain(HINSTANCE, DWORD const fdwReason, LPVOID const lpRese
 
     __acrt_end_boot();
     return result;
+}
+
+BOOL WINAPI __acrt_DllMain(HINSTANCE const hInstance, DWORD const fdwReason, LPVOID const lpReserved)
+{
+    if (fdwReason == DLL_PROCESS_ATTACH)
+    {
+        // The /GS security cookie must be initialized before any exception
+        // handling targeting the current image is registered.  No function
+        // using exception handling can be called in the current image until
+        // after __security_init_cookie has been called.
+        __security_init_cookie();
+    }
+
+    // The remainder of the DllMain implementation is in a separate, noinline
+    // function to ensure that no code that might touch the security cookie
+    // runs before the __security_init_cookie function is called.  (If code
+    // that uses EH or array-type local variables were to be inlined into
+    // this function, that would cause the compiler to introduce use of the
+    // cookie into this function, before the call to __security_init_cookie.
+    // The separate, noinline function ensures that this does not occur.)
+    return DllMainDispatch(hInstance, fdwReason, lpReserved);
 }
 
 } // extern "C"

@@ -26,7 +26,7 @@ _CRT_BEGIN_C_HEADER
         _In_                                               rsize_t     _NumOfElements,
         _In_                                               rsize_t     _SizeOfElements,
         _In_ int (__cdecl* _PtFuncCompare)(void*, void const*, void const*),
-        _In_                                               void*       _Context
+        _In_opt_                                           void*       _Context
         );
 
     _ACRTIMP void __cdecl qsort_s(
@@ -34,7 +34,7 @@ _CRT_BEGIN_C_HEADER
         _In_                                                    rsize_t _NumOfElements,
         _In_                                                    rsize_t _SizeOfElements,
         _In_ int (__cdecl* _PtFuncCompare)(void*, void const*, void const*),
-        _In_                                                    void*   _Context
+        _In_opt_                                                void*   _Context
         );
 
 #endif // __STDC_WANT_SECURE_LIB__

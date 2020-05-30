@@ -239,7 +239,9 @@ _CRT_INSECURE_DEPRECATE_GLOBALS(_get_fmode  ) _ACRTIMP int*      __cdecl __p__fm
 #ifdef _CRT_DECLARE_GLOBAL_VARIABLES_DIRECTLY
     _CRT_INSECURE_DEPRECATE_GLOBALS(_get_pgmptr ) extern char*    _pgmptr;
     _CRT_INSECURE_DEPRECATE_GLOBALS(_get_wpgmptr) extern wchar_t* _wpgmptr;
-    _CRT_INSECURE_DEPRECATE_GLOBALS(_get_fmode  ) extern int      _fmode;
+    #ifndef _CORECRT_BUILD
+        _CRT_INSECURE_DEPRECATE_GLOBALS(_get_fmode  ) extern int      _fmode;
+    #endif
 #else
     #define _pgmptr  (*__p__pgmptr ())
     #define _wpgmptr (*__p__wpgmptr())

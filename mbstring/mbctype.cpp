@@ -73,50 +73,61 @@ __crt_multibyte_data __acrt_initial_multibyte_data =
     nullptr /* mblocalename */
 };
 
+#define _MBCTYPE_DEFAULT                                                        \
+    {                                                                           \
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, \
+        0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, \
+        0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x00, 0x00, 0x00, 0x00, \
+        0x00, 0x00, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, \
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, \
+        0x20, 0x20, 0x20, 0x20, 0x00, 0x00, 0x00, 0x00 /* rest is zero */       \
+    }
+
 /* MBCS ctype array */
-unsigned char _mbctype[NUM_CHARS] =
+static unsigned char _mbctypes[__crt_state_management::state_index_count][NUM_CHARS] =
 {
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10,
-    0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10,
-    0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
-    0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
-    0x20, 0x20, 0x20, 0x20, 0x00, 0x00, 0x00, 0x00 /* rest is zero */
-};
-unsigned char _mbcasemap[256] =
-{
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
-    0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f, 0x70, 0x71, 0x72, 0x73,
-    0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b,
-    0x4c, 0x4d, 0x4e, 0x4f, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
-    0x58, 0x59, 0x5a, 0x00, 0x00, 0x00, 0x00, 0x00 /* rest is zero */
+    _MBCTYPE_DEFAULT
+    #ifdef _CRT_GLOBAL_STATE_ISOLATION
+    ,_MBCTYPE_DEFAULT
+    #endif
 };
 
-/* global variable to indicate current code page */
-int __mbcodepage = CP_ACP; /* __acrt_initial_multibyte_data.mbcodepage; */
+#define _MBCASEMAP_DEFAULT                                                      \
+    {                                                                           \
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, \
+        0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f, 0x70, 0x71, 0x72, 0x73, \
+        0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x00, 0x00, 0x00, 0x00, 0x00, \
+        0x00, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, \
+        0x4c, 0x4d, 0x4e, 0x4f, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, \
+        0x58, 0x59, 0x5a, 0x00, 0x00, 0x00, 0x00, 0x00 /* rest is zero */       \
+    }
 
-/* global flag indicating if current code page is a multibyte code page */
-int __ismbcodepage = 0; /*__acrt_initial_multibyte_data.ismbcodepage; */
+static unsigned char _mbcasemaps[__crt_state_management::state_index_count][256] =
+{
+    _MBCASEMAP_DEFAULT
+    #ifdef _CRT_GLOBAL_STATE_ISOLATION
+    ,_MBCASEMAP_DEFAULT
+    #endif
+};
 
-/* global variable to indicate current locale name */
-const wchar_t *__mblocalename = nullptr; /* __acrt_initial_multibyte_data.mblocalename; */
+/* global pointer to the multi-byte case type (i.e. upper or lower or n/a) */
+__crt_state_management::dual_state_global<unsigned char*> _mbctype;
 
-/* global variable to indicate current full-width-latin upper/lower info */
-unsigned short __mbulinfo[NUM_ULINFO]; /* __acrt_initial_multibyte_data.mbulinfo */
+/* global pointer to the multi-byte casemap */
+__crt_state_management::dual_state_global<unsigned char*> _mbcasemap;
 
 /* global pointer to the current per-thread mbc information structure. */
-__crt_multibyte_data* __acrt_current_multibyte_data = &__acrt_initial_multibyte_data;
+__crt_state_management::dual_state_global<__crt_multibyte_data*> __acrt_current_multibyte_data;
 }
 
 static int fSystemSet;
@@ -219,12 +230,12 @@ const wchar_t* const _mb_locale_names[] =
 
 extern "C" unsigned char* __cdecl __p__mbctype()
 {
-    return &_mbctype[0];
+    return _mbctype.value();
 }
 
 extern "C" unsigned char* __cdecl __p__mbcasemap()
 {
-    return &_mbcasemap[0];
+    return _mbcasemap.value();
 }
 
 
@@ -447,24 +458,26 @@ static void setSBUpLow (__crt_multibyte_data* ptmbci)
 *Entry:
 *
 *Exit:
-*       _getptd()->ptmbcinfo == __acrt_current_multibyte_data
+*       _getptd()->ptmbcinfo == current_multibyte_data (which should always be __acrt_current_multibyte_data)
 *
 *Exceptions:
 *
 *******************************************************************************/
 
-extern "C" __crt_multibyte_data* __cdecl __acrt_update_thread_multibyte_data(void)
+static __crt_multibyte_data* __cdecl update_thread_multibyte_data_internal(
+    __acrt_ptd*           const ptd,
+    __crt_multibyte_data* const current_multibyte_data
+    ) throw()
 {
         __crt_multibyte_data* ptmbci = nullptr;
-
-        __acrt_ptd* const ptd = __acrt_getptd();
+        
         if ((ptd->_own_locale & __globallocalestatus) == 0 || ptd->_locale_info == nullptr)
         {
             __acrt_lock(__acrt_multibyte_cp_lock);
             __try
             {
                 ptmbci = ptd->_multibyte_info;
-                if (ptmbci != __acrt_current_multibyte_data)
+                if (ptmbci != current_multibyte_data)
                 {
                     /*
                      * Decrement the reference count in the old mbc info structure
@@ -484,7 +497,7 @@ extern "C" __crt_multibyte_data* __cdecl __acrt_update_thread_multibyte_data(voi
                      * Point to the current mbc info structure and increment its
                      * reference count.
                      */
-                    ptmbci = ptd->_multibyte_info = __acrt_current_multibyte_data;
+                    ptmbci = ptd->_multibyte_info = current_multibyte_data;
                     InterlockedIncrement(&ptmbci->refcount);
                 }
             }
@@ -504,6 +517,11 @@ extern "C" __crt_multibyte_data* __cdecl __acrt_update_thread_multibyte_data(voi
         }
 
         return ptmbci;
+}
+
+extern "C" __crt_multibyte_data* __cdecl __acrt_update_thread_multibyte_data()
+{
+    return update_thread_multibyte_data_internal(__acrt_getptd(), __acrt_current_multibyte_data.value());
 }
 
 /***
@@ -535,13 +553,13 @@ extern "C" __crt_multibyte_data* __cdecl __acrt_update_thread_multibyte_data(voi
 *******************************************************************************/
 
 static int __cdecl setmbcp_internal(
-    int  const requested_codepage,
-    bool const is_for_crt_initialization
+    int                    const requested_codepage,
+    bool                   const is_for_crt_initialization,
+    __acrt_ptd*            const ptd,
+    __crt_multibyte_data** const current_multibyte_data
     ) throw()
 {
-    __acrt_ptd* const ptd = __acrt_getptd();
-
-    __acrt_update_thread_multibyte_data();
+    update_thread_multibyte_data_internal(ptd, *current_multibyte_data);
     int const system_codepage = getSystemCP(requested_codepage);
 
     // If it's not a new codepage, just return success:
@@ -600,27 +618,22 @@ static int __cdecl setmbcp_internal(
     // Otherwise, update the global codepage:
     __acrt_lock_and_call(__acrt_multibyte_cp_lock, [&]
     {
-        __mbcodepage   = ptd->_multibyte_info->mbcodepage;
-        __ismbcodepage = ptd->_multibyte_info->ismbcodepage;
-        __mblocalename = ptd->_multibyte_info->mblocalename;
+        memcpy_s(_mbctype.value(),   sizeof(_mbctypes[0]),   ptd->_multibyte_info->mbctype,   sizeof(ptd->_multibyte_info->mbctype));
+        memcpy_s(_mbcasemap.value(), sizeof(_mbcasemaps[0]), ptd->_multibyte_info->mbcasemap, sizeof(ptd->_multibyte_info->mbcasemap));
 
-        memcpy_s(__mbulinfo, sizeof(__mbulinfo), ptd->_multibyte_info->mbulinfo,  sizeof(ptd->_multibyte_info->mbulinfo));
-        memcpy_s(_mbctype,   sizeof(_mbctype),   ptd->_multibyte_info->mbctype,   sizeof(ptd->_multibyte_info->mbctype));
-        memcpy_s(_mbcasemap, sizeof(_mbcasemap), ptd->_multibyte_info->mbcasemap, sizeof(ptd->_multibyte_info->mbcasemap));
-
-        if (InterlockedDecrement(&__acrt_current_multibyte_data->refcount) == 0 &&
-            __acrt_current_multibyte_data != &__acrt_initial_multibyte_data)
+        if (InterlockedDecrement(&(*current_multibyte_data)->refcount) == 0 &&
+            (*current_multibyte_data) != &__acrt_initial_multibyte_data)
         {
-            _free_crt(__acrt_current_multibyte_data);
+            _free_crt(*current_multibyte_data);
         }
 
-        __acrt_current_multibyte_data = ptd->_multibyte_info;
+        *current_multibyte_data = ptd->_multibyte_info;
         InterlockedIncrement(&ptd->_multibyte_info->refcount);
     });
 
     if (is_for_crt_initialization)
     {
-        __acrt_initial_locale_pointers.mbcinfo = __acrt_current_multibyte_data;
+        __acrt_initial_locale_pointers.mbcinfo = *current_multibyte_data;
     }
 
     return setmbcp_status;
@@ -628,7 +641,7 @@ static int __cdecl setmbcp_internal(
 
 extern "C" int __cdecl _setmbcp(int const codepage)
 {
-    return setmbcp_internal(codepage, false);
+    return setmbcp_internal(codepage, false, __acrt_getptd(), &__acrt_current_multibyte_data.value());
 }
 
 extern "C" int __cdecl _setmbcp_nolock(int codepage, __crt_multibyte_data* ptmbci)
@@ -803,7 +816,20 @@ extern "C" bool __cdecl __acrt_initialize_multibyte()
     // but can be used to cause this object to be linked in.
     if (!initialized)
     {
-        setmbcp_internal(_MB_CP_ANSI, true);
+        // initialize global pointer to the current per-thread mbc information structure
+        __acrt_current_multibyte_data.initialize(&__acrt_initial_multibyte_data);
+        
+        // initialize mbc pointers
+        _mbcasemap.initialize_from_array(_mbcasemaps);
+        _mbctype  .initialize_from_array(_mbctypes);
+        
+        // initialize the multibyte globals
+        __acrt_ptd* const ptd_head = __acrt_getptd_head();
+        for (size_t i = 0; i != __crt_state_management::state_index_count; ++i)
+        {
+            setmbcp_internal(_MB_CP_ANSI, true, ptd_head + i, &__acrt_current_multibyte_data.dangerous_get_state_array()[i]);
+        }
+        
         initialized = 1;
     }
 

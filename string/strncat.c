@@ -48,7 +48,7 @@ char * __cdecl strncat (
         front--;
 
         while (count--)
-                if ((*front++ = *back++) != 0)
+                if ((*front++ = *back++) == 0)
                         return(start);
 
         *front = '\0';

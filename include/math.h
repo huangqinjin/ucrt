@@ -49,8 +49,21 @@ _CRT_BEGIN_C_HEADER
     #endif
 #endif // __assembler
 
-typedef float float_t;
-typedef double double_t;
+
+
+// On x86, when not using /arch:SSE2 or greater, floating point operations
+// are performed using the x87 instruction set and FLT_EVAL_METHOD is 2.
+// (When /fp:fast is used, floating point operations may be consistent, so
+// we use the default types.)
+#if defined _M_IX86 && _M_IX86_FP < 2 && !defined _M_FP_FAST
+    typedef long double float_t;
+    typedef long double double_t;
+#else
+    typedef float  float_t;
+    typedef double double_t;
+#endif
+
+
 
 // Constant definitions for the exception type passed in the _exception struct
 #define _DOMAIN     1   // argument domain error

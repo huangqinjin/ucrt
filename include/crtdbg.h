@@ -449,7 +449,7 @@ typedef struct _CrtMemState
     _Success_(return == 0)
     _Check_return_wat_
     _DCRTIMP errno_t __cdecl _dupenv_s_dbg(
-        _Outptr_result_buffer_maybenull_(*_PBufferSizeInBytes) _Deref_post_z_ char** _PBuffer,
+        _Outptr_result_buffer_maybenull_(*_PBufferSizeInBytes) char** _PBuffer,
         _Out_opt_                      size_t*     _PBufferSizeInBytes,
         _In_z_                         char const* _VarName,
         _In_                           int          _BlockType,
@@ -519,7 +519,7 @@ typedef struct _CrtMemState
     _Success_(return == 0)
     _Check_return_wat_
     _DCRTIMP errno_t __cdecl _wdupenv_s_dbg(
-        _Outptr_result_buffer_maybenull_(*_PBufferSizeInWords) _Deref_post_z_ wchar_t** _PBuffer,
+        _Outptr_result_buffer_maybenull_(*_PBufferSizeInWords) wchar_t** _PBuffer,
         _Out_opt_                        size_t*         _PBufferSizeInWords,
         _In_z_                           wchar_t const* _VarName,
         _In_                             int             _BlockType,
