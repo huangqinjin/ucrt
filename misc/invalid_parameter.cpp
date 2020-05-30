@@ -44,11 +44,40 @@ static __crt_state_management::dual_state_global<_invalid_parameter_handler> __a
 
 #endif // _M_X64
 
+#if defined _CRT_GLOBAL_STATE_ISOLATION
 
+    // The legacy Windows CRT (msvcrt) does not terminate the process when an
+    // invalid parameter is passed to a library function.  Turning on this
+    // validation for Windows components would be a big app compat problem.
+    //
+    // For OS components the default behavior will be to ignore the invalid parameters
+    // and that is accomplished by providing an empty IPH.
+    static void __cdecl invalid_parameter_handler_continue(
+        wchar_t const * const,    // pszExpression
+        wchar_t const * const,    // pszFunction
+        wchar_t const * const,    // pszFile
+        unsigned int,              // nLine
+        uintptr_t                   // pReserved
+    ) throw()
+    {
+    }
+
+#endif
 
 extern "C" void __cdecl __acrt_initialize_invalid_parameter_handler(void* const encoded_null)
 {
-    __acrt_invalid_parameter_handler.initialize(reinterpret_cast<_invalid_parameter_handler>(encoded_null));
+#if defined _CRT_GLOBAL_STATE_ISOLATION
+    const _invalid_parameter_handler encoded_os_iph = __crt_fast_encode_pointer(invalid_parameter_handler_continue);
+#endif    
+    const _invalid_parameter_handler iph[] =
+    {
+        reinterpret_cast<_invalid_parameter_handler>(encoded_null)
+#if defined _CRT_GLOBAL_STATE_ISOLATION
+        ,encoded_os_iph
+#endif        
+    };
+    
+    __acrt_invalid_parameter_handler.initialize_from_array(iph);
 }
 
 
@@ -80,16 +109,7 @@ extern "C" void __cdecl _invalid_parameter(
         return;
     }
 
-    // The legacy Windows CRT (msvcrt) does not terminate the process when an
-    // invalid parameter is passed to a library function.  Turning on this
-    // validation for Windows components would be a big app compat problem.
-    // When the global state separation work is enabled we can control this
-    // better.  In the meantime we are disabling this for all callers.
-
-    // CRT_REFACTOR TODO Uncomment the #if when this change reaches FBL_REX
-    // #ifndef BUILD_WINDOWS
     _invoke_watson(expression, function_name, file_name, line_number, reserved);
-    // #endif
 }
 
 extern "C" void __cdecl _invalid_parameter_noinfo()

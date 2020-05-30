@@ -197,7 +197,7 @@ static void __cdecl parse_command_line(
                         p++; // Double quote inside quoted string
                     }
                     else
-                    {   
+                    {
                         // Skip first quote char and copy second:
                         copy_character = 0; // Don't copy quote
                         in_quotes = !in_quotes;
@@ -236,7 +236,7 @@ static void __cdecl parse_command_line(
 
                 ++*character_count;
             }
-            
+
             ++p;
         }
 
@@ -313,13 +313,18 @@ static errno_t __cdecl common_configure_argv(_crt_argv_mode const mode) throw()
 {
     typedef __crt_char_traits<Character> traits;
 
+    if (mode == _crt_argv_no_arguments)
+    {
+        return 0;
+    }
+
     _VALIDATE_RETURN_ERRCODE(
         mode == _crt_argv_expanded_arguments ||
         mode == _crt_argv_unexpanded_arguments, EINVAL);
 
     do_locale_initialization(Character());
 
-    
+
     static Character program_name[MAX_PATH + 1];
     traits::get_module_file_name(nullptr, program_name, MAX_PATH);
     traits::set_program_name(&program_name[0]);

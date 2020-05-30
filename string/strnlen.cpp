@@ -7,6 +7,7 @@
 // string, not including the null terminator itself, up to the specified maximum
 // number of characters.
 //
+#include <corecrt_internal.h>
 #include <corecrt_internal_simd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,8 +21,43 @@
 
 
 
+namespace
+{
+    enum strnlen_mode
+    {
+        bounded,  // strnlen mode; maximum_count is respected
+        unbounded, // strlen mode; maximum_count is ignored
+    };
+}
+
+// This function returns true if we have reached the end of the range to be
+// searched for a terminator.  For the bounded strnlen functions, we must
+// test to see whether
+template <strnlen_mode Mode>
+static __forceinline bool __cdecl last_reached(
+    void const* const it,
+    void const* const last
+    ) throw()
+{
+    return it == last;
+}
+
+template <>
+__forceinline bool __cdecl last_reached<unbounded>(
+    void const* const it,
+    void const* const last
+    ) throw()
+{
+    UNREFERENCED_PARAMETER(it);
+    UNREFERENCED_PARAMETER(last);
+
+    return false;
+}
+
+
+
 // An implementation of strnlen using plain C, suitable for any architecture:
-template <typename Element>
+template <strnlen_mode Mode, typename Element>
 _Check_return_
 _When_(maximum_count > _String_length_(string), _Post_satisfies_(return == _String_length_(string)))
 _When_(maximum_count <= _String_length_(string), _Post_satisfies_(return == maximum_count))
@@ -33,7 +69,7 @@ static __forceinline size_t __cdecl common_strnlen_c(
     Element const* const last = string + maximum_count;
     Element const*       it   = string;
 
-    for (; it != last && *it != '\0'; ++it)
+    for (; !last_reached<Mode>(it, last) && *it != '\0'; ++it)
     {
     }
 
@@ -42,7 +78,7 @@ static __forceinline size_t __cdecl common_strnlen_c(
 
 #ifdef _CRT_SIMD_SUPPORT_AVAILABLE
 
-    template <__crt_simd_isa Isa, typename Element>
+    template <strnlen_mode Mode, __crt_simd_isa Isa, typename Element>
     _Check_return_
     _When_(maximum_count > _String_length_(string), _Post_satisfies_(return == _String_length_(string)))
     _When_(maximum_count <= _String_length_(string), _Post_satisfies_(return == maximum_count))
@@ -81,7 +117,7 @@ static __forceinline size_t __cdecl common_strnlen_c(
             // If the input string is itself unaligned (e.g. if it is a wchar_t*
             // with an odd address), we can't align for vector processing.  Switch
             // back to the slow implementation:
-            return common_strnlen_c(string, maximum_count);
+            return common_strnlen_c<Mode>(string, maximum_count);
         }
 
         // [1] Alignment Loop (Prefix)
@@ -91,7 +127,7 @@ static __forceinline size_t __cdecl common_strnlen_c(
             : traits::pack_size - prefix_forward_offset;
 
         size_t const prefix_count  = __min(maximum_count, prefix_reverse_offset / traits::element_size);
-        size_t const prefix_result = common_strnlen_c(string, prefix_count);
+        size_t const prefix_result = common_strnlen_c<bounded>(string, prefix_count);
         if (prefix_result != prefix_count)
         {
             return prefix_result;
@@ -109,7 +145,7 @@ static __forceinline size_t __cdecl common_strnlen_c(
         size_t const middle_count            = middle_and_suffix_count - suffix_count;
 
         Element const* const middle_last = it + middle_count;
-        while (it != middle_last)
+        while (!last_reached<Mode>(it, middle_last))
         {
             auto const element_it = reinterpret_cast<traits::pack_type const*>(it);
 
@@ -124,7 +160,7 @@ static __forceinline size_t __cdecl common_strnlen_c(
 
         // [3] Remainder Loop (Suffix)
         Element const* const suffix_last = string + maximum_count;
-        for (; it != suffix_last && *it != '\0'; ++it)
+        for (; !last_reached<Mode>(it, suffix_last) && *it != '\0'; ++it)
         {
         }
 
@@ -134,7 +170,7 @@ static __forceinline size_t __cdecl common_strnlen_c(
 
 #endif // _CRT_SIMD_SUPPORT_AVAILABLE
 
-template <typename Element>
+template <strnlen_mode Mode, typename Element>
 _Check_return_
 _When_(maximum_count > _String_length_(string), _Post_satisfies_(return == _String_length_(string)))
 _When_(maximum_count <= _String_length_(string), _Post_satisfies_(return == maximum_count))
@@ -146,15 +182,15 @@ static __forceinline size_t __cdecl common_strnlen(
     #ifdef _CRT_SIMD_SUPPORT_AVAILABLE
     if (__isa_available >= __ISA_AVAILABLE_AVX2)
     {
-        return common_strnlen_simd<__crt_simd_isa::avx2>(string, maximum_count);
+        return common_strnlen_simd<Mode, __crt_simd_isa::avx2>(string, maximum_count);
     }
     else if (__isa_available >= __ISA_AVAILABLE_SSE2)
     {
-        return common_strnlen_simd<__crt_simd_isa::sse2>(string, maximum_count);
+        return common_strnlen_simd<Mode, __crt_simd_isa::sse2>(string, maximum_count);
     }
     #endif
 
-    return common_strnlen_c(string, maximum_count);
+    return common_strnlen_c<Mode>(string, maximum_count);
 }
 
 extern "C" size_t __cdecl strnlen(
@@ -162,7 +198,7 @@ extern "C" size_t __cdecl strnlen(
     size_t      const maximum_count
     )
 {
-    return common_strnlen(reinterpret_cast<uint8_t const*>(string), maximum_count);
+    return common_strnlen<bounded>(reinterpret_cast<uint8_t const*>(string), maximum_count);
 }
 
 extern "C" size_t __cdecl wcsnlen(
@@ -170,5 +206,14 @@ extern "C" size_t __cdecl wcsnlen(
     size_t         const maximum_count
     )
 {
-    return common_strnlen(reinterpret_cast<uint16_t const*>(string), maximum_count);
+    return common_strnlen<bounded>(reinterpret_cast<uint16_t const*>(string), maximum_count);
+}
+
+#pragma function(wcslen)
+
+extern "C" size_t __cdecl wcslen(
+    wchar_t const* const string
+    )
+{
+    return common_strnlen<unbounded>(reinterpret_cast<uint16_t const*>(string), SIZE_MAX);
 }

@@ -30,7 +30,12 @@ static bool is_lfh_enabled() throw()
 // This function implements the logic of expand().  It is called directly by the
 // _expand() function in the Release CRT, and called by the debug heap in the
 // Debug CRT.
-extern "C" void* __cdecl _expand_base(void* const block, size_t const size)
+//
+// This function must be marked noinline, otherwise _expand and
+// _expand_base will have identical COMDATs, and the linker will fold
+// them when calling one from the CRT. This is necessary because _expand
+// needs to support users patching in custom implementations.
+extern "C" __declspec(noinline) void* __cdecl _expand_base(void* const block, size_t const size)
 {
     // Validation section
     _VALIDATE_RETURN      (block != nullptr,     EINVAL, nullptr);
@@ -60,7 +65,12 @@ extern "C" void* __cdecl _expand_base(void* const block, size_t const size)
 // original size of the block.  This function never moves the block.  In the
 // case of expansion, if the block cannot be expanded to 'size', it is expanded
 // as much as possible.
-extern "C" void* __cdecl _expand(void* const block, size_t const size)
+//
+// This function supports patching and therefore must be marked noinline.
+// Both _expand_dbg and _expand_base must also be marked noinline
+// to prevent identical COMDAT folding from substituting calls to _expand
+// with either other function or vice versa.
+extern "C" __declspec(noinline) void* __cdecl _expand(void* const block, size_t const size)
 {
     #ifdef _DEBUG
     return _expand_dbg(block, size, _NORMAL_BLOCK, nullptr, 0);

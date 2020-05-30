@@ -131,9 +131,10 @@ class string_input_adapter
 {
 public:
 
-    using traits    = __acrt_stdio_char_traits<Character>;
-    using char_type = Character;
-    using int_type  = typename traits::int_type;
+    using traits             = __acrt_stdio_char_traits<Character>;
+    using char_type          = Character;
+    using unsigned_char_type = typename traits::unsigned_char_type;
+    using int_type           = typename traits::int_type;
 
     string_input_adapter(
         char_type const* const string,
@@ -155,7 +156,11 @@ public:
         if (_it == _last)
             return traits::eof;
 
-        return *_it++;
+        // If we are processing narrow characters, the character value may be
+        // negative.  In this case, its value will have been sign extended in
+        // the conversion to int_type.  Mask the sign extension bits for
+        // compatibility with the other input adapters:
+        return static_cast<unsigned_char_type>(*_it++);
     }
 
     void unget(int_type const c) throw()
@@ -236,13 +241,10 @@ class scanset_storage<sizeof(char)>
 {
 public:
 
-    #pragma warning(push)
-    #pragma warning(disable: 4351) // New behavior: array will be initialized.
     scanset_storage()
-        : _buffer{} 
+        : _buffer{}
     {
     }
-    #pragma warning(pop)
 
     unsigned char* data() const throw() { return _buffer;     }
     size_t         size() const throw() { return buffer_size; }
@@ -576,7 +578,7 @@ public:
         case conversion_mode::string:
         case conversion_mode::scanset:
             return _is_wide ? sizeof(wchar_t) : sizeof(char);
-            
+
         case conversion_mode::signed_unknown:
         case conversion_mode::signed_decimal:
         case conversion_mode::unsigned_octal:
@@ -847,7 +849,7 @@ private:
             ++_format_it;
             return true;
         }
-            
+
         case 'i':
         case 'I':
         {
@@ -1032,7 +1034,7 @@ private:
     errno_t                            _error_code;
 
     format_directive_kind              _kind;
-    
+
     unsigned_char_type                 _literal_character_lead;
     unsigned_char_type                 _literal_character_trail;
 
@@ -1095,7 +1097,7 @@ public:
         while (_format_parser.advance())
         {
             if (!process_state())
-                break; 
+                break;
         }
 
         int result{static_cast<int>(_assignments_processed)};
@@ -1200,7 +1202,7 @@ private:
         case conversion_mode::character:              return process_string_specifier(conversion_mode::character);
         case conversion_mode::string:                 return process_string_specifier(conversion_mode::string);
         case conversion_mode::scanset:                return process_string_specifier(conversion_mode::scanset);
-            
+
         case conversion_mode::signed_unknown:         return process_integer_specifier( 0,  true);
         case conversion_mode::signed_decimal:         return process_integer_specifier(10,  true);
         case conversion_mode::unsigned_octal:         return process_integer_specifier( 8, false);
@@ -1597,7 +1599,7 @@ private:
     {
         return (_options & _CRT_INTERNAL_SCANF_SECURECRT) != 0;
     }
-    
+
     uint64_t                        _options;
     InputAdapter                    _input_adapter;
     format_string_parser<char_type> _format_parser;

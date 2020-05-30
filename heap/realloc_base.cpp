@@ -16,7 +16,12 @@
 // This function implements the logic of realloc().  It is called directly by
 // the realloc() and _recalloc() functions in the Release CRT and is called by
 // the debug heap in the Debug CRT.
-extern "C" _CRTRESTRICT void* __cdecl _realloc_base(
+//
+// This function must be marked noinline, otherwise realloc and
+// _realloc_base will have identical COMDATs, and the linker will fold
+// them when calling one from the CRT. This is necessary because realloc
+// needs to support users patching in custom implementations.
+extern "C" __declspec(noinline) _CRTRESTRICT void* __cdecl _realloc_base(
     void*  const block,
     size_t const size
     )

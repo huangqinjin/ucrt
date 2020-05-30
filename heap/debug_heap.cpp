@@ -86,10 +86,10 @@ struct _CrtMemBlockHeader
     _CrtMemBlockHeader* _block_header_prev;
     char const*         _file_name;
     int                 _line_number;
-    
+
     int                 _block_use;
     size_t              _data_size;
-    
+
     long                _request_number;
     unsigned char       _gap[no_mans_land_size];
 
@@ -355,7 +355,7 @@ static void* __cdecl heap_alloc_dbg_internal(
         }
 
         size_t const block_size{sizeof(_CrtMemBlockHeader) + size + no_mans_land_size};
-                
+
         _CrtMemBlockHeader* const header{static_cast<_CrtMemBlockHeader*>(HeapAlloc(__acrt_heap, 0, block_size))};
         if (!header)
         {
@@ -481,7 +481,11 @@ static void* __cdecl heap_alloc_dbg(
 // Documentation comments for these functions describe only the material
 // differences between them and the corresponding main allocation functions.
 
-extern "C" void* __cdecl _malloc_dbg(
+// This function must be marked noinline, otherwise malloc and
+// _malloc_dbg will have identical COMDATs, and the linker will fold
+// them when calling one from the CRT. This is necessary because malloc
+// needs to support users patching in custom implementations.
+extern "C" __declspec(noinline) void* __cdecl _malloc_dbg(
     size_t      const size,
     int         const block_use,
     char const* const file_name,
@@ -492,8 +496,11 @@ extern "C" void* __cdecl _malloc_dbg(
 }
 
 
-
-extern "C" void* __cdecl _calloc_dbg(
+// This function must be marked noinline, otherwise calloc and
+// _calloc_dbg will have identical COMDATs, and the linker will fold
+// them when calling one from the CRT. This is necessary because calloc
+// needs to support users patching in custom implementations.
+extern "C" __declspec(noinline) void* __cdecl _calloc_dbg(
     size_t      const count,
     size_t      const element_size,
     int         const block_use,
@@ -730,8 +737,11 @@ static void * __cdecl realloc_dbg_nolock(
 }
 
 
-
-extern "C" void* __cdecl _realloc_dbg(
+// This function must be marked noinline, otherwise realloc and
+// _realloc_dbg will have identical COMDATs, and the linker will fold
+// them when calling one from the CRT. This is necessary because realloc
+// needs to support users patching in custom implementations.
+extern "C" __declspec(noinline) void* __cdecl _realloc_dbg(
     void*       const block,
     size_t      const requested_size,
     int         const block_use,
@@ -756,8 +766,11 @@ extern "C" void* __cdecl _realloc_dbg(
 }
 
 
-
-extern "C" void* __cdecl _recalloc_dbg(
+// This function must be marked noinline, otherwise recalloc and
+// _recalloc_dbg will have identical COMDATs, and the linker will fold
+// them when calling one from the CRT. This is necessary because recalloc
+// needs to support users patching in custom implementations.
+extern "C" __declspec(noinline) void* __cdecl _recalloc_dbg(
     void*       const block,
     size_t      const count,
     size_t      const element_size,
@@ -767,7 +780,7 @@ extern "C" void* __cdecl _recalloc_dbg(
     )
 {
     _VALIDATE_RETURN_NOEXC(count == 0 || (_HEAP_MAXREQ / count) >= element_size, ENOMEM, nullptr);
-    
+
     size_t const old_allocation_size{block ? _msize(block) : 0};
     size_t const new_allocation_size{element_size * count     };
 
@@ -788,8 +801,11 @@ extern "C" void* __cdecl _recalloc_dbg(
 }
 
 
-
-extern "C" void* __cdecl _expand_dbg(
+// This function must be marked noinline, otherwise _expand and
+// _expand_dbg will have identical COMDATs, and the linker will fold
+// them when calling one from the CRT. This is necessary because _expand
+// needs to support users patching in custom implementations.
+extern "C" __declspec(noinline) void* __cdecl _expand_dbg(
     void*       const block,
     size_t      const requested_size,
     int         const block_use,
@@ -799,7 +815,7 @@ extern "C" void* __cdecl _expand_dbg(
 {
     _VALIDATE_RETURN(block != nullptr, EINVAL, nullptr);
 
-    if (requested_size > static_cast<size_t>(_HEAP_MAXREQ - no_mans_land_size - sizeof(_CrtMemBlockHeader))) 
+    if (requested_size > static_cast<size_t>(_HEAP_MAXREQ - no_mans_land_size - sizeof(_CrtMemBlockHeader)))
     {
         errno = ENOMEM;
         return nullptr;
@@ -843,7 +859,7 @@ static void __cdecl free_dbg_nolock(
             if (HeapValidate(msvcrt_heap_handle, 0, block))
             {
                 _RPT1(_CRT_WARN, "CRTHEAP: ucrt: Attempt to free a pointer (0x%p) that belongs to MSVCRT's private heap, not the process heap.\n", block);
-                
+
                 #if _UCRT_HEAP_MISMATCH_BREAK
                 _CrtDbgBreak();
                 #endif // _UCRT_HEAP_MISMATCH_BREAK
@@ -865,7 +881,7 @@ static void __cdecl free_dbg_nolock(
     }
 
     #endif // _UCRT_HEAP_MISMATCH_DETECTION && (defined _M_IX86 || defined _M_AMD64)
-        
+
     // Check to ensure that the block was not allocated by _aligned routines
     if (block_use == _NORMAL_BLOCK && is_block_an_aligned_allocation(block))
     {
@@ -994,8 +1010,11 @@ static void __cdecl free_dbg_nolock(
 }
 
 
-
-extern "C" void __cdecl _free_dbg(void* const block, int const block_use)
+// This function must be marked noinline, otherwise free and
+// _free_dbg will have identical COMDATs, and the linker will fold
+// them when calling one from the CRT. This is necessary because free
+// needs to support users patching in custom implementations.
+extern "C" __declspec(noinline) void __cdecl _free_dbg(void* const block, int const block_use)
 {
     __acrt_lock(__acrt_heap_lock);
     __try
@@ -1017,8 +1036,11 @@ extern "C" void __cdecl _free_dbg(void* const block, int const block_use)
 }
 
 
-
-extern "C" size_t __cdecl _msize_dbg(void* const block, int const block_use)
+// This function must be marked noinline, otherwise _msize and
+// _msize_dbg will have identical COMDATs, and the linker will fold
+// them when calling one from the CRT. This is necessary because _msize
+// needs to support users patching in custom implementations.
+extern "C" __declspec(noinline) size_t __cdecl _msize_dbg(void* const block, int const block_use)
 {
     UNREFERENCED_PARAMETER(block_use);
 
@@ -1410,7 +1432,7 @@ extern "C" int __cdecl _CrtIsMemoryBlock(
 
     if (!block)
         return FALSE;
-    
+
     int result{FALSE};
 
     __acrt_lock(__acrt_heap_lock);
@@ -1549,7 +1571,7 @@ extern "C" int __cdecl _CrtMemDifference(
 
         if (state->lSizes[use] == 0 && state->lCounts[use] == 0)
             continue;
-        
+
         if (use == _FREE_BLOCK)
             continue;
 

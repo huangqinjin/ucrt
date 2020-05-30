@@ -12,7 +12,12 @@
 // Allocates a block of memory of size 'count * size' in the heap.  The newly
 // allocated block is zero-initialized.  If allocation fails, nullptr is
 // returned.
-extern "C" _CRTRESTRICT void* __cdecl calloc(
+//
+// This function supports patching and therefore must be marked noinline.
+// Both _calloc_dbg and _calloc_base must also be marked noinline
+// to prevent identical COMDAT folding from substituting calls to calloc
+// with either other function or vice versa.
+extern "C" __declspec(noinline) _CRTRESTRICT void* __cdecl calloc(
     size_t const count,
     size_t const size
     )

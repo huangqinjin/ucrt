@@ -107,7 +107,7 @@ static void __cdecl construct_ptd(
     {
         _InterlockedIncrement(&ptd->_multibyte_info->refcount);
     });
-    
+
     // We need to make sure that ptd->ptlocinfo in never nullptr, this saves us
     // perf counts when UPDATING locale.
     __acrt_lock_and_call(__acrt_locale_lock, [&]
@@ -212,23 +212,44 @@ static __forceinline __acrt_ptd* try_get_ptd_head() throw()
     return ptd_head;
 }
 
+_Success_(return != nullptr)
 static __forceinline __acrt_ptd* internal_get_ptd_head() throw()
 {
+    // We use the CRT heap to allocate the PTD.  If the CRT heap fails to
+    // allocate the requested memory, it will attempt to set errno to ENOMEM,
+    // which will in turn attempt to acquire the PTD, resulting in infinite
+    // recursion that causes a stack overflow.
+    //
+    // We set the PTD to this sentinel value for the duration of the allocation
+    // in order to detect this case.
+    static void* const reentrancy_sentinel = reinterpret_cast<void*>(SIZE_MAX);
+
     __acrt_ptd* const existing_ptd_head = try_get_ptd_head();
-    if (existing_ptd_head)
+    if (existing_ptd_head == reentrancy_sentinel)
+    {
+        return nullptr;
+    }
+    else if (existing_ptd_head != nullptr)
     {
         return existing_ptd_head;
+    }
+
+    if (!__acrt_FlsSetValue(__acrt_flsindex, reentrancy_sentinel))
+    {
+        return nullptr;
     }
 
     __crt_unique_heap_ptr<__acrt_ptd> new_ptd_head(_calloc_crt_t(__acrt_ptd, __crt_state_management::state_index_count));
     if (!new_ptd_head)
     {
-        return nullptr; // Return nullptr to indicate failure
+        __acrt_FlsSetValue(__acrt_flsindex, nullptr);
+        return nullptr;
     }
 
     if (!__acrt_FlsSetValue(__acrt_flsindex, new_ptd_head.get()))
     {
-        return nullptr; // Return nullptr to indicate failure
+        __acrt_FlsSetValue(__acrt_flsindex, nullptr);
+        return nullptr;
     }
 
     construct_ptd_array(new_ptd_head.get());

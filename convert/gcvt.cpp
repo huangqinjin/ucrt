@@ -12,6 +12,7 @@
 #include <corecrt_internal.h>
 #include <corecrt_internal_fltintrn.h>
 #include <corecrt_internal_securecrt.h>
+#include <corecrt_stdio_config.h>
 #include <locale.h>
 #include <stdlib.h>
 
@@ -29,10 +30,10 @@ extern "C" errno_t __cdecl _gcvt_s(
     _RESET_STRING(buffer, buffer_count);
     _VALIDATE_RETURN_ERRCODE(static_cast<size_t>(precision) < buffer_count, ERANGE);
     // Additional validation will be performed in the fp_format functions.
-    
+
     _LocaleUpdate locale_update(nullptr);
     char const decimal_point = *locale_update.GetLocaleT()->locinfo->lconv->decimal_point;
-    
+
     char result_string[_CVTBUFSIZE + 1];
 
     _strflt strflt{};
@@ -51,17 +52,41 @@ extern "C" errno_t __cdecl _gcvt_s(
     {
         // Ew.d where d = precision
         char scratch_buffer[_CVTBUFSIZE + 1];
-        errno_t const e = __acrt_fp_format(&value, buffer, buffer_count, scratch_buffer, _countof(scratch_buffer), 'e', precision - 1, 3, nullptr);
+        errno_t const e = __acrt_fp_format(
+            &value,
+            buffer,
+            buffer_count,
+            scratch_buffer,
+            _countof(scratch_buffer),
+            'e',
+            precision - 1,
+            _CRT_INTERNAL_PRINTF_LEGACY_THREE_DIGIT_EXPONENTS,
+            nullptr);
+
         if (e != 0)
+        {
             return errno = e;
+        }
     }
     else
     {
         // Fw.d where d = precision-string->decpt
         char scratch_buffer[_CVTBUFSIZE + 1];
-        errno_t const e = __acrt_fp_format(&value, buffer, buffer_count, scratch_buffer, _countof(scratch_buffer), 'f', precision -strflt.decpt, 3, nullptr);
+        errno_t const e = __acrt_fp_format(
+            &value,
+            buffer,
+            buffer_count,
+            scratch_buffer,
+            _countof(scratch_buffer),
+            'f',
+            precision - strflt.decpt,
+            _CRT_INTERNAL_PRINTF_LEGACY_THREE_DIGIT_EXPONENTS,
+            nullptr);
+
         if (e != 0)
+        {
             return errno = e;
+        }
     }
 
     // Remove the trailing zeroes before the exponent; we don't need to check

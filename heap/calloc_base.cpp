@@ -11,7 +11,12 @@
 #include <new.h>
 
 // This function implements the logic of calloc().
-extern "C" _CRTRESTRICT void* __cdecl _calloc_base(
+//
+// This function must be marked noinline, otherwise calloc and
+// _calloc_base will have identical COMDATs, and the linker will fold
+// them when calling one from the CRT. This is necessary because calloc
+// needs to support users patching in custom implementations.
+extern "C" __declspec(noinline) _CRTRESTRICT void* __cdecl _calloc_base(
     size_t const count,
     size_t const size
     )

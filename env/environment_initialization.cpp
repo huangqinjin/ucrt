@@ -118,7 +118,7 @@ static Character** const create_environment(Character* const environment_block) 
 
     Character*  source_it = environment_block;
     Character** result_it = environment.get();
-   
+
     while (*source_it != '\0')
     {
         size_t const required_count = traits::tcslen(source_it) + 1;
@@ -136,7 +136,7 @@ static Character** const create_environment(Character* const environment_block) 
             _ERRCHECK(traits::tcscpy_s(variable.get(), required_count, source_it));
             *result_it++ = variable.detach();
         }
-        
+
         // This advances the iterator to the next string:
         source_it += required_count;
     }
@@ -293,10 +293,12 @@ static Character** __cdecl common_get_or_create_environment_nolock() throw()
         return nullptr;
 
     if (common_initialize_environment_nolock<Character>() != 0)
-        return nullptr;
-
-    if (initialize_environment_by_cloning_nolock<Character>() != 0)
-        return nullptr;
+    {
+        if (initialize_environment_by_cloning_nolock<Character>() != 0)
+        {
+            return nullptr;
+        }
+    }
 
     return get_environment_nolock(Character());
 }
@@ -319,7 +321,7 @@ static Character** __cdecl common_get_initial_environment() throw()
     {
         initial_environment = common_get_or_create_environment_nolock<Character>();
     }
-    
+
     return initial_environment;
 }
 

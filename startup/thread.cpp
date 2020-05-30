@@ -103,7 +103,7 @@ static unsigned long WINAPI thread_start(void* const parameter) throw()
 
     __acrt_getptd()->_beginthread_context = context;
 
-    if (__acrt_is_packaged_app())
+    if (__acrt_get_begin_thread_init_policy() == begin_thread_init_policy_ro_initialize)
     {
         context->_initialized_apartment = __acrt_RoInitialize(RO_INIT_MULTITHREADED) == S_OK;
     }

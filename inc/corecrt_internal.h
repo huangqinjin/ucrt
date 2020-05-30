@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <vcruntime_startup.h>
 #include <windows.h>
+#include <appmodel.h>
 
 #ifdef __cplusplus
     #include <roapi.h>
@@ -62,7 +63,7 @@ _CRT_BEGIN_C_HEADER
 // CRT SAL Annotations
 //
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// This macro can be used to annotate a buffer when it has the option that 
+// This macro can be used to annotate a buffer when it has the option that
 // SIZE_MAX may be passed as it's size in order to invoke unsafe behavior.
 // void example(
 //    _Maybe_unsafe_(_Out_writes_z_, buffer_count) char * const buffer,
@@ -365,7 +366,7 @@ void __cdecl __acrt_initialize_thread_local_exit_callback(_In_opt_ void * encode
 // The offset to where ctype will point.  Look in initctype.cpp for how it is
 // being used.  It was introduced so that pctype can work with unsigned char
 // types and EOF.  It is used only in initctype and setlocale.
-#define _COFFSET 127 
+#define _COFFSET 127
 
 // Maximum lengths for the language name, country name, and full locale name.
 #define MAX_LANG_LEN 64
@@ -429,7 +430,7 @@ typedef struct __crt_ctype_compatibility_data
 
 typedef struct __crt_qualified_locale_data
 {
-    // Static data for qualified locale code 
+    // Static data for qualified locale code
     wchar_t const* pchLanguage;
     wchar_t const* pchCountry;
     int            iLocState;
@@ -676,7 +677,10 @@ extern long __acrt_locale_changed_data;
     // Returns true if the locale has been changed on any thread.
     __inline bool __cdecl __acrt_locale_changed()
     {
-        return __crt_interlocked_read(&__acrt_locale_changed_data) != FALSE;
+        // No need for __crt_interlocked_read, since __acrt_locale_changed_data
+        // is a 4 byte natural aligned memory, guaranteed to be atomic
+        // accessed on all platforms.
+        return __acrt_locale_changed_data != FALSE;
     }
 
 #endif
@@ -799,7 +803,7 @@ typedef struct __acrt_ptd
     int                           _tfpecode;        // Last floating point exception code
 
     terminate_handler  _terminate;  // terminate() routine
-    
+
     int                  _terrno;          // errno value
     unsigned long        _tdoserrno;       // _doserrno value
 
@@ -878,6 +882,7 @@ typedef enum __acrt_lock_id
     __acrt_popen_lock,
     __acrt_environment_lock,
     __acrt_tempnam_lock,
+    __acrt_os_exit_lock,
     __acrt_lock_count
 } __acrt_lock_id;
 
@@ -1328,10 +1333,14 @@ BOOLEAN WINAPI __acrt_RtlGenRandom(
     _In_                             ULONG buffer_count
     );
 
+LONG WINAPI __acrt_AppPolicyGetProcessTerminationMethodInternal(_Out_ AppPolicyProcessTerminationMethod* policy);
+LONG WINAPI __acrt_AppPolicyGetThreadInitializationTypeInternal(_Out_ AppPolicyThreadInitializationType* policy);
+LONG WINAPI __acrt_AppPolicyGetShowDeveloperDiagnosticInternal(_Out_ AppPolicyShowDeveloperDiagnostic* policy);
+LONG WINAPI __acrt_AppPolicyGetWindowingModelInternal(_Out_ AppPolicyWindowingModel* policy);
+
 BOOL WINAPI __acrt_SetThreadStackGuarantee(
     _Inout_ PULONG stack_size_in_bytes
     );
-
 
 
 bool __cdecl __acrt_can_show_message_box(void);
@@ -1340,7 +1349,6 @@ void __cdecl __acrt_eagerly_load_locale_apis(void);
 bool __cdecl __acrt_can_use_xstate_apis(void);
 HWND __cdecl __acrt_get_parent_window(void);
 bool __cdecl __acrt_is_interactive(void);
-bool __cdecl __acrt_is_packaged_app(void);
 
 
 
@@ -1348,13 +1356,12 @@ LCID __cdecl __acrt_DownlevelLocaleNameToLCID(
     _In_opt_ LPCWSTR localeName
     );
 
-_Success_(return != 0) 
+_Success_(return != 0)
 int __cdecl __acrt_DownlevelLCIDToLocaleName(
     _In_      LCID   lcid,
     _Out_writes_opt_z_(cchLocaleName) LPWSTR outLocaleName,
     _In_      int    cchLocaleName
     );
-
 
 
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -1730,6 +1737,43 @@ extern "C++"
 
     //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     //
+    // errno Cache
+    //
+    //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    // Some operations in this file may need to set or query errno many times.  Each
+    // use of errno requires us to get the PTD from FLS.  To avoid having to do this
+    // many times, we cache the pointer to errno.  This class encapsulates that
+    // caching and also defers the initial acquisition of &errno until the first
+    // time that errno is actually needed (when we aren't calling functions that may
+    // set errno, there's no need to acquire errno at all).
+    class __crt_deferred_errno_cache
+    {
+    public:
+
+        __crt_deferred_errno_cache() throw()
+            : _cached_errno{}
+        {
+        }
+
+        errno_t& get() throw()
+        {
+            if (!_cached_errno)
+            {
+                _cached_errno = &errno;
+            }
+
+            return *_cached_errno;
+        }
+
+    private:
+
+        errno_t* _cached_errno;
+    };
+
+
+
+    //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    //
     // errno and LastError Reset
     //
     //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -1786,9 +1830,53 @@ extern "C++"
 #endif // __cplusplus
 
 
+//-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// Windows policy APIs
+//
+//-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+// Specifies method used to end a process
+typedef enum
+{
+    process_end_policy_terminate_process,
+    process_end_policy_exit_process
+} process_end_policy;
+
+process_end_policy __cdecl __acrt_get_process_end_policy(void);
+
+// Specifies whether RoInitialize() should be called when creating a thread
+typedef enum
+{
+    begin_thread_init_policy_unknown,
+    begin_thread_init_policy_none,
+    begin_thread_init_policy_ro_initialize
+} begin_thread_init_policy;
+
+begin_thread_init_policy __cdecl __acrt_get_begin_thread_init_policy(void);
+
+// Specifies whether the Assert dialog should be shown
+typedef enum
+{
+    developer_information_policy_unknown,
+    developer_information_policy_none,
+    developer_information_policy_ui
+} developer_information_policy;
+
+developer_information_policy __cdecl __acrt_get_developer_information_policy(void);
+
+// Specifies what type of Windowing support is available
+typedef enum
+{
+    windowing_model_policy_unknown,
+    windowing_model_policy_hwnd,
+    windowing_model_policy_corewindow,
+    windowing_model_policy_legacyphone,
+    windowing_model_policy_none
+} windowing_model_policy;
+
+windowing_model_policy __cdecl __acrt_get_windowing_model_policy(void);
 
 _CRT_END_C_HEADER
-
-
 
 #include <corecrt_internal_state_isolation.h>

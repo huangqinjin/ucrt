@@ -8,6 +8,7 @@
 //
 #include <corecrt_internal_time.h>
 #include <stdlib.h>
+#include <locale.h>
 
 
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -426,7 +427,7 @@ static bool __cdecl store_winword(
     {
         // We have something other than the basic Gregorian calendar
         bool const is_time_format = field_code == WW_TIMEFMT;
-            
+
         // We leave the verification of the SYSTEMTIME up to the Windows API
         // that we call; if one of those functions returns zero to indicate
         // failure, we fall through and call expand_time() again.
@@ -602,7 +603,11 @@ static bool __cdecl store_winword(
 
         case L'\'': // literal string
         {
-            if (repeat % 2 == 0) // odd number
+            if (repeat % 2 == 0) // even number
+            {
+                format += repeat;
+            }
+            else // odd number
             {
                 format += repeat;
                 while (*format && *count != 0)
@@ -617,10 +622,7 @@ static bool __cdecl store_winword(
                     --*count;
                 }
             }
-            else // even number
-            {
-                format += repeat;
-            }
+
             continue;
         }
 
@@ -692,7 +694,7 @@ static bool __cdecl expand_time(
         return true;
     }
 
-    case L'c': // appropriate date and time representation 
+    case L'c': // appropriate date and time representation
     {
         // In the C locale, %c is equivalent to "%a %b %e %T %Y".  This format
         // is not achievable using the Windows API date and time format APIs
@@ -992,7 +994,7 @@ static bool __cdecl expand_time(
 
         long const positive_offset{offset < 0 ? -offset : offset};
         long const hours_offset  {(positive_offset / 60) / 60};
-        long const minutes_offset{(positive_offset / 60) % 60}; 
+        long const minutes_offset{(positive_offset / 60) % 60};
 
         // This looks wrong, but it is correct:  The offset is the difference
         // between UTC and the local time zone, so it is a positive value if

@@ -9,9 +9,19 @@
 #include <search.h>
 
 
+/* Temporarily define optimization macros (to be removed by the build team: RsmqblCompiler alias) */
+#if !defined(BEGIN_PRAGMA_OPTIMIZE_DISABLE)
+#define BEGIN_PRAGMA_OPTIMIZE_DISABLE(flags, bug, reason) \
+    __pragma(optimize(flags, off))
+#define BEGIN_PRAGMA_OPTIMIZE_ENABLE(flags, bug, reason) \
+    __pragma(optimize(flags, on))
+#define END_PRAGMA_OPTIMIZE() \
+    __pragma(optimize("", on))
+#endif
+
 
 // Always compile this module for speed, not size
-#pragma optimize("t", on)
+BEGIN_PRAGMA_OPTIMIZE_ENABLE("t", MSFT:4499497, "This file is performance-critical and should always be optimized for speed")
 
 
 
@@ -382,3 +392,5 @@ recurse:
 
 #undef __COMPARE
 #undef __SHORTSORT
+
+END_PRAGMA_OPTIMIZE()

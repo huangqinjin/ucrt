@@ -62,7 +62,7 @@ extern "C" int __cdecl _ungetc_nolock(int const c, FILE* public_stream)
     {
         // If we've already buffered a pushed-back character, there's no room for
         // another, and there's nothing we can do:
-        if (stream->_cnt == 0)
+        if (stream->_cnt)
             return EOF;
 
         ++stream->_ptr;

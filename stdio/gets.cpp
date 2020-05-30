@@ -65,14 +65,16 @@ static Character* __cdecl common_gets(
         // For the insecure version, we do no buffer size check and no debug fill:
         if (result_size_in_characters == static_cast<size_t>(-1))
         {
+#pragma warning(push)
+#pragma warning(disable:__WARNING_POTENTIAL_BUFFER_OVERFLOW_HIGH_PRIORITY) // 26015 - knowingly unsafe
             Character* result_it = result;
             while (c != '\n' && c != stdio_traits::eof)
             {
-#pragma warning(suppress:__WARNING_POTENTIAL_BUFFER_OVERFLOW_HIGH_PRIORITY) // 26105 - knowingly unsafe
                 *result_it++ = static_cast<Character>(c);
                 c = stdio_traits::getc_nolock(stdin);
             }
             *result_it = '\0';
+#pragma warning(pop)            
         }
         // For the secure version, we track the buffer size.  If we run out of
         // buffer space, we still read in the rest of the current line until we

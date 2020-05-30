@@ -13,7 +13,15 @@
 // CRT_REFACTOR TODO We should be building the whole CRT /O2 /GL.  For the moment,
 // just ensure that everything using big_integer is optimized for maximum speed.
 #ifndef _DEBUG
-    #pragma optimize("gt", on) // Optimize for maximum speed
+    #if !defined(_BEGIN_PRAGMA_OPTIMIZE_DISABLE)
+    #define _BEGIN_PRAGMA_OPTIMIZE_DISABLE(flags, bug, reason) \
+        __pragma(optimize(flags, off))
+    #define _BEGIN_PRAGMA_OPTIMIZE_ENABLE(flags, bug, reason) \
+        __pragma(optimize(flags, on))
+    #define _END_PRAGMA_OPTIMIZE() \
+        __pragma(optimize("", on))
+    #endif
+    _BEGIN_PRAGMA_OPTIMIZE_ENABLE("gt", MSFT:4499494, "Optimize for maximum speed")
 #endif
 
 namespace __crt_strtox {

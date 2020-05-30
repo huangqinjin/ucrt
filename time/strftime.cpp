@@ -7,6 +7,7 @@
 // related functionality.
 //
 #include <corecrt_internal_time.h>
+#include <locale.h>
 
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //

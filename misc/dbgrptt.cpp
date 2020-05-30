@@ -483,15 +483,25 @@ int __cdecl _VCrtDbgReportW
             __leave;
         }
 
-        // Leave space for ASSERTINTRO1 and "\r\n"
         if (szFormat)
         {
+            // Leave space for ASSERTINTRO{1,2} and "\r\n"
+            size_t const max_assert_intro_count = __max(_countof(ASSERTINTRO1), _countof(ASSERTINTRO2));
+            size_t const max_user_message_count = _countof(szUserMessage) - 2 - max_assert_intro_count;
+
+            // Force use of the legacy stdio wide character format specifiers
+            // mode for source compatibility.  If we ever revisit support for
+            // the standard format specifiers, we'll need to revisit this as
+            // well.
             int szlen = 0;
-            _ERRCHECK_SPRINTF(szlen = _vsnwprintf_s(szUserMessage, DBGRPT_MAX_MSG,
-                                                    DBGRPT_MAX_MSG - 2 -
-                                                    (max(sizeof(_CRT_WIDE(ASSERTINTRO1)),sizeof(_CRT_WIDE(ASSERTINTRO2)))/sizeof(wchar_t)),
-                                                    szFormat,
-                                                    arglist));
+            _ERRCHECK_SPRINTF(szlen = __stdio_common_vsnwprintf_s(
+                _CRT_INTERNAL_PRINTF_LEGACY_WIDE_SPECIFIERS,
+                szUserMessage,
+                _countof(szUserMessage),
+                max_user_message_count,
+                szFormat,
+                nullptr,
+                arglist));
             if (szlen < 0)
             {
                 _ERRCHECK(wcscpy_s(szUserMessage, DBGRPT_MAX_MSG, _CRT_WIDE(DBGRPT_TOOLONGMSG)));

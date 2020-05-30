@@ -38,125 +38,123 @@ typedef wchar_t _Wint_t;
 
 
 
-_Check_return_opt_
-_ACRTIMP wchar_t* __cdecl _wsetlocale(
-    _In_       int            _Category,
-    _In_opt_z_ wchar_t const* _Locale
-    );
+#if _CRT_FUNCTIONS_REQUIRED
 
-_Check_return_opt_
-_ACRTIMP _locale_t __cdecl _wcreate_locale(
-    _In_   int            _Category,
-    _In_z_ wchar_t const* _Locale
-    );
+    _Check_return_opt_
+    _ACRTIMP wchar_t* __cdecl _wsetlocale(
+        _In_       int            _Category,
+        _In_opt_z_ wchar_t const* _Locale
+        );
+
+    _Check_return_opt_
+    _ACRTIMP _locale_t __cdecl _wcreate_locale(
+        _In_   int            _Category,
+        _In_z_ wchar_t const* _Locale
+        );
 
 
 
-_ACRTIMP wint_t __cdecl btowc(
-    _In_ int _Ch
-    );
+    _ACRTIMP wint_t __cdecl btowc(
+        _In_ int _Ch
+        );
 
-_ACRTIMP size_t __cdecl mbrlen(
-    _In_reads_bytes_opt_(_SizeInBytes) _Pre_opt_z_ char const* _Ch,
-    _In_                                           size_t      _SizeInBytes,
-    _Inout_                                        mbstate_t*  _State
-    );
+    _ACRTIMP size_t __cdecl mbrlen(
+        _In_reads_bytes_opt_(_SizeInBytes) _Pre_opt_z_ char const* _Ch,
+        _In_                                           size_t      _SizeInBytes,
+        _Inout_                                        mbstate_t*  _State
+        );
 
-_ACRTIMP size_t __cdecl mbrtowc(
-    _Pre_maybenull_ _Post_z_                       wchar_t*    _DstCh,
-    _In_reads_bytes_opt_(_SizeInBytes) _Pre_opt_z_ char const* _SrcCh,
-    _In_                                           size_t      _SizeInBytes,
-    _Inout_                                        mbstate_t*  _State
-    );
+    _ACRTIMP size_t __cdecl mbrtowc(
+        _Pre_maybenull_ _Post_z_                       wchar_t*    _DstCh,
+        _In_reads_bytes_opt_(_SizeInBytes) _Pre_opt_z_ char const* _SrcCh,
+        _In_                                           size_t      _SizeInBytes,
+        _Inout_                                        mbstate_t*  _State
+        );
 
-_Success_(return == 0)
-_ACRTIMP errno_t __cdecl mbsrtowcs_s(
-    _Out_opt_                         size_t*      _Retval,
-    _Out_writes_opt_z_(_Size)         wchar_t*     _Dst,
-    _In_                              size_t       _Size,
-    _Deref_pre_opt_z_                 char const** _PSrc,
-    _In_                              size_t       _N,
-    _Inout_                           mbstate_t*   _State
-    );
-
-__DEFINE_CPP_OVERLOAD_SECURE_FUNC_1_3(
     _Success_(return == 0)
-    errno_t, mbsrtowcs_s,
-    _Out_opt_                         size_t*,      _Retval,
-    _Post_z_                          wchar_t,      _Dest,
-    _Inout_ _Deref_prepost_opt_valid_ char const**, _PSource,
-    _In_                              size_t,       _Count,
-    _Inout_                           mbstate_t*,   _State
-    )
+    _ACRTIMP errno_t __cdecl mbsrtowcs_s(
+        _Out_opt_                         size_t*      _Retval,
+        _Out_writes_opt_z_(_Size)         wchar_t*     _Dst,
+        _In_                              size_t       _Size,
+        _Deref_pre_opt_z_                 char const** _PSrc,
+        _In_                              size_t       _N,
+        _Inout_                           mbstate_t*   _State
+        );
 
-__DEFINE_CPP_OVERLOAD_STANDARD_NFUNC_0_3_SIZE(
-    _Success_(return == 0) _ACRTIMP, mbsrtowcs,
-    _Out_writes_opt_z_(_Count),           wchar_t,      _Dest,
-    _Deref_pre_opt_z_                 char const**, _PSrc,
-    _In_                              size_t,       _Count,
-    _Inout_                           mbstate_t*,   _State
-    )
+    __DEFINE_CPP_OVERLOAD_SECURE_FUNC_1_3(
+        _Success_(return == 0)
+        errno_t, mbsrtowcs_s,
+        _Out_opt_                         size_t*,      _Retval,
+        _Post_z_                          wchar_t,      _Dest,
+        _Inout_ _Deref_prepost_opt_valid_ char const**, _PSource,
+        _In_                              size_t,       _Count,
+        _Inout_                           mbstate_t*,   _State
+        )
 
-_Success_(return == 0)
-_ACRTIMP errno_t __cdecl wcrtomb_s(
-    _Out_opt_                        size_t*    _Retval,
-    _Out_writes_opt_z_(_SizeInBytes) char*      _Dst,
-    _In_                             size_t     _SizeInBytes,
-    _In_                             wchar_t    _Ch,
-    _Inout_opt_                      mbstate_t* _State
-    );
+    __DEFINE_CPP_OVERLOAD_STANDARD_NFUNC_0_3_SIZE(
+        _Success_(return == 0) _ACRTIMP, mbsrtowcs,
+        _Out_writes_opt_z_(_Count),           wchar_t,      _Dest,
+        _Deref_pre_opt_z_                 char const**, _PSrc,
+        _In_                              size_t,       _Count,
+        _Inout_                           mbstate_t*,   _State
+        )
 
-__DEFINE_CPP_OVERLOAD_SECURE_FUNC_1_2(
     _Success_(return == 0)
-    errno_t, wcrtomb_s,
-    _Out_opt_                 size_t*,    _Retval,
-    _Out_writes_opt_z_(_Size) char,       _Dest,
-    _In_                      wchar_t,    _Source,
-    _Inout_opt_               mbstate_t*, _State
-    )
+    _ACRTIMP errno_t __cdecl wcrtomb_s(
+        _Out_opt_                        size_t*    _Retval,
+        _Out_writes_opt_z_(_SizeInBytes) char*      _Dst,
+        _In_                             size_t     _SizeInBytes,
+        _In_                             wchar_t    _Ch,
+        _Inout_opt_                      mbstate_t* _State
+        );
 
-__DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_2_SIZE(
-    _ACRTIMP, wcrtomb,
-    _Pre_maybenull_ _Post_z_, char,       _Dest,
-    _In_                      wchar_t,    _Source,
-    _Inout_opt_              mbstate_t*, _State
-    )
+    __DEFINE_CPP_OVERLOAD_SECURE_FUNC_1_2(
+        _Success_(return == 0)
+        errno_t, wcrtomb_s,
+        _Out_opt_                 size_t*,    _Retval,
+        _Out_writes_opt_z_(_Size) char,       _Dest,
+        _In_                      wchar_t,    _Source,
+        _Inout_opt_               mbstate_t*, _State
+        )
 
-_Success_(return == 0)
-_ACRTIMP errno_t __cdecl wcsrtombs_s(
-    _Out_opt_                                         size_t*         _Retval,
-    _Out_writes_bytes_to_opt_(_SizeInBytes, *_Retval) char*           _Dst,
-    _In_                                              size_t          _SizeInBytes,
-    _Inout_ _Deref_prepost_z_                         wchar_t const** _Src,
-    _In_                                              size_t          _Size,
-    _Inout_opt_                                       mbstate_t*      _State
-    );
+    __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_2_SIZE(
+        _ACRTIMP, wcrtomb,
+        _Pre_maybenull_ _Post_z_, char,       _Dest,
+        _In_                      wchar_t,    _Source,
+        _Inout_opt_              mbstate_t*, _State
+        )
 
-__DEFINE_CPP_OVERLOAD_SECURE_FUNC_1_3(
     _Success_(return == 0)
-    errno_t, wcsrtombs_s,
-    _Out_opt_                 size_t*,         _Retval,
-    _Out_writes_opt_z_(_Size) char,            _Dest,
-    _Inout_ _Deref_prepost_z_ wchar_t const**, _PSrc,
-    _In_                      size_t,          _Count,
-    _Inout_opt_               mbstate_t*,      _State
-    )
+    _ACRTIMP errno_t __cdecl wcsrtombs_s(
+        _Out_opt_                                         size_t*         _Retval,
+        _Out_writes_bytes_to_opt_(_SizeInBytes, *_Retval) char*           _Dst,
+        _In_                                              size_t          _SizeInBytes,
+        _Inout_ _Deref_prepost_z_                         wchar_t const** _Src,
+        _In_                                              size_t          _Size,
+        _Inout_opt_                                       mbstate_t*      _State
+        );
 
-__DEFINE_CPP_OVERLOAD_STANDARD_NFUNC_0_3_SIZE(
-    _ACRTIMP, wcsrtombs,
-    _Pre_maybenull_ _Post_z_, char,            _Dest,
-    _Inout_ _Deref_prepost_z_ wchar_t const**, _PSource,
-    _In_                      size_t,          _Count,
-    _Inout_opt_               mbstate_t*,      _State
-    )
+    __DEFINE_CPP_OVERLOAD_SECURE_FUNC_1_3(
+        _Success_(return == 0)
+        errno_t, wcsrtombs_s,
+        _Out_opt_                 size_t*,         _Retval,
+        _Out_writes_opt_z_(_Size) char,            _Dest,
+        _Inout_ _Deref_prepost_z_ wchar_t const**, _PSrc,
+        _In_                      size_t,          _Count,
+        _Inout_opt_               mbstate_t*,      _State
+        )
 
-_ACRTIMP int __cdecl wctob(
-    _In_ wint_t _WCh
-    );
+    __DEFINE_CPP_OVERLOAD_STANDARD_NFUNC_0_3_SIZE(
+        _ACRTIMP, wcsrtombs,
+        _Pre_maybenull_ _Post_z_, char,            _Dest,
+        _Inout_ _Deref_prepost_z_ wchar_t const**, _PSource,
+        _In_                      size_t,          _Count,
+        _Inout_opt_               mbstate_t*,      _State
+        )
 
-
-
-#ifndef __midl
+    _ACRTIMP int __cdecl wctob(
+        _In_ wint_t _WCh
+        );
 
     #if __STDC_WANT_SECURE_LIB__
 
@@ -278,7 +276,7 @@ _ACRTIMP int __cdecl wctob(
 
     #endif // __cplusplus
 
-#endif // !__midl
+#endif // _CRT_FUNCTIONS_REQUIRED
 
 
 

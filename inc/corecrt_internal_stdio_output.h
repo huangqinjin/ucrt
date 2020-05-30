@@ -77,13 +77,13 @@ public:
     }
 
     void write_string(
-        Character const* const string,
-        int              const length,
-        int*             const count_written,
-        errno_t*         const status
+        Character const*      const string,
+        int                   const length,
+        int*                  const count_written,
+        __crt_deferred_errno_cache& status
         ) const throw()
     {
-        __crt_errno_guard const reset_errno{status};
+        __crt_errno_guard const reset_errno{&status.get()};
 
         Character const* const string_last{string + length};
         for (Character const* it{string}; it != string_last; ++it)
@@ -94,7 +94,7 @@ public:
             if (*count_written == -1)
             {
                 // Only EILSEQ errors are recoverable here:
-                if (*status != EILSEQ)
+                if (status.get() != EILSEQ)
                     break;
 
                 write_character('?', count_written);
@@ -131,7 +131,7 @@ public:
             ++*count_written;
             return;
         }
-   
+
         if (char_traits::puttc_nolock(c, _stream.public_stream()) == char_traits::eof)
         {
             *count_written = -1;
@@ -143,10 +143,10 @@ public:
     }
 
     void write_string(
-        Character const* const string,
-        int              const length,
-        int*             const count_written,
-        errno_t*         const status
+        Character const*      const string,
+        int                   const length,
+        int*                  const count_written,
+        __crt_deferred_errno_cache& status
         ) const throw()
     {
         if (_stream.is_string_backed() && _stream->_base == nullptr)
@@ -155,7 +155,7 @@ public:
             return;
         }
 
-        __crt_errno_guard const reset_errno{status};
+        __crt_errno_guard const reset_errno{&status.get()};
 
         Character const* const string_last{string + length};
         for (Character const* it{string}; it != string_last; ++it)
@@ -164,7 +164,7 @@ public:
             if (*count_written == -1)
             {
                 // Only EILSEQ errors are recoverable here:
-                if (*status != EILSEQ)
+                if (status.get() != EILSEQ)
                     return;
 
                 write_character('?', count_written);
@@ -230,13 +230,21 @@ public:
     }
 
     void write_string(
-        Character const* const string,
-        int              const length,
-        int*             const count_written,
-        errno_t*         const status
+        Character const*      const string,
+        int                   const length,
+        int*                  const count_written,
+        __crt_deferred_errno_cache& status
         ) const throw()
     {
-        __crt_errno_guard const reset_errno(status);
+        // This function does not perform any operations that might reset errno,
+        // so we don't need to use __crt_errno_guard as we do in other output
+        // adapters.
+        UNREFERENCED_PARAMETER(status);
+
+        if (length == 0)
+        {
+            return;
+        }
 
         if (_context->_buffer_used == _context->_buffer_count)
         {
@@ -390,7 +398,7 @@ public:
 private:
 
     char _member_buffer[member_buffer_size];
-    
+
     size_t                      _dynamic_buffer_size;
     __crt_unique_heap_ptr<char> _dynamic_buffer;
 };
@@ -405,7 +413,7 @@ inline void __cdecl force_decimal_point(_Inout_z_ char* buffer, _locale_t const 
 {
     if (tolower(*buffer) != 'e')
     {
-        do 
+        do
         {
             ++buffer;
         }
@@ -838,7 +846,7 @@ protected:
     common_data()
         : _options           {0            },
           _locale            {nullptr      },
-          _cached_errno      {nullptr      },
+          _cached_errno      {             },
           _format_it         {nullptr      },
           _valist_it         {nullptr      },
           _characters_written{0            },
@@ -853,41 +861,41 @@ protected:
     {
     }
 
-    uint64_t          _options;
-    
-    _locale_t         _locale;
+    uint64_t                  _options;
+
+    _locale_t                 _locale;
 
     // We cache a pointer to errno to avoid having to query thread-local storage
     // for every character write that we perform.
-    errno_t*          _cached_errno;
+    __crt_deferred_errno_cache _cached_errno;
 
     // These two iterators control the formatting operation.  The format iterator
     // iterates over the format string, and the va_list argument pointer iterates
     // over the varargs arguments.
-    Character const*  _format_it;
-    va_list           _valist_it;
+    Character const*          _format_it;
+    va_list                   _valist_it;
 
     // This stores the number of characters that have been written so far.  It is
     // initialized to zero and is incremented as characters are written.  If an
     // I/O error occurs, it is set to -1 to indicate the I/O failure.
-    int               _characters_written;
+    int                       _characters_written;
 
     // These represent the state for the current format specifier.  The suppress
     // output flag is set when output should be suppressed for the current format
     // specifier (note that this is distinct from the global suppression that we
     // use during the first pass of positional parameter handling).
-    state             _state;
-    unsigned          _flags;
-    int               _field_width;
-    int               _precision;
-    length_modifier   _length;
-    bool              _suppress_output;
+    state                     _state;
+    unsigned                  _flags;
+    int                       _field_width;
+    int                       _precision;
+    length_modifier           _length;
+    bool                      _suppress_output;
 
     // This is the character from the format string that was used to compute the
     // current state.  We need to store this separately because we advance the
     // format string iterator at various points during processing.
-    Character         _format_char;
-    
+    Character                 _format_char;
+
     // These pointers are used in various places to point to strings that either
     // [1] are being formatted into, or [2] contain formatted data that is ready
     // to be printed.  At any given time, we may have either a narrow string or
@@ -896,16 +904,22 @@ protected:
     // is currently in use.
     union
     {
-        char*         _narrow_string;
-        wchar_t*      _wide_string;
+        char*                 _narrow_string;
+        wchar_t*              _wide_string;
     };
-    int               _string_length;
-    bool              _string_is_wide;
+
+    char*&    tchar_string(char   ) throw() { return _narrow_string; }
+    wchar_t*& tchar_string(wchar_t) throw() { return _wide_string;   }
+
+    Character*& tchar_string() throw() { return tchar_string(Character()); }
+
+    int                       _string_length;
+    bool                      _string_is_wide;
 
     // The formatting buffer.  This buffer is used to store the result of various
     // formatting operations--notably, numbers get formatted into strings in this
     // buffer.
-    formatting_buffer _buffer;
+    formatting_buffer         _buffer;
 };
 
 // This data base is split out from the common data base only so that we can
@@ -1069,7 +1083,7 @@ protected:
         // that we should have encountered is a regular character to be written
         // or a type specifier.  Otherwise, the format string was incomplete.
         _VALIDATE_RETURN(_state == state::normal || _state == state::type, EINVAL, false);
-        
+
         return true;
     }
 
@@ -1100,7 +1114,7 @@ class positional_parameter_base
     : protected format_validation_base<Character, OutputAdapter>
 {
 protected:
-    
+
     typedef positional_parameter_base    self_type;
     typedef format_validation_base       base_type;
     typedef __crt_char_traits<Character> char_traits;
@@ -1342,7 +1356,7 @@ protected:
 
         if (_format_mode != mode::positional)
             return true;
-        
+
         Character* end_pointer{nullptr};
         _type_index = char_traits::tcstol(_format_it, &end_pointer, 10) - 1;
         _format_it = end_pointer + 1;
@@ -1368,7 +1382,7 @@ protected:
 private:
 
     // Positional parameter processing occurs in two passes.  In the first pass,
-    // we scan the format string to accumulate type information for the 
+    // we scan the format string to accumulate type information for the
     // positional parameters.  If the format string is a standard format string
     // (that does not use positional parameters), then this pass also does the
     // output.  Otherwise, if the format string uses positional parameters,
@@ -1552,7 +1566,7 @@ private:
 
     pass _current_pass;
     mode _format_mode;
-    
+
     // The original format pointer, which allows us to reset the format iterator
     // between the two passes used in positional parameter processing.
     Character const* _format;
@@ -1597,7 +1611,6 @@ public:
         ) throw()
         : ProcessorBase{output_adapter, options, format, locale, arglist}
     {
-        _cached_errno = &errno;
     }
 
     // After construction, this function is called to evaluate the formatted
@@ -1699,7 +1712,7 @@ private:
             // Ensure that we do not fall off the end of the format string:
             _VALIDATE_RETURN(_format_char != '\0', EINVAL, false);
         }
-    
+
         return true;
     }
 
@@ -1749,12 +1762,12 @@ private:
     // the _format_char data member).
     bool parse_int_from_format_string(int* const result) throw()
     {
-        __crt_errno_guard const reset_errno{_cached_errno};
+        __crt_errno_guard const reset_errno{&_cached_errno.get()};
 
         Character* end{};
         *result = static_cast<int>(char_traits::tcstol(_format_it - 1, &end, 10));
 
-        if (*_cached_errno == ERANGE)
+        if (_cached_errno.get() == ERANGE)
             return false;
 
         if (end < _format_it)
@@ -2194,7 +2207,7 @@ private:
             unsigned short _maximum_length;
             char*          _buffer;
         };
-        
+
         ansi_string* string{};
         if (!extract_argument_from_va_list<ansi_string*>(string))
             return false;
@@ -2224,11 +2237,11 @@ private:
         return true;
     }
 
-    bool type_case_s() throw() 
+    bool type_case_s() throw()
     {
         // If this format specifier has the default precision, then the entire
         // string is output.  If a precision is given, then we output the minimum
-        // of the length of the C string and the given precision.  Note that the 
+        // of the length of the C string and the given precision.  Note that the
         // string needs not be null-terminated if a precision is given, so we
         // cannot call strlen to compute the length of the string.
         if (!extract_argument_from_va_list<char*>(_narrow_string))
@@ -2271,7 +2284,7 @@ private:
     int type_case_s_compute_narrow_string_length(int const maximum_length, wchar_t) const throw()
     {
         int string_length{0};
-        
+
         for (char const* p{_narrow_string}; string_length < maximum_length && *p; ++string_length)
         {
             if (__acrt_isleadbyte_l_noupdate(static_cast<unsigned char>(*p), _locale))
@@ -2335,7 +2348,7 @@ private:
             // statically-sized buffer may be used for the formatting:
             _precision = static_cast<int>(_buffer.count<char>() - _CVTBUFSIZE);
         }
-        
+
         _narrow_string = _buffer.data<char>();
 
         // Note that we separately handle the FORMAT_POSSCAN_PASS above.
@@ -2521,7 +2534,11 @@ private:
         // If the number is zero, we do not want to print the hex prefix ("0x"),
         // even if it was requested:
         if (number == 0)
+        {
             unset_flag(FL_ALTERNATE);
+        }
+
+        _string_is_wide = sizeof(Character) == sizeof(wchar_t);
 
         if (integer_size == sizeof(int64_t))
         {
@@ -2534,9 +2551,9 @@ private:
 
         // If the FORCEOCTAL flag is set, then we output a leading zero, unless
         // the formatted string already has a leading zero:
-        if (has_flag(FL_FORCEOCTAL) && (_string_length == 0 || _narrow_string[0] != '0'))
+        if (has_flag(FL_FORCEOCTAL) && (_string_length == 0 || tchar_string()[0] != '0'))
         {
-            *--_narrow_string = '0';
+            *--tchar_string() = '0';
             ++_string_length;
         }
 
@@ -2545,7 +2562,7 @@ private:
 
     // This is the second half of the common integer formatting routine.  It
     // handles the actual formatting of the number.  This logic has been split
-    // out from the first part so that we only use 64-bit arithmetic when 
+    // out from the first part so that we only use 64-bit arithmetic when
     // absolutely required (on x86, 64-bit division is Slow-with-a-capital-S).
     template <typename UnsignedInteger>
     void type_case_integer_parse_into_buffer(
@@ -2554,32 +2571,34 @@ private:
         bool            const capital_hexits
         ) throw()
     {
-        // Format the number into a narrow string.  Note that we format the
-        // buffer at the end of the narrow buffer, which allows us to perform
+        // Format the number into the formatting buffer.  Note that we format the
+        // buffer at the end of the formatting buffer, which allows us to perform
         // the formatting from least to greatest magnitude, which maps well to
         // the math.
-        char* const last_digit{_buffer.data<char>() + _buffer.count<char>() - 1};
-        
-        _narrow_string = last_digit;
+        Character* const last_digit{_buffer.data<Character>() + _buffer.count<Character>() - 1};
+
+        Character*& string_pointer = tchar_string();
+
+        string_pointer = last_digit;
         while (_precision > 0 || number != 0)
         {
             --_precision;
-            
-            char digit{static_cast<char>(number % radix + '0')};
+
+            Character digit{static_cast<Character>(number % radix + '0')};
             number /= radix;
 
             // If the digit is greater than 9, we need to convert it to the
             // corresponding letter hexit in the required case:
             if (digit > '9')
             {
-                digit = adjust_hexit(static_cast<Character>(digit), capital_hexits);
+                digit = adjust_hexit(digit, capital_hexits);
             }
 
-            *_narrow_string-- = static_cast<char>(digit);
+            *string_pointer-- = static_cast<char>(digit);
         }
 
-        _string_length = static_cast<int>(last_digit - _narrow_string);
-        ++_narrow_string;
+        _string_length = static_cast<int>(last_digit - string_pointer);
+        ++string_pointer;
     }
 
     // The 'n' type specifier is special:  We read a short* or int* from the

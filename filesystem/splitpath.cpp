@@ -9,6 +9,7 @@
 *
 *******************************************************************************/
 #include <corecrt_internal.h>
+#include <mbctype.h>
 #include <stdlib.h>
 #include <corecrt_internal_securecrt.h>
 #include <corecrt_internal_traits.h>
@@ -43,6 +44,16 @@ static void __cdecl reset_buffers(
     reset_buffer(components->_directory, components->_directory_count);
     reset_buffer(components->_file_name, components->_file_name_count);
     reset_buffer(components->_extension, components->_extension_count);
+}
+
+static bool __cdecl is_lead_byte(char const c) throw()
+{
+    return _ismbblead(c) != 0;
+}
+
+static bool __cdecl is_lead_byte(wchar_t) throw()
+{
+    return false;
 }
 
 template <typename Character, typename ResetPolicy, typename BufferCountTransformer>
@@ -114,13 +125,22 @@ static errno_t __cdecl common_splitpath_internal(
     Character const* last_dot   = nullptr;
     for (; *p != '\0'; ++p)
     {
-        // CRT_REFACTOR TODO Multibyte support
-        // if (_ISMBBLEAD(*p))
-        // {
-        //     ++p;
-        // }
-        // else
-        if (*p == '/' || *p == '\\')
+        if (is_lead_byte(*p))
+        {
+            // For narrow character strings, skip any multibyte characters to avoid
+            // matching trail bytes that "look like" slashes or periods.  This ++p
+            // will skip the lead byte; the ++p in the for loop will skip the trail
+            // byte.
+            ++p;
+
+            // If we've reached the end of the string, there is no trail byte.
+            // (Technically, the string is malformed.)
+            if (*p == '\0')
+            {
+                break;
+            }
+        }
+        else if (*p == '/' || *p == '\\')
         {
             last_slash = p + 1; // Point one past for later copy
         }

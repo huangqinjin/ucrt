@@ -23,7 +23,7 @@ _CRT_BEGIN_C_HEADER
 
 #if __STDC_WANT_SECURE_LIB__
 
-    _Check_return_wat_ 
+    _Check_return_wat_
     _ACRTIMP errno_t __cdecl strcpy_s(
         _Out_writes_z_(_SizeInBytes) char*       _Destination,
         _In_                         rsize_t     _SizeInBytes,
@@ -519,7 +519,7 @@ extern "C++"
 
 
 
-#if !__STDC__
+#if _CRT_INTERNAL_NONSTDC_NAMES
 
     #if defined _DEBUG && defined _CRTDBG_MAP_ALLOC
         #pragma push_macro("strdup")
@@ -582,7 +582,7 @@ extern "C++"
         _Inout_z_ char* _String
         );
 
-#endif // !__STDC__
+#endif // _CRT_INTERNAL_NONSTDC_NAMES
 
 
 

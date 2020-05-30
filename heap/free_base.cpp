@@ -97,13 +97,18 @@
 // This function implements the logic of free().  It is called directly by the
 // free() function in the Release CRT, and it is called by the debug heap in the
 // Debug CRT.
-extern "C" void __cdecl _free_base(void* const block)
+//
+// This function must be marked noinline, otherwise free and
+// _free_base will have identical COMDATs, and the linker will fold
+// them when calling one from the CRT. This is necessary because free
+// needs to support users patching in custom implementations.
+extern "C" void __declspec(noinline) __cdecl _free_base(void* const block)
 {
     if (block == nullptr)
     {
         return;
     }
-    
+
     if (!HeapFree(select_heap(block), 0, block))
     {
         errno = __acrt_errno_from_os_error(GetLastError());

@@ -109,7 +109,7 @@ static write_result __cdecl write_double_translated_ansi_nolock(
     ) throw()
 {
     HANDLE      const os_handle  = reinterpret_cast<HANDLE>(_osfhnd(fh));
-    char const* const buffer_end = buffer + buffer_size; 
+    char const* const buffer_end = buffer + buffer_size;
     UINT        const console_cp = GetConsoleCP();
 
     write_result result = { 0 };
@@ -147,7 +147,7 @@ static write_result __cdecl write_double_translated_ansi_nolock(
         {
             if (isleadbyte(*source_it))
             {
-                if (source_it < buffer_end)
+                if ((source_it + 1) < buffer_end)
                 {
                     // And we have more bytes to read, just convert...
                     if (mbtowc(&wc, source_it, 2) == -1)
@@ -244,7 +244,7 @@ static write_result __cdecl write_double_translated_unicode_nolock(
     // check, and to match the name of the corresponding ANSI function.)
 
     write_result result = { 0 };
-    
+
     // Needed for SAL to clarify that buffer_size is even.
     _Analysis_assume_((buffer_size/2) != ((buffer_size-1)/2));
     char const* const buffer_end = buffer + buffer_size;
@@ -289,7 +289,7 @@ static write_result __cdecl write_text_ansi_nolock(
     ) throw()
 {
     HANDLE      const os_handle  = reinterpret_cast<HANDLE>(_osfhnd(fh));
-    char const* const buffer_end = buffer + buffer_size; 
+    char const* const buffer_end = buffer + buffer_size;
 
     write_result result = { 0 };
 
@@ -344,7 +344,7 @@ static write_result __cdecl write_text_utf16le_nolock(
     ) throw()
 {
     HANDLE         const os_handle  = reinterpret_cast<HANDLE>(_osfhnd(fh));
-    wchar_t const* const buffer_end = reinterpret_cast<wchar_t const*>(buffer + buffer_size); 
+    wchar_t const* const buffer_end = reinterpret_cast<wchar_t const*>(buffer + buffer_size);
 
     write_result result = { 0 };
 
@@ -377,7 +377,7 @@ static write_result __cdecl write_text_utf16le_nolock(
         // Note that this length is in bytes, not wchar_t elemnts, since we need
         // to tell WriteFile how many bytes (not characters) to write:
         DWORD const lfbuf_length = static_cast<DWORD>(lfbuf_it - lfbuf) * sizeof(wchar_t);
-        
+
 
         // Attempt the write and return immediately if it fails:
         DWORD written;
@@ -406,7 +406,7 @@ static write_result __cdecl write_text_utf8_nolock(
     ) throw()
 {
     HANDLE         const os_handle  = reinterpret_cast<HANDLE>(_osfhnd(fh));
-    wchar_t const* const buffer_end = reinterpret_cast<wchar_t const*>(buffer + buffer_size); 
+    wchar_t const* const buffer_end = reinterpret_cast<wchar_t const*>(buffer + buffer_size);
 
     write_result result = { 0 };
 
@@ -511,7 +511,7 @@ static write_result __cdecl write_binary_nolock(
     write_result result = { 0 };
     if (!WriteFile(os_handle, buffer, buffer_size, &result.char_count, nullptr))
         result.error_code = GetLastError();
-    
+
     return result;
 }
 
@@ -543,7 +543,7 @@ extern "C" int __cdecl _write_nolock(int const fh, void const* const buffer, uns
 
     char const* const char_buffer = static_cast<char const*>(buffer);
 
-    
+
 
     // Dispatch the actual writing to one of the helper routines based on the
     // text mode of the file and whether or not the file refers to the console.
@@ -612,7 +612,7 @@ extern "C" int __cdecl _write_nolock(int const fh, void const* const buffer, uns
 
             return -1;
         }
-        
+
         // If this file is a device and the first character was Ctrl+Z, then
         // writing nothing is the expected behavior and is not an error:
         if ((_osfile(fh) & FDEV) && *char_buffer == CTRLZ)

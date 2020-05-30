@@ -11,7 +11,7 @@
     #error This file should only be built into the CRT DLLs
 #endif
 
-extern "C" { 
+extern "C" {
 
 // Flag set iff DllMain was called with DLL_PROCESS_ATTACH
 static int __acrt_process_attached = 0;
@@ -23,7 +23,7 @@ static BOOL DllMainProcessAttach()
 
     if (!__acrt_initialize())
     {
-        __vcrt_uninitialize(TRUE);
+        __vcrt_uninitialize(false);
         return FALSE;
     }
 
@@ -48,12 +48,11 @@ static BOOL DllMainProcessDetach(bool const terminating)
 }
 
 
-#pragma optimize ("", off)
-void __acrt_end_boot()
+// Make sure this function is not inlined so that we can use it as a place to put a breakpoint for debugging.
+__declspec(noinline) void __acrt_end_boot()
 {
     // Do nothing.  This function is used to mark the end of the init process.
 }
-#pragma optimize ("", on)
 
 static __declspec(noinline) BOOL DllMainDispatch(HINSTANCE, DWORD const fdwReason, LPVOID const lpReserved)
 {

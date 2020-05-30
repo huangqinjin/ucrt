@@ -10,6 +10,61 @@
 
 
 
+static bool __cdecl buffer_contains_wide_characters(__crt_lowio_text_mode const text_mode) throw()
+{
+    return text_mode == __crt_lowio_text_mode::utf8
+        || text_mode == __crt_lowio_text_mode::utf16le;
+}
+
+static size_t __cdecl buffer_character_size(__crt_lowio_text_mode const text_mode) throw()
+{
+    return buffer_contains_wide_characters(text_mode) ? sizeof(wchar_t) : sizeof(char);
+}
+
+// This function counts the number of newlines (LFs) in the buffer that contains
+// elements of type Character.  When sizeof(Character) != 1, the caller must
+// ensure that the buffer consists of a whole number of Character elements.
+template <typename Character>
+static __int64 __cdecl count_newlines_of_type(
+    _In_reads_(buffer_last - buffer_first) char const* const buffer_first,
+    _In_reads_(0)                          char const* const buffer_last
+    ) throw()
+{
+    // This invariant is maintained by the lowio library.  When Character==wchar_t,
+    // all writes to the buffer are in wide characters.
+    _ASSERTE((buffer_last - buffer_first) % sizeof(Character) == 0);
+
+    Character const* const typed_first = reinterpret_cast<Character const*>(buffer_first);
+    Character const* const typed_last  = reinterpret_cast<Character const*>(buffer_last);
+
+    __int64 newline_count = 0;
+    for (Character const* it = typed_first; it != typed_last; ++it)
+    {
+        if (*it == '\n')
+        {
+            ++newline_count;
+        }
+    }
+
+    return newline_count;
+}
+
+static __int64 __cdecl count_newline_bytes(
+    _In_reads_(buffer_last - buffer_first) char const*           const buffer_first,
+    _In_reads_(0)                          char const*           const buffer_last,
+    _In_                                   __crt_lowio_text_mode const text_mode
+    ) throw()
+{
+    if (buffer_contains_wide_characters(text_mode))
+    {
+        return count_newlines_of_type<wchar_t>(buffer_first, buffer_last) * sizeof(wchar_t);
+    }
+    else
+    {
+        return count_newlines_of_type<char>(buffer_first, buffer_last);
+    }
+}
+
 // This function handles the case where the file is open in UTF-8 text mode and
 // the translated UTF-16 form of the text has a different number of characters
 // than the original UTF-8 text (remember: when reading a file in UTF-8 mode, the
@@ -88,7 +143,9 @@ static __int64 __cdecl common_ftell_read_mode_nolock(
 
     // We will need to adjust the file position of UTF-8 files to account for
     // UTF-8 to UTF-16 translation:
-    __int64 const translation_factor = _textmode(fh) == __crt_lowio_text_mode::utf8
+    __crt_lowio_text_mode const text_mode = _textmode(fh);
+
+    __int64 const translation_factor = text_mode == __crt_lowio_text_mode::utf8
         ? static_cast<__int64>(sizeof(wchar_t))
         : static_cast<__int64>(sizeof(char));
 
@@ -122,25 +179,19 @@ static __int64 __cdecl common_ftell_read_mode_nolock(
     // so we need to scan the buffer to count newline characters.  (Note:  we
     // only count newline characters if the stream is at EOF, because doing so
     // is more expensive than seeking to the end and seeking back).
-    
+
     // Seek to the end of the file.  If the current position is the end of the
     // file, then scan the buffer for newlines and adjust bytes_read:
     if (_lseeki64(fh, 0, SEEK_END) == lowio_position)
     {
-        char const* const buffer_first = stream->_base;
-        char const* const buffer_last  = buffer_first + bytes_read;
-        for (char const* it = buffer_first; it != buffer_last; ++it)
-        {
-            // We do not know whether the character preceding a newline was a
-            // carriage reutrn, but assume that it was:
-            if (*it == '\n')
-                ++bytes_read;
-        }
+        bytes_read += count_newline_bytes(stream->_base, stream->_base + bytes_read, text_mode);
 
         // If the last byte was a ^Z, that character will not be present in the
         // buffer (it is omitted by lowio):
         if (stream.ctrl_z())
-            ++bytes_read;
+        {
+            bytes_read += buffer_character_size(text_mode);
+        }
     }
     // Otherwise, the current position is not at the end of the file; we need to
     // seek back to the original position and compute the size of the buffer:
@@ -168,7 +219,9 @@ static __int64 __cdecl common_ftell_read_mode_nolock(
         // was preceded by a '\r', which was discarded by the previous read
         // operation:
         if (_osfile(fh) & FCRLF)
-            ++bytes_read;
+        {
+            bytes_read += buffer_character_size(text_mode);
+        }
     }
 
     return lowio_position
@@ -223,11 +276,7 @@ static __int64 __cdecl common_ftell_nolock(__crt_stdio_stream const stream) thro
         // translation:
         if (_osfile(fh) & FTEXT)
         {
-            for (char const* it = stream->_base; it != stream->_ptr; ++it)
-            {
-                if (*it == '\n')
-                    ++buffer_offset;
-            }
+            buffer_offset += count_newline_bytes(stream->_base, stream->_ptr, text_mode);
         }
     }
     // Otherwise, if the file is not in read/write mode, ftell cannot proceed:

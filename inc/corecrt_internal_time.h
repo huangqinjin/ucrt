@@ -92,14 +92,14 @@ struct __crt_time_time_t_traits<__time64_t> : __crt_integer_traits<__time64_t>
 
     enum : long long
     {
-        // Number of seconds from 00:00:00, 01/01/1970 UTC to 23:59:59, 12/31/3000 UTC
-        max_time_t = 0x793406fffi64,
+        // Number of seconds from 00:00:00, 01/01/1970 UTC to 23:59:59, 01/18/3001 UTC
+        max_time_t = 0x793582affLL,
     };
 
     enum : unsigned long long
     {
         // The maximum representable year
-        max_year = 1100, // 3000 is the maximum year
+        max_year = 1101, // 3001 is the maximum year
     };
 };
 

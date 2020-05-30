@@ -53,7 +53,6 @@ static errentry const errtable[]
     { ERROR_BROKEN_PIPE,            EPIPE     },  //  109
     { ERROR_DISK_FULL,              ENOSPC    },  //  112
     { ERROR_INVALID_TARGET_HANDLE,  EBADF     },  //  114
-    { ERROR_INVALID_HANDLE,         EINVAL    },  //  124
     { ERROR_WAIT_NO_CHILDREN,       ECHILD    },  //  128
     { ERROR_CHILD_NOT_COMPLETE,     ECHILD    },  //  129
     { ERROR_DIRECT_ACCESS_HANDLE,   EBADF     },  //  130

@@ -23,7 +23,12 @@
 //
 // If 'block' is non-null, it must point to a valid block of memory allocated in
 // the heap.
-extern "C" _CRTRESTRICT void* __cdecl realloc(
+//
+// This function supports patching and therefore must be marked noinline.
+// Both _realloc_dbg and _realloc_base must also be marked noinline
+// to prevent identical COMDAT folding from substituting calls to realloc
+// with either other function or vice versa.
+extern "C" __declspec(noinline) _CRTRESTRICT void* __cdecl realloc(
     void*  const block,
     size_t const size
     )

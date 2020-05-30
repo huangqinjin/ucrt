@@ -460,14 +460,6 @@ static int __cdecl common_stat(
 
     _VALIDATE_CLEAR_OSSERR_RETURN(path   != nullptr, EINVAL, -1);
 
-    // Don't allow wildcards to be interpreted by the system:
-    if (wcspbrk(path, L"?*"))
-    {
-        errno = ENOENT;
-        _doserrno = ERROR_FILE_NOT_FOUND;
-        return -1;
-    }
-
     __crt_unique_handle const file_handle(CreateFileW(
         path,
         FILE_READ_ATTRIBUTES,

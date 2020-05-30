@@ -71,6 +71,21 @@ static Character** __cdecl copy_environment(Character** const old_environment) t
 
 
 
+// If the current environment is the initial environment, this function clones
+// the current environment so that it is not the initial environment.  This
+// should be called any time that we are about to modify the current environment
+// but we do not know whether the current environment is the initial environment.
+template <typename Character>
+static void __cdecl ensure_current_environment_is_not_initial_environment_nolock() throw()
+{
+    if (get_environment(Character()) == get_initial_environment(Character()))
+    {
+        get_environment(Character()) = copy_environment(get_environment(Character()));
+    }
+}
+
+
+
 // Finds an environment variable in the specified environment.  If a variable
 // with the given name is found, its index in the environment is returned.  If
 // no such environment is found, the total number of environment variables is
@@ -176,10 +191,7 @@ static int __cdecl common_set_variable_in_environment_nolock(
     // environment used by getenv, setenv, et al.  We cannot modify thie initial
     // environment, so we make a copy of it the first time we need to make any
     // modifications to the global environment:
-    if (get_environment(Character()) == get_initial_environment(Character()))
-    {
-        get_environment(Character()) = copy_environment(get_environment(Character()));
-    }
+    ensure_current_environment_is_not_initial_environment_nolock<Character>();
 
     // If the required environment does not exist, see if the other environment
     // exists; if it does, convert it to create the required environment.  These
@@ -190,6 +202,12 @@ static int __cdecl common_set_variable_in_environment_nolock(
         if (is_top_level_call && get_other_environment(Character()))
         {
             _VALIDATE_RETURN_NOEXC(traits::get_or_create_environment_nolock() != nullptr, EINVAL, -1);
+
+            // The call to get_or_create_environment() may have initialized the
+            // current environment to the same environment that is the initial
+            // environment.  Re-check and make a new copy of the environment to
+            // modify if necessary.
+            ensure_current_environment_is_not_initial_environment_nolock<Character>();
         }
         else
         {

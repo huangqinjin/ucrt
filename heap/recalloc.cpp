@@ -14,7 +14,12 @@
 // This function provides the logic for the _recalloc() function.  It is called
 // only in the Release CRT (in the Debug CRT, the debug heap has its own
 // implementation of _recalloc()).
-extern "C" void* __cdecl _recalloc_base(
+//
+// This function must be marked noinline, otherwise recalloc and
+// _recalloc_base will have identical COMDATs, and the linker will fold
+// them when calling one from the CRT. This is necessary because recalloc
+// needs to support users patching in custom implementations.
+extern "C" __declspec(noinline) void* __cdecl _recalloc_base(
     void*  const block,
     size_t const count,
     size_t const size
@@ -46,7 +51,12 @@ extern "C" void* __cdecl _recalloc_base(
 // original size, the new bytes are zero-filled.  This function shares its
 // implementation with the realloc() function; consult the comments of that
 // function for more information about the implementation.
-extern "C" _CRTRESTRICT void* __cdecl _recalloc(
+//
+// This function supports patching and therefore must be marked noinline.
+// Both _recalloc_dbg and _recalloc_base must also be marked noinline
+// to prevent identical COMDAT folding from substituting calls to _recalloc
+// with either other function or vice versa.
+extern "C" __declspec(noinline) _CRTRESTRICT void* __cdecl _recalloc(
     void*  const block,
     size_t const count,
     size_t const size

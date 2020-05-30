@@ -95,7 +95,7 @@ static void __cdecl try_cor_exit_process(UINT const return_code) throw()
 // compatibility with the legacy runtimes.
 static bool __cdecl should_call_terminate_process() throw()
 {
-    if (!__acrt_is_packaged_app())
+    if (__acrt_get_process_end_policy() == process_end_policy_exit_process)
     {
         return false;
     }
@@ -179,16 +179,16 @@ static void __cdecl common_exit(
     {
         try_cor_exit_process(return_code);
     }
-    
+
     // Run the C termination:
     bool crt_uninitialization_required = false;
-    __acrt_lock(__acrt_exit_lock);
-    __try
+
+    __acrt_lock_and_call(__acrt_select_exit_lock(), [&]
     {
         static bool c_exit_complete = false;
         if (c_exit_complete)
         {
-            __leave;
+            return;
         }
 
         _InterlockedExchange(&c_termination_complete, TRUE);
@@ -238,11 +238,7 @@ static void __cdecl common_exit(
             c_exit_complete = true;
             crt_uninitialization_required = true;
         }
-    }
-    __finally
-    {
-        __acrt_unlock(__acrt_exit_lock);
-    }
+    });
 
     // Do NOT try to uninitialize the CRT while holding one of its locks.
     if (crt_uninitialization_required)

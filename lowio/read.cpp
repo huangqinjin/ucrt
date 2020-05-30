@@ -179,23 +179,23 @@ static int __cdecl translate_text_mode_nolock(
             continue;
         }
 
-        // The peek succeeded.  What we do next depends on whether the file is 
-        // seekable or not.  First we handle the case where the file does allow
-        // seeling:
+        // The peek succeeded.  What we do next depends on whether the file is
+        // seekable or not.  First we handle the case where the file does not
+        // allow seeking:
         if (_osfile(fh) & (FDEV | FPIPE))
         {
             // If the peek character is an LF, then we just need to copy that
             // character to the output buffer:
             if (peek == LF)
             {
-                *result_it = LF;
+                *result_it++ = LF;
             }
             // Otherwise, it was some other character.  We need to write the CR
             // to the output buffer, then we need to store the peek character
             // for later retrieval:
             else
             {
-                *result_it = CR;
+                *result_it++ = CR;
                 store_lookahead(fh, peek);
             }
         }
@@ -538,7 +538,7 @@ extern "C" int __cdecl _read_nolock(
         if (!ReadConsoleW(
                 os_handle,
                 internal_buffer,
-                internal_buffer_remaining / sizeof(wchar_t), 
+                internal_buffer_remaining / sizeof(wchar_t),
                 &console_characters_read,
                 nullptr))
         {
@@ -590,7 +590,7 @@ extern "C" int __cdecl _read_nolock(
 
         bytes_read += bytes_read_from_file;
     }
-        
+
 
     // If the file is open in binary mode, no translation is required, so we
     // can skip all of the rest of this function:

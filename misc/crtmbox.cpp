@@ -26,22 +26,6 @@ namespace
 }
 
 template <typename Character>
-static DWORD WINAPI message_box_wait_thread(void* const argument) throw()
-{
-    using traits = __crt_char_traits<Character>;
-
-    auto const mb_arguments = static_cast<message_box_arguments<Character>*>(argument);
-
-    mb_arguments->_result = traits::message_box(
-        nullptr,
-        mb_arguments->_text,
-        mb_arguments->_caption,
-        mb_arguments->_type);
-
-    return 0;
-}
-
-template <typename Character>
 static int __cdecl common_show_message_box(
     Character const* const text,
     Character const* const caption,
@@ -50,7 +34,7 @@ static int __cdecl common_show_message_box(
 {
     using traits = __crt_char_traits<Character>;
 
-    bool const is_packaged_app = __acrt_is_packaged_app();
+    bool const show_ui = __acrt_get_developer_information_policy() == developer_information_policy_ui;
 
     if (IsDebuggerPresent())
     {
@@ -61,48 +45,21 @@ static int __cdecl common_show_message_box(
             traits::output_debug_string(text);
         }
 
-        // We do not want to display a message box for a packaged app if a debugger
+        // We do not want to display a message box if a debugger
         // is already attached.  Instead, let the caller know that we want to
         // directly break into the debugger:
-        if (is_packaged_app)
+        if (show_ui)
         {
             return IDRETRY; // Retry = Break into the debugger
         }
     }
 
-    if (!__acrt_can_show_message_box())
+    if (!show_ui || !__acrt_can_show_message_box())
     {
         // If we can't get the message box pointers (perhaps because running on CoreSys),
         // just abort, unless a debugger is attached--then break into the debugger instead.
         // The message string was already output to the debugger above.
         return IsDebuggerPresent() ? IDRETRY : IDABORT;
-    }
-
-    // In packaged apps, display the message box in a separate thread and wait
-    // for it to avoid deadlocking:
-    if (is_packaged_app)
-    {
-        message_box_arguments<Character> arguments = { caption, text, type, 0 };
-
-        __crt_unique_handle const worker_thread(CreateThread(
-            nullptr,
-            0,
-            &message_box_wait_thread<Character>,
-            &arguments,
-            0,
-            nullptr));
-
-        if (!worker_thread)
-        {
-            return 0;
-        }
-
-        if (WaitForSingleObjectEx(worker_thread.get(), INFINITE, FALSE) != WAIT_OBJECT_0)
-        {
-            return 0;
-        }
-
-        return arguments._result;
     }
 
     // If the current process isn't attached to a visible window station (e.g.

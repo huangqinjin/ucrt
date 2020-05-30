@@ -72,6 +72,8 @@ static errno_t __cdecl common_makepath_s(
         ? result_buffer + result_count
         : nullptr;
 
+    CRT_WARNING_DISABLE_PUSH(26015, "Silence prefast about overflow - covered by result_end for secure callers")
+
     // Copy the drive:
     if (drive && drive[0] != '\0')
     {
@@ -146,6 +148,8 @@ static errno_t __cdecl common_makepath_s(
 
     *result_it++ = '\0';
 
+    CRT_WARNING_POP
+        
     _FILL_STRING(result_buffer, result_count, result_it - result_buffer);
     return 0;
 }

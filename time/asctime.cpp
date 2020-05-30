@@ -40,7 +40,7 @@ static Character* __cdecl common_asctime_s_write_value(
 
 
 // Converts a time structure (tm) into an ASCII string.  The string is always
-// exactly 26 characters long, in the form Tue May 01 02:34:55 1984\n\0.  The
+// exactly 26 characters long, in the form Tue May  1 02:34:55 1984\n\0.  The
 // buffer 'size_in_chars' must be at least 26.  The string is generated into the
 // buffer.  On success, zero is returned and the buffer contains the time string;
 // on failure, an error code is returned and the contents of the buffer are
@@ -48,7 +48,7 @@ static Character* __cdecl common_asctime_s_write_value(
 template <typename Character>
 _Success_(return == 0)
 static errno_t __cdecl common_asctime_s(
-    _Out_writes_z_(size_in_chars) _Post_readable_size_(_ASCBUFSIZE) Character* const buffer, 
+    _Out_writes_z_(size_in_chars) _Post_readable_size_(_ASCBUFSIZE) Character* const buffer,
     _In_range_(>=, _ASCBUFSIZE)   size_t                                       const size_in_chars,
     tm const*                                                                  const tm_value
     ) throw()
@@ -72,7 +72,7 @@ static errno_t __cdecl common_asctime_s(
     _VALIDATE_RETURN_ERRCODE(tm_value->tm_wday >= 0 && tm_value->tm_wday <=  6, EINVAL)
 
     _VALIDATE_RETURN_ERRCODE(__crt_time_is_day_valid(tm_value->tm_year, tm_value->tm_mon, tm_value->tm_mday), EINVAL)
-    
+
     Character* buffer_it = buffer;
 
     // Copy the day name into the buffer:
@@ -159,7 +159,7 @@ static wchar_t** common_asctime_get_ptd_buffer(wchar_t) throw()
 }
 
 // Converts a time structure (tm) into an ASCII string.  The string is always
-// exactly 26 characters long, in the form Tue May 01 02:34:55 1984\n\0.
+// exactly 26 characters long, in the form Tue May  1 02:34:55 1984\n\0.
 // The return value is a pointer to a per-thread buffer containing the
 // generated time string.
 template <typename Character>
