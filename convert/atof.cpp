@@ -10,6 +10,7 @@
 // The _atoxxx family of functions convert a string into a floating point
 // number and return either zero (success), or _UNDERFLOW or _OVERFLOW.
 //
+#define _ALLOW_OLD_VALIDATE_MACROS
 #include <corecrt_internal_strtox.h>
 
 

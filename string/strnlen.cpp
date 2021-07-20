@@ -193,7 +193,7 @@ static __forceinline size_t __cdecl common_strnlen(
     return common_strnlen_c<Mode>(string, maximum_count);
 }
 
-#ifndef _M_ARM64
+#if !defined(_M_ARM64) && !defined(_M_ARM64EC)
 
 extern "C" size_t __cdecl strnlen(
     char const* const string,

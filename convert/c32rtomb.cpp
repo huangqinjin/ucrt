@@ -5,18 +5,20 @@
 //
 
 #include <corecrt_internal_mbstring.h>
-#include <uchar.h>
+#include <corecrt_internal_ptd_propagation.h>
 #include <stdint.h>
+#include <uchar.h>
 
 using namespace __crt_mbstring;
 
 extern "C" size_t __cdecl c32rtomb(char* s, char32_t c32, mbstate_t* ps)
 {
     // TODO: Bug 13307590 says this is always assuming UTF-8.
-    return __c32rtomb_utf8(s, c32, ps);
+    __crt_cached_ptd_host ptd;
+    return __c32rtomb_utf8(s, c32, ps, ptd);
 }
 
-size_t __cdecl __crt_mbstring::__c32rtomb_utf8(char* s, char32_t c32, mbstate_t* ps)
+size_t __cdecl __crt_mbstring::__c32rtomb_utf8(char* s, char32_t c32, mbstate_t* ps, __crt_cached_ptd_host& ptd)
 {
     if (!s)
     {
@@ -52,7 +54,7 @@ size_t __cdecl __crt_mbstring::__c32rtomb_utf8(char* s, char32_t c32, mbstate_t*
         // high/low surrogates are only valid in UTF-16 encoded data
         if (0xd800 <= c32 && c32 <= 0xdfff)
         {
-            return return_illegal_sequence(ps);
+            return return_illegal_sequence(ps, ptd);
         }
         trail_bytes = 2;
         lead_byte = 0xe0;
@@ -62,14 +64,14 @@ size_t __cdecl __crt_mbstring::__c32rtomb_utf8(char* s, char32_t c32, mbstate_t*
         // Unicode's max code point is 0x10ffff
         if (0x10ffff < c32)
         {
-            return return_illegal_sequence(ps);
+            return return_illegal_sequence(ps, ptd);
         }
         trail_bytes = 3;
         lead_byte = 0xf0;
     }
     else
     {
-        return return_illegal_sequence(ps);
+        return return_illegal_sequence(ps, ptd);
     }
     _ASSERTE(1 <= trail_bytes && trail_bytes <= 3);
 

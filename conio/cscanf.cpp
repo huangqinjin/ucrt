@@ -1,10 +1,11 @@
 //
-// input.cpp
+// cscanf.cpp
 //
 //      Copyright (c) Microsoft Corporation. All rights reserved.
 //
 // The core formatted input functions for direct console I/O.
 //
+#define _ALLOW_OLD_VALIDATE_MACROS
 #include <corecrt_internal_stdio_input.h>
 
 using namespace __crt_stdio_input;

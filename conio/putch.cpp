@@ -7,6 +7,9 @@
 //
 #include <conio.h>
 #include <corecrt_internal_lowio.h>
+#include <corecrt_internal_mbstring.h>
+#include <corecrt_internal_stdio.h>
+#include <corecrt_internal_ptd_propagation.h>
 #include <stdlib.h>
 
 // Writes a wide character to the console.  Returns the character on success,
@@ -19,11 +22,11 @@ extern "C" int __cdecl _putch(int const c)
     });
 }
 
-extern "C" int __cdecl _putch_nolock(int const c)
+extern "C" int __cdecl _putch_nolock_internal(int const c, __crt_cached_ptd_host& ptd)
 {
-    __acrt_ptd*     const ptd          = __acrt_getptd();
-    unsigned char*  const ch_buf       = ptd->_putch_buffer;
-    unsigned short* const pch_buf_used = &ptd->_putch_buffer_used;
+    __acrt_ptd*     const raw_ptd      = ptd.get_raw_ptd();
+    unsigned char*  const ch_buf       = raw_ptd->_putch_buffer;
+    unsigned short* const pch_buf_used = &raw_ptd->_putch_buffer_used;
 
     // We can only use the character directly if we are sure that the machine
     // is big-endian.
@@ -59,7 +62,7 @@ extern "C" int __cdecl _putch_nolock(int const c)
     else
     {
         wchar_t wchar;
-        if (mbtowc(&wchar, reinterpret_cast<char const*>(ch_buf), *pch_buf_used + 1) == -1 ||
+        if (_mbtowc_internal(&wchar, reinterpret_cast<char const*>(ch_buf), *pch_buf_used + 1, ptd) == -1 ||
             _putwch_nolock(wchar) == WEOF)
         {
             result = EOF;
@@ -70,4 +73,10 @@ extern "C" int __cdecl _putch_nolock(int const c)
     }
 
     return result;
+}
+
+extern "C" int __cdecl _putch_nolock(int const c)
+{
+     __crt_cached_ptd_host ptd;
+     return _putch_nolock_internal(c, ptd);
 }

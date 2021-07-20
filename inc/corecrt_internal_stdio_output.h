@@ -7,15 +7,15 @@
 // including printf and its many variants (sprintf, fprintf, etc.).
 //
 #include <conio.h>
-#include <ctype.h>
 #include <corecrt_internal_fltintrn.h>
+#include <corecrt_internal_mbstring.h>
 #include <corecrt_internal_stdio.h>
+#include <corecrt_internal_strtox.h>
+#include <ctype.h>
 #include <locale.h>
 #include <stdarg.h>
 
-// Functions handling input/output should be optimized for speed
-// to avoid performance regressions from previous CRT versions.
-#pragma optimize("t", on)
+#include <corecrt_internal_ptd_propagation.h>
 
 namespace __crt_stdio_output {
 
@@ -58,9 +58,9 @@ template <typename Character, typename Derived>
 class output_adapter_common
 {
 public:
-    void write_character(Character const c, int* const count_written) const throw()
+    void write_character(Character const c, int* const count_written, __crt_cached_ptd_host& ptd) const throw()
     {
-        if (static_cast<Derived const*>(this)->write_character_without_count_update(c))
+        if (static_cast<Derived const*>(this)->write_character_without_count_update(c, ptd))
         {
             ++*count_written;
         }
@@ -72,18 +72,18 @@ public:
 
 protected:
     void write_string_impl(
-        Character const*      const string,
-        int                   const length,
-        int*                  const count_written,
-        __crt_deferred_errno_cache& status
+        Character const*   const string,
+        int                const length,
+        int*               const count_written,
+        __crt_cached_ptd_host&   ptd
         ) const throw()
     {
-        __crt_errno_guard const reset_errno{&status.get()};
+        auto const reset_errno = ptd.get_errno().create_guard();
 
         Character const* const string_last{string + length};
         for (Character const* it{string}; it != string_last; ++it)
         {
-            if (static_cast<Derived const*>(this)->write_character_without_count_update(*it))
+            if (static_cast<Derived const*>(this)->write_character_without_count_update(*it, ptd))
             {
                 ++*count_written;
             }
@@ -93,7 +93,7 @@ protected:
                 // Standard behavior when we've encountered an 'illegal sequence' error
                 // (i.e. EILSEQ) is to set 'errno' to EILSEQ and return -1.
                 // Instead, we write '?' and continue writing the string.
-                if (status.get() != EILSEQ)
+                if (!ptd.get_errno().check(EILSEQ))
                 {
                     // *printf returns the number of characters written
                     // set count written to -1 to indicate an error occurred
@@ -101,7 +101,7 @@ protected:
                     break;
                 }
 
-                write_character('?', count_written);
+                write_character('?', count_written, ptd);
             }
         }
     }
@@ -114,24 +114,24 @@ class console_output_adapter
 public:
     typedef __acrt_stdio_char_traits<Character> char_traits;
 
-    bool validate() const throw()
+    bool validate(__crt_cached_ptd_host&) const throw()
     {
         return true;
     }
 
-    bool write_character_without_count_update(Character const c) const throw()
+    bool write_character_without_count_update(Character const c, __crt_cached_ptd_host& ptd) const throw()
     {
-        return char_traits::puttch_nolock(c) != char_traits::eof;
+        return char_traits::puttch_nolock_internal(c, ptd) != char_traits::eof;
     }
 
     void write_string(
-        Character const*      const string,
-        int                   const length,
-        int*                  const count_written,
-        __crt_deferred_errno_cache& status
+        Character const*   const string,
+        int                const length,
+        int*               const count_written,
+        __crt_cached_ptd_host&   ptd
         ) const throw()
     {
-        write_string_impl(string, length, count_written, status);
+        write_string_impl(string, length, count_written, ptd);
     }
 };
 
@@ -149,28 +149,28 @@ public:
     {
     }
 
-    bool validate() const throw()
+    bool validate(__crt_cached_ptd_host& ptd) const throw()
     {
-        _VALIDATE_RETURN(_stream.valid(), EINVAL, false);
+        _UCRT_VALIDATE_RETURN(ptd, _stream.valid(), EINVAL, false);
 
         return char_traits::validate_stream_is_ansi_if_required(_stream.public_stream());
     }
 
-    bool write_character_without_count_update(Character const c) const throw()
+    bool write_character_without_count_update(Character const c, __crt_cached_ptd_host& ptd) const throw()
     {
         if (_stream.is_string_backed() && _stream->_base == nullptr)
         {
             return true;
         }
 
-        return char_traits::puttc_nolock(c, _stream.public_stream()) != char_traits::eof;
+        return char_traits::puttc_nolock_internal(c, _stream.public_stream(), ptd) != char_traits::eof;
     }
 
     void write_string(
-        Character const*      const string,
-        int                   const length,
-        int*                  const count_written,
-        __crt_deferred_errno_cache& status
+        Character const*   const string,
+        int                const length,
+        int*               const count_written,
+        __crt_cached_ptd_host&   ptd
         ) const throw()
     {
         if (_stream.is_string_backed() && _stream->_base == nullptr)
@@ -179,7 +179,7 @@ public:
             return;
         }
 
-        write_string_impl(string, length, count_written, status);
+        write_string_impl(string, length, count_written, ptd);
     }
 
 private:
@@ -211,13 +211,13 @@ public:
     {
     }
 
-    bool validate() const throw()
+    bool validate(__crt_cached_ptd_host& ptd) const throw()
     {
-        _VALIDATE_RETURN(_context != nullptr, EINVAL, false);
+        _UCRT_VALIDATE_RETURN(ptd, _context != nullptr, EINVAL, false);
         return true;
     }
 
-    bool write_character(Character const c, int* const count_written) const throw()
+    __forceinline bool write_character(Character const c, int* const count_written, __crt_cached_ptd_host&) const throw()
     {
         if (_context->_buffer_used == _context->_buffer_count)
         {
@@ -240,16 +240,16 @@ public:
     }
 
     void write_string(
-        Character const*      const string,
-        int                   const length,
-        int*                  const count_written,
-        __crt_deferred_errno_cache& status
+        Character const*   const string,
+        int                const length,
+        int*               const count_written,
+        __crt_cached_ptd_host&   ptd
         ) const throw()
     {
         // This function does not perform any operations that might reset errno,
         // so we don't need to use __crt_errno_guard as we do in other output
         // adapters.
-        UNREFERENCED_PARAMETER(status);
+        UNREFERENCED_PARAMETER(ptd);
 
         if (length == 0)
         {
@@ -306,16 +306,17 @@ private:
 
 
 template <typename OutputAdapter, typename Character>
-void write_multiple_characters(
-    OutputAdapter const& adapter,
-    Character     const  c,
-    int           const  count,
-    int*          const  count_written
+__forceinline void write_multiple_characters(
+    OutputAdapter      const& adapter,
+    Character          const  c,
+    int                const  count,
+    int*               const  count_written,
+    __crt_cached_ptd_host&    ptd
     ) throw()
 {
     for (int i{0}; i < count; ++i)
     {
-        adapter.write_character(c, count_written);
+        adapter.write_character(c, count_written, ptd);
         if (*count_written == -1)
             break;
     }
@@ -349,10 +350,10 @@ public:
     }
 
     template <typename T>
-    bool ensure_buffer_is_big_enough(size_t const count) throw()
+    bool ensure_buffer_is_big_enough(size_t const count, __crt_cached_ptd_host& ptd) throw()
     {
         constexpr size_t max_count = SIZE_MAX / sizeof(T) / 2; // avoid runtime division
-        _VALIDATE_RETURN_NOEXC(max_count >= count, ENOMEM, false);
+        _UCRT_VALIDATE_RETURN_NOEXC(ptd, max_count >= count, ENOMEM, false);
 
         size_t const required_size{count * sizeof(T) * 2};
 
@@ -504,7 +505,7 @@ inline void __cdecl crop_zeroes(_Inout_z_ char* buffer, _locale_t const locale) 
 
 // The states of the format parsing state machine.  These are encoded into the
 // transition tables and are referenced throughout the format processor.
-enum class state : unsigned
+enum class state : unsigned char
 {
     normal,    // Normal state; outputting literal chars
     percent,   // Just read '%'
@@ -521,7 +522,7 @@ enum class state : unsigned
 // be encountered in the format string.  These are not referenced anywhere in
 // the source anymore, but their values are encoded into the state table, so
 // we have retained the definition for reference.
-enum class character_type : unsigned
+enum class character_type : unsigned char
 {
     other,   // character with no special meaning
     percent, // '%'
@@ -884,11 +885,9 @@ template <typename Character>
 class common_data
 {
 protected:
-
-    common_data()
+    common_data(__crt_cached_ptd_host& ptd)
         : _options           {0            },
-          _locale            {nullptr      },
-          _cached_errno      {             },
+          _ptd               {ptd          },
           _format_it         {nullptr      },
           _valist_it         {nullptr      },
           _characters_written{0            },
@@ -903,40 +902,39 @@ protected:
     {
     }
 
-    uint64_t                  _options;
+    uint64_t                        _options;
 
-    _locale_t                 _locale;
-
-    // We cache a pointer to errno to avoid having to query thread-local storage
-    // for every character write that we perform.
-    __crt_deferred_errno_cache _cached_errno;
+    // We cache a reference to the PTD and updated locale information
+    // to avoid having to query thread-local storage for every character
+    // write that we perform.
+    __crt_cached_ptd_host&          _ptd;
 
     // These two iterators control the formatting operation.  The format iterator
     // iterates over the format string, and the va_list argument pointer iterates
     // over the varargs arguments.
-    Character const*          _format_it;
-    va_list                   _valist_it;
+    Character const*                _format_it;
+    va_list                         _valist_it;
 
     // This stores the number of characters that have been written so far.  It is
     // initialized to zero and is incremented as characters are written.  If an
     // I/O error occurs, it is set to -1 to indicate the I/O failure.
-    int                       _characters_written;
+    int                             _characters_written;
 
     // These represent the state for the current format specifier.  The suppress
     // output flag is set when output should be suppressed for the current format
     // specifier (note that this is distinct from the global suppression that we
     // use during the first pass of positional parameter handling).
-    state                     _state;
-    unsigned                  _flags;
-    int                       _field_width;
-    int                       _precision;
-    length_modifier           _length;
-    bool                      _suppress_output;
+    state                           _state;
+    unsigned                        _flags;
+    int                             _field_width;
+    int                             _precision;
+    length_modifier                 _length;
+    bool                            _suppress_output;
 
     // This is the character from the format string that was used to compute the
     // current state.  We need to store this separately because we advance the
     // format string iterator at various points during processing.
-    Character                 _format_char;
+    Character                       _format_char;
 
     // These pointers are used in various places to point to strings that either
     // [1] are being formatted into, or [2] contain formatted data that is ready
@@ -946,8 +944,8 @@ protected:
     // is currently in use.
     union
     {
-        char*                 _narrow_string;
-        wchar_t*              _wide_string;
+        char*                       _narrow_string;
+        wchar_t*                    _wide_string;
     };
 
     char*&    tchar_string(char   ) throw() { return _narrow_string; }
@@ -955,13 +953,13 @@ protected:
 
     Character*& tchar_string() throw() { return tchar_string(Character()); }
 
-    int                       _string_length;
-    bool                      _string_is_wide;
+    int                             _string_length;
+    bool                            _string_is_wide;
 
     // The formatting buffer.  This buffer is used to store the result of various
     // formatting operations--notably, numbers get formatted into strings in this
     // buffer.
-    formatting_buffer         _buffer;
+    formatting_buffer               _buffer;
 };
 
 // This data base is split out from the common data base only so that we can
@@ -971,21 +969,19 @@ class output_adapter_data
     : protected common_data<Character>
 {
 protected:
-
     output_adapter_data(
-        OutputAdapter    const& output_adapter,
-        uint64_t         const  options,
-        Character const* const  format,
-        _locale_t        const  locale,
-        va_list          const  arglist
+        OutputAdapter      const& output_adapter,
+        uint64_t           const  options,
+        Character const*   const  format,
+        __crt_cached_ptd_host&    ptd,
+        va_list            const  arglist
         ) throw()
-        : common_data{},
+        : common_data{ptd},
           _output_adapter(output_adapter)
     {
         // We initialize several base class data members here, so that we can
         // value initialize the entire base class before we get to this point.
         _options   = options;
-        _locale    = locale;
         _format_it = format;
         _valist_it = arglist;
     }
@@ -1007,7 +1003,6 @@ class standard_base
     : protected output_adapter_data<Character, OutputAdapter>
 {
 protected:
-
     template <typename... Ts>
     standard_base(Ts&&... arguments) throw()
         : output_adapter_data<Character, OutputAdapter>{arguments...     },
@@ -1021,7 +1016,7 @@ protected:
         return _current_pass != pass::finished;
     }
 
-    bool validate_and_update_state_at_end_of_format_string() const throw()
+    __forceinline bool validate_and_update_state_at_end_of_format_string() const throw()
     {
         // No validation is performed in the standard output implementation:
         return true;
@@ -1111,20 +1106,19 @@ class format_validation_base
     : protected standard_base<Character, OutputAdapter>
 {
 protected:
-
     template <typename... Ts>
     format_validation_base(Ts&&... arguments) throw()
         : standard_base<Character, OutputAdapter>{arguments...}
     {
     }
 
-    bool validate_and_update_state_at_end_of_format_string() const throw()
+    __forceinline bool validate_and_update_state_at_end_of_format_string() throw()
     {
         // When we reach the end of the format string, we ensure that the format
         // string is not incomplete.  I.e., when we are finished, the lsat thing
         // that we should have encountered is a regular character to be written
         // or a type specifier.  Otherwise, the format string was incomplete.
-        _VALIDATE_RETURN(_state == state::normal || _state == state::type, EINVAL, false);
+        _UCRT_VALIDATE_RETURN(_ptd, _state == state::normal || _state == state::type, EINVAL, false);
 
         return true;
     }
@@ -1227,7 +1221,7 @@ protected:
 
             default:
                 // We should never reach this point:
-                _VALIDATE_RETURN(("Missing position in the format string", 0), EINVAL, false);
+                _UCRT_VALIDATE_RETURN(_ptd, ("Missing position in the format string", 0), EINVAL, false);
                 break;
             }
         }
@@ -1244,9 +1238,11 @@ protected:
     bool extract_argument_from_va_list(ActualParameterType& result) throw()
     {
         if (_format_mode == mode::nonpositional)
+        {
             return base_type::extract_argument_from_va_list<RequestedParameterType>(result);
+        }
 
-        _VALIDATE_RETURN(_type_index >= 0 && _type_index < _ARGMAX, EINVAL, false);
+        _UCRT_VALIDATE_RETURN(_ptd, _type_index >= 0 && _type_index < _ARGMAX, EINVAL, false);
 
         if (_current_pass == pass::position_scan)
         {
@@ -1267,15 +1263,17 @@ protected:
     bool update_field_width() throw()
     {
         if (_format_mode == mode::nonpositional)
+        {
             return base_type::update_field_width();
+        }
 
         Character* end_pointer{nullptr};
-        int const width_index{char_traits::tcstol(_format_it, &end_pointer, 10) - 1};
+        int const width_index{_tcstol_internal(_ptd, _format_it, &end_pointer, 10) - 1};
         _format_it = end_pointer + 1;
 
         if (_current_pass == pass::position_scan)
         {
-            _VALIDATE_RETURN(width_index >= 0 && *end_pointer == '$' && width_index < _ARGMAX, EINVAL, false);
+            _UCRT_VALIDATE_RETURN(_ptd, width_index >= 0 && *end_pointer == '$' && width_index < _ARGMAX, EINVAL, false);
 
             _maximum_index = width_index > _maximum_index
                 ? width_index
@@ -1299,15 +1297,17 @@ protected:
     bool update_precision() throw()
     {
         if (_format_mode == mode::nonpositional)
+        {
             return base_type::update_precision();
+        }
 
         Character* end_pointer{nullptr};
-        int const precision_index{char_traits::tcstol(_format_it, &end_pointer, 10) - 1};
+        int const precision_index{_tcstol_internal(_ptd, _format_it, &end_pointer, 10) - 1};
         _format_it = end_pointer + 1;
 
         if (_current_pass == pass::position_scan)
         {
-            _VALIDATE_RETURN(precision_index >= 0 && *end_pointer == '$' && precision_index < _ARGMAX, EINVAL, false);
+            _UCRT_VALIDATE_RETURN(_ptd, precision_index >= 0 && *end_pointer == '$' && precision_index < _ARGMAX, EINVAL, false);
 
             _maximum_index = precision_index > _maximum_index
                 ? precision_index
@@ -1332,7 +1332,7 @@ protected:
     {
         if (_format_mode == mode::positional && _current_pass == pass::position_scan)
         {
-            _VALIDATE_RETURN(_type_index >= 0 && _type_index < _ARGMAX, EINVAL, false);
+            _UCRT_VALIDATE_RETURN(_ptd, _type_index >= 0 && _type_index < _ARGMAX, EINVAL, false);
             return validate_and_store_parameter_data(
                 _parameters[_type_index],
                 parameter_type::real64,
@@ -1374,14 +1374,12 @@ protected:
         {
             Character* end_pointer{nullptr};
 
-            // The tcstol conversion will eat leading spaces and sign character
-            // if they are present.  Only digits are permitted between the % and
-            // the $ in the positional format specifier.
+            // Only digits are permitted between the % and the $ in the positional format specifier.
             if (*_format_it < '0' || *_format_it > '9')
             {
                 _format_mode = mode::nonpositional;
             }
-            else if (char_traits::tcstol(_format_it, &end_pointer, 10) > 0 && *end_pointer == '$')
+            else if (_tcstol_internal(_ptd, _format_it, &end_pointer, 10) > 0 && *end_pointer == '$')
             {
                 if (_current_pass == pass::position_scan)
                 {
@@ -1397,17 +1395,19 @@ protected:
         }
 
         if (_format_mode != mode::positional)
+        {
             return true;
+        }
 
         Character* end_pointer{nullptr};
-        _type_index = char_traits::tcstol(_format_it, &end_pointer, 10) - 1;
+        _type_index = _tcstol_internal(_ptd, _format_it, &end_pointer, 10) - 1;
         _format_it = end_pointer + 1;
 
         if (_current_pass != pass::position_scan)
             return true;
 
         // We do not re-perform the type validations during the second pass...
-        _VALIDATE_RETURN(_type_index >= 0 && *end_pointer == '$' && _type_index < _ARGMAX, EINVAL, false);
+        _UCRT_VALIDATE_RETURN(_ptd, _type_index >= 0 && *end_pointer == '$' && _type_index < _ARGMAX, EINVAL, false);
 
         _maximum_index = _type_index > _maximum_index
             ? _type_index
@@ -1572,7 +1572,7 @@ private:
         }
         else
         {
-            _VALIDATE_RETURN(is_positional_parameter_reappearance_consistent(
+            _UCRT_VALIDATE_RETURN(_ptd, is_positional_parameter_reappearance_consistent(
                 parameter, actual_type, format_type, length
             ), EINVAL, false);
         }
@@ -1645,13 +1645,13 @@ public:
     typedef __acrt_stdio_char_traits<Character> char_traits;
 
     output_processor(
-        OutputAdapter    const& output_adapter,
-        uint64_t         const  options,
-        Character const* const  format,
-        _locale_t        const  locale,
-        va_list          const  arglist
+        OutputAdapter      const& output_adapter,
+        uint64_t           const  options,
+        Character const*   const  format,
+        __crt_cached_ptd_host&    ptd,
+        va_list            const  arglist
         ) throw()
-        : ProcessorBase{output_adapter, options, format, locale, arglist}
+        : ProcessorBase{output_adapter, options, format, ptd, arglist}
     {
     }
 
@@ -1660,10 +1660,12 @@ public:
     // after constructing the object.
     int process() throw()
     {
-        if (!_output_adapter.validate())
+        if (!_output_adapter.validate(_ptd))
+        {
             return -1;
+        }
 
-        _VALIDATE_RETURN(_format_it != nullptr, EINVAL, -1);
+        _UCRT_VALIDATE_RETURN(_ptd, _format_it != nullptr, EINVAL, -1);
 
         while (advance_to_next_pass())
         {
@@ -1679,14 +1681,17 @@ public:
                 _state = find_next_state(_format_char, _state);
 
                 if (!validate_and_update_state_at_beginning_of_format_character())
-                    return -1;
-
-                if (_state == state::invalid)
                 {
-                    _VALIDATE_RETURN(("Incorrect format specifier", 0), EINVAL, -1);
+                    return -1;
+                }
+
+                if (_state >= state::invalid)
+                {
+                    _UCRT_VALIDATE_RETURN(_ptd, ("Incorrect format specifier", 0), EINVAL, -1);
                 }
 
                 bool result = false;
+
                 switch (_state)
                 {
                 case state::normal:    result = state_case_normal   (); break;
@@ -1723,42 +1728,42 @@ private:
     // output operation should take place.  The state_case_normal_common function
     // performs the actual output operation and is called from elsewhere in this
     // class.
-    bool state_case_normal() throw()
+    __forceinline bool state_case_normal() throw()
     {
         if (should_skip_normal_state_processing())
             return true;
 
-        _VALIDATE_RETURN(state_case_normal_common(), EINVAL, false);
+        _UCRT_VALIDATE_RETURN(_ptd, state_case_normal_common(), EINVAL, false);
 
         return true;
     }
 
-    bool state_case_normal_common() throw()
+    __forceinline bool state_case_normal_common() throw()
     {
         if (!state_case_normal_tchar(Character()))
             return false;
 
-        _output_adapter.write_character(_format_char, &_characters_written);
+        _output_adapter.write_character(_format_char, &_characters_written, _ptd);
         return true;
     }
 
-    bool state_case_normal_tchar(char) throw()
+    __forceinline bool state_case_normal_tchar(char) throw()
     {
         _string_is_wide = false;
 
-        if (__acrt_isleadbyte_l_noupdate(_format_char, _locale))
+        if (__acrt_isleadbyte_l_noupdate(_format_char, _ptd.get_locale()))
         {
-            _output_adapter.write_character(_format_char, &_characters_written);
+            _output_adapter.write_character(_format_char, &_characters_written, _ptd);
             _format_char = *_format_it++;
 
             // Ensure that we do not fall off the end of the format string:
-            _VALIDATE_RETURN(_format_char != '\0', EINVAL, false);
+            _UCRT_VALIDATE_RETURN(_ptd, _format_char != '\0', EINVAL, false);
         }
 
         return true;
     }
 
-    bool state_case_normal_tchar(wchar_t) throw()
+    __forceinline bool state_case_normal_tchar(wchar_t) throw()
     {
         _string_is_wide = true;
         return true;
@@ -1767,7 +1772,7 @@ private:
     // We enter the percent state when we read a '%' from the format string.  The
     // percent sign begins a format specifier, so we reset our internal state for
     // the new format specifier.
-    bool state_case_percent() throw()
+    __forceinline bool state_case_percent() throw()
     {
         _field_width     =  0;
         _suppress_output =  false;
@@ -1782,7 +1787,7 @@ private:
     // We enter the flag state when we are reading a format specifier and we
     // encounter one of the optional flags.  We update our state to account for
     // the flag.
-    bool state_case_flag() throw()
+    __forceinline bool state_case_flag() throw()
     {
         // Set the flag based on which flag character:
         switch (_format_char)
@@ -1804,16 +1809,23 @@ private:
     // the _format_char data member).
     bool parse_int_from_format_string(int* const result) throw()
     {
-        __crt_errno_guard const reset_errno{&_cached_errno.get()};
+        auto const reset_errno = _ptd.get_errno().create_guard();
 
         Character* end{};
-        *result = static_cast<int>(char_traits::tcstol(_format_it - 1, &end, 10));
+        *result = static_cast<int>(_tcstol_internal(_ptd,
+            _format_it - 1,
+            &end,
+            10));
 
-        if (_cached_errno.get() == ERANGE)
+        if (_ptd.get_errno().check(ERANGE))
+        {
             return false;
+        }
 
         if (end < _format_it)
+        {
             return false;
+        }
 
         _format_it = end;
         return true;
@@ -1823,7 +1835,7 @@ private:
     // encounter either an asterisk (indicating the width should be read from
     // the varargs) or a digit (indicating that we are in the process of reading
     // the width from the format string.
-    bool state_case_width() throw()
+    __forceinline bool state_case_width() throw()
     {
         if (_format_char != '*')
         {
@@ -1850,7 +1862,7 @@ private:
 
     // We enter the dot state when we read a '.' from the format string.  This
     // '.' introduces the precision part of the format specifier.
-    bool state_case_dot() throw()
+    __forceinline bool state_case_dot() throw()
     {
         // Reset the precision to zero.  If the dot is not followed by a number,
         // it means a precision of zero, not the default precision (per the C
@@ -1864,7 +1876,7 @@ private:
     // We enter the precision state after we read a ',' from the format string.
     // At this point, we read the precision, in a manner similar to how we read
     // the width.
-    bool state_case_precision() throw()
+    __forceinline bool state_case_precision() throw()
     {
         if (_format_char != '*')
         {
@@ -1917,14 +1929,14 @@ private:
             {
                 _state = state::invalid;
 #pragma warning(suppress: __WARNING_IGNOREDBYCOMMA) // 6319 comma operator
-                _VALIDATE_RETURN(("N length modifier not specifier", false), EINVAL, false);
+                _UCRT_VALIDATE_RETURN(_ptd, ("N length modifier not specifier", false), EINVAL, false);
                 return false;
             }
 
             return true;
         }
 
-        _VALIDATE_RETURN(_length == length_modifier::none, EINVAL, false);
+        _UCRT_VALIDATE_RETURN(_ptd, _length == length_modifier::none, EINVAL, false);
 
         // We just read a size specifier; set the flags based on it:
         switch (_format_char)
@@ -2132,16 +2144,16 @@ private:
         if (!has_flag(FL_LEFT | FL_LEADZERO))
         {
             // Left-pad with spaces
-            write_multiple_characters(_output_adapter, ' ', padding, &_characters_written);
+            write_multiple_characters(_output_adapter, ' ', padding, &_characters_written, _ptd);
         }
 
         // Write the prefix
-        _output_adapter.write_string(prefix, static_cast<int>(prefix_length), &_characters_written, _cached_errno);
+        _output_adapter.write_string(prefix, static_cast<int>(prefix_length), &_characters_written, _ptd);
 
         if (has_flag(FL_LEADZERO) && !has_flag(FL_LEFT))
         {
             // Write leading zeroes
-            write_multiple_characters(_output_adapter, '0', padding, &_characters_written);
+            write_multiple_characters(_output_adapter, '0', padding, &_characters_written, _ptd);
         }
 
         // Write the string
@@ -2150,7 +2162,7 @@ private:
         if (_characters_written >= 0 && has_flag(FL_LEFT))
         {
             // Right-pad with spaces
-            write_multiple_characters(_output_adapter, ' ', padding, &_characters_written);
+            write_multiple_characters(_output_adapter, ' ', padding, &_characters_written, _ptd);
         }
 
         return true;
@@ -2173,26 +2185,36 @@ private:
         {
             wchar_t wide_character{};
             if (!extract_argument_from_va_list<wchar_t>(wide_character))
+            {
                 return false;
+            }
 
             if (!should_format())
+            {
                 return true;
+            }
 
             // Convert to multibyte.  If the conversion fails, we suppress the
             // output operation but we do not fail the entire operation:
-            errno_t const status{_wctomb_s_l(&_string_length, _buffer.data<char>(), _buffer.count<char>(), wide_character, _locale)};
+            errno_t const status{_wctomb_internal(&_string_length, _buffer.data<char>(), _buffer.count<char>(), wide_character, _ptd)};
             if (status != 0)
+            {
                 _suppress_output = true;
+            }
         }
         // If the character is a narrow character, we can just write it directly
         // to the output, as-is.
         else
         {
             if (!extract_argument_from_va_list<unsigned short>(_buffer.data<char>()[0]))
+            {
                 return false;
+            }
 
             if (!should_format())
+            {
                 return true;
+            }
 
             _string_length = 1;
         }
@@ -2221,8 +2243,16 @@ private:
             // is unsuccessful, we ignore this character but do not fail the entire
             // output operation.
             char const local_buffer[2]{ static_cast<char>(wide_character & 0x00ff), '\0' };
-            if (_mbtowc_l(_buffer.data<wchar_t>(), local_buffer, _locale->locinfo->_public._locale_mb_cur_max, _locale) < 0)
+            int const mbc_length{_mbtowc_internal(
+                _buffer.data<wchar_t>(),
+                local_buffer,
+                _ptd.get_locale()->locinfo->_public._locale_mb_cur_max,
+                _ptd
+                )};
+            if (mbc_length < 0)
+            {
                 _suppress_output = true;
+            }
         }
         else
         {
@@ -2318,18 +2348,19 @@ private:
     // different depending on whether we are outputting narrow or wide
     // characters.  These functions just update the string state appropriately
     // for the string that has just been read from the varargs.
-    int type_case_s_compute_narrow_string_length(int const maximum_length, char) const throw()
+    int type_case_s_compute_narrow_string_length(int const maximum_length, char) throw()
     {
         return static_cast<int>(strnlen(_narrow_string, maximum_length));
     }
 
-    int type_case_s_compute_narrow_string_length(int const maximum_length, wchar_t) const throw()
+    int type_case_s_compute_narrow_string_length(int const maximum_length, wchar_t) throw()
     {
+        _locale_t locale = _ptd.get_locale();
         int string_length{0};
 
         for (char const* p{_narrow_string}; string_length < maximum_length && *p; ++string_length)
         {
-            if (__acrt_isleadbyte_l_noupdate(static_cast<unsigned char>(*p), _locale))
+            if (__acrt_isleadbyte_l_noupdate(static_cast<unsigned char>(*p), locale))
             {
                 ++p;
             }
@@ -2384,7 +2415,7 @@ private:
             _precision = 1; // Per C Standard Library specification.
         }
 
-        if (!_buffer.ensure_buffer_is_big_enough<char>(_CVTBUFSIZE + _precision))
+        if (!_buffer.ensure_buffer_is_big_enough<char>(_CVTBUFSIZE + _precision, _ptd))
         {
             // If we fail to enlarge the buffer, cap precision so that the
             // statically-sized buffer may be used for the formatting:
@@ -2396,7 +2427,9 @@ private:
         // Note that we separately handle the FORMAT_POSSCAN_PASS above.
         _CRT_DOUBLE tmp{};
         if (!extract_argument_from_va_list<_CRT_DOUBLE>(tmp))
+        {
             return false;
+        }
 
         // Format the number into the buffer:
         __acrt_fp_format(
@@ -2408,21 +2441,21 @@ private:
             static_cast<char>(_format_char),
             _precision,
             _options,
-            _locale,
-            __acrt_rounding_mode::standard);
+            __acrt_rounding_mode::standard,
+            _ptd);
 
         // If the precision is zero but the '#' flag is part of the specifier,
         // we force a decimal point:
         if (has_flag(FL_ALTERNATE) && _precision == 0)
         {
-            force_decimal_point(_narrow_string, _locale);
+            force_decimal_point(_narrow_string, _ptd.get_locale());
         }
 
         // The 'g' format specifier indicates that zeroes should be cropped
         // unless the '#' flag is part of the specifier.
         if ((_format_char == 'g' || _format_char == 'G') && !has_flag(FL_ALTERNATE))
         {
-            crop_zeroes(_narrow_string, _locale);
+            crop_zeroes(_narrow_string, _ptd.get_locale());
         }
 
         // If the result was negative, we save the '-' for later and advance past
@@ -2456,12 +2489,12 @@ private:
     {
         set_flag(FL_SIGNED);
 
-        return type_case_integer(10);
+        return type_case_integer<10>();
     }
 
     bool type_case_u() throw()
     {
-        return type_case_integer(10);
+        return type_case_integer<10>();
     }
 
     bool type_case_o() throw()
@@ -2470,17 +2503,17 @@ private:
         if (has_flag(FL_ALTERNATE))
             set_flag(FL_FORCEOCTAL);
 
-        return type_case_integer(8);
+        return type_case_integer<8>();
     }
 
     bool type_case_X() throw()
     {
-        return type_case_integer(16, true);
+        return type_case_integer<16>(true);
     }
 
     bool type_case_x() throw()
     {
-        return type_case_integer(16);
+        return type_case_integer<16>();
     }
 
     // The 'p' format specifier writes a pointer, which is simply treated as a
@@ -2498,13 +2531,14 @@ private:
             ? length_modifier::I32
             : length_modifier::I64;
 
-        return type_case_integer(16, true);
+        return type_case_integer<16>(true);
     }
 
     // This is the first half of the common integer formatting routine.  It
     // extracts the integer of the specified type from the varargs and does
     // pre-processing common to all integer processing.
-    bool type_case_integer(unsigned const radix, bool const capital_hexits = false) throw()
+    template <unsigned Radix>
+    bool type_case_integer(bool const capital_hexits = false) throw()
     {
         size_t const integer_size = to_integer_size(_length);
 
@@ -2534,7 +2568,7 @@ private:
                 : extract_argument_from_va_list<uint64_t>(original_number);
             break;
         default:
-            _VALIDATE_RETURN(("Invalid integer length modifier", 0), EINVAL, false);
+            _UCRT_VALIDATE_RETURN(_ptd, ("Invalid integer length modifier", 0), EINVAL, false);
             break;
         }
 
@@ -2571,7 +2605,7 @@ private:
         else
         {
             unset_flag(FL_LEADZERO);
-            _buffer.ensure_buffer_is_big_enough<Character>(_precision);
+            _buffer.ensure_buffer_is_big_enough<Character>(_precision, _ptd);
         }
 
         // If the number is zero, we do not want to print the hex prefix ("0x"),
@@ -2585,11 +2619,11 @@ private:
 
         if (integer_size == sizeof(int64_t))
         {
-            type_case_integer_parse_into_buffer<uint64_t>(number, radix, capital_hexits);
+            type_case_integer_parse_into_buffer<uint64_t, Radix>(number, capital_hexits);
         }
         else
         {
-            type_case_integer_parse_into_buffer<uint32_t>(static_cast<uint32_t>(number), radix, capital_hexits);
+            type_case_integer_parse_into_buffer<uint32_t, Radix>(static_cast<uint32_t>(number), capital_hexits);
         }
 
         // If the FORCEOCTAL flag is set, then we output a leading zero, unless
@@ -2607,10 +2641,9 @@ private:
     // handles the actual formatting of the number.  This logic has been split
     // out from the first part so that we only use 64-bit arithmetic when
     // absolutely required (on x86, 64-bit division is Slow-with-a-capital-S).
-    template <typename UnsignedInteger>
+    template <typename UnsignedInteger, unsigned Radix>
     void type_case_integer_parse_into_buffer(
         UnsignedInteger       number,
-        unsigned        const radix,
         bool            const capital_hexits
         ) throw()
     {
@@ -2627,8 +2660,8 @@ private:
         {
             --_precision;
 
-            Character digit{static_cast<Character>(number % radix + '0')};
-            number /= radix;
+            Character digit{static_cast<Character>(number % Radix + '0')};
+            number /= Radix;
 
             // If the digit is greater than 9, we need to convert it to the
             // corresponding letter hexit in the required case:
@@ -2658,7 +2691,7 @@ private:
 
         if (!_get_printf_count_output())
         {
-            _VALIDATE_RETURN(("'n' format specifier disabled", 0), EINVAL, false);
+            _UCRT_VALIDATE_RETURN(_ptd, ("'n' format specifier disabled", 0), EINVAL, false);
             return false; // Unreachable
         }
 
@@ -2668,7 +2701,7 @@ private:
         case sizeof(int16_t): *static_cast<int16_t*>(p) = static_cast<int16_t>(_characters_written);   break;
         case sizeof(int32_t): *static_cast<int32_t*>(p) = static_cast<int32_t>(_characters_written);   break;
         case sizeof(int64_t): *static_cast<int64_t*>(p) = static_cast<int64_t>(_characters_written);   break;
-        default:              _VALIDATE_RETURN(("Invalid integer length modifier", 0), EINVAL, false); break;
+        default:              _UCRT_VALIDATE_RETURN(_ptd, ("Invalid integer length modifier", 0), EINVAL, false); break;
         }
 
         // This format specifier never corresponds to an output operation:
@@ -2678,9 +2711,13 @@ private:
 
     // After we have completed the formatting of the string to be output, we
     // perform the output operation, which is handled by these two functions.
-    bool write_stored_string_tchar(char) throw()
+    __forceinline bool write_stored_string_tchar(char) throw()
     {
-        if (_string_is_wide && _string_length > 0)
+        if (!_string_is_wide || _string_length <= 0)
+        {
+            _output_adapter.write_string(_narrow_string, _string_length, &_characters_written, _ptd);
+        }
+        else
         {
             wchar_t* p{_wide_string};
             for (int i{0}; i != _string_length; ++i)
@@ -2688,33 +2725,34 @@ private:
                 char local_buffer[MB_LEN_MAX + 1];
 
                 int mbc_length{0};
-                errno_t const status{_wctomb_s_l(&mbc_length, local_buffer, _countof(local_buffer), *p++, _locale)};
+                errno_t const status{_wctomb_internal(&mbc_length, local_buffer, _countof(local_buffer), *p++, _ptd)};
                 if (status != 0 || mbc_length == 0)
                 {
                     _characters_written = -1;
                     return true;
                 }
 
-                _output_adapter.write_string(local_buffer, mbc_length, &_characters_written, _cached_errno);
+                _output_adapter.write_string(local_buffer, mbc_length, &_characters_written, _ptd);
             }
-        }
-        else
-        {
-            _output_adapter.write_string(_narrow_string, _string_length, &_characters_written, _cached_errno);
         }
 
         return true;
     }
 
-    bool write_stored_string_tchar(wchar_t) throw()
+    __forceinline bool write_stored_string_tchar(wchar_t) throw()
     {
-        if (!_string_is_wide && _string_length > 0)
+        if (_string_is_wide || _string_length <= 0)
         {
+            _output_adapter.write_string(_wide_string, _string_length, &_characters_written, _ptd);
+        }
+        else
+        {
+            _locale_t locale_ptr = _ptd.get_locale();
             char* p{_narrow_string};
             for (int i{0}; i != _string_length; ++i)
             {
                 wchar_t wide_character{};
-                int const mbc_length{_mbtowc_l(&wide_character, p, _locale->locinfo->_public._locale_mb_cur_max, _locale)};
+                int mbc_length{_mbtowc_internal(&wide_character, p, locale_ptr->locinfo->_public._locale_mb_cur_max, _ptd)};
 
                 if (mbc_length <= 0)
                 {
@@ -2722,13 +2760,9 @@ private:
                     return true;
                 }
 
-                _output_adapter.write_character(wide_character, &_characters_written);
+                _output_adapter.write_character(wide_character, &_characters_written, _ptd);
                 p += mbc_length;
             }
-        }
-        else
-        {
-            _output_adapter.write_string(_wide_string, _string_length, &_characters_written, _cached_errno);
         }
 
         return true;
@@ -2773,6 +2807,3 @@ private:
 
 
 } // namespace __crt_stdio_output
-
-// Reset to build-defined optimizations.
-#pragma optimize("", on)

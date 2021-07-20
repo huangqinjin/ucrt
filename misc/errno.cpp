@@ -5,7 +5,9 @@
 //
 // Defines _errno, _doserrno, and related functions
 //
+#define _ALLOW_OLD_VALIDATE_MACROS
 #include <corecrt_internal.h>
+#include <corecrt_internal_ptd_propagation.h>
 #include <errno.h>
 
 
@@ -92,6 +94,12 @@ extern "C" void __cdecl __acrt_errno_map_os_error(unsigned long const oserrno)
     errno     = __acrt_errno_from_os_error(oserrno);
 }
 
+extern "C" void __cdecl __acrt_errno_map_os_error_ptd(unsigned long const oserrno, __crt_cached_ptd_host& ptd)
+{
+    ptd.get_doserrno().set(oserrno);
+    ptd.get_errno().set(__acrt_errno_from_os_error(oserrno));
+}
+
 extern "C" int __cdecl __acrt_errno_from_os_error(unsigned long const oserrno)
 {
     // Check the table for the OS error code
@@ -173,7 +181,9 @@ extern "C" int* __cdecl _errno()
 {
     __acrt_ptd* const ptd{__acrt_getptd_noexit()};
     if (!ptd)
+    {
         return &errno_no_memory;
+    }
 
     return &ptd->_terrno;
 }
@@ -182,7 +192,9 @@ extern "C" unsigned long* __cdecl __doserrno()
 {
     __acrt_ptd* const ptd{__acrt_getptd_noexit()};
     if (!ptd)
+    {
         return &doserrno_no_memory;
+    }
 
     return &ptd->_tdoserrno;
 }

@@ -4,20 +4,22 @@
 //      Copyright (c) Microsoft Corporation. All rights reserved.
 //
 
-#include <errno.h>
-#include <uchar.h>
 #include <corecrt_internal_mbstring.h>
+#include <corecrt_internal_ptd_propagation.h>
+#include <errno.h>
 #include <stdint.h>
+#include <uchar.h>
 
 using namespace __crt_mbstring;
 
 extern "C" size_t __cdecl mbrtoc32(char32_t* pc32, const char* s, size_t n, mbstate_t* ps)
 {
     // TODO: Bug 13307590 says this is always assuming UTF-8.
-    return __mbrtoc32_utf8(pc32, s, n, ps);
+    __crt_cached_ptd_host ptd;
+    return __mbrtoc32_utf8(pc32, s, n, ps, ptd);
 }
 
-size_t __cdecl __crt_mbstring::__mbrtoc32_utf8(char32_t* pc32, const char* s, size_t n, mbstate_t* ps)
+size_t __cdecl __crt_mbstring::__mbrtoc32_utf8(char32_t* pc32, const char* s, size_t n, mbstate_t* ps, __crt_cached_ptd_host& ptd)
 {
     const char* begin = s;
     static mbstate_t internal_pst{};
@@ -71,7 +73,7 @@ size_t __cdecl __crt_mbstring::__mbrtoc32_utf8(char32_t* pc32, const char* s, si
         }
         else
         {
-            return return_illegal_sequence(ps);
+            return return_illegal_sequence(ps, ptd);
         }
         bytes_needed = length;
         // Mask out the length bits
@@ -88,7 +90,7 @@ size_t __cdecl __crt_mbstring::__mbrtoc32_utf8(char32_t* pc32, const char* s, si
         // and the first byte should have been processed already.
         if (length < 2 || length > 4 || bytes_needed < 1 || bytes_needed >= length)
         {
-            return return_illegal_sequence(ps);
+            return return_illegal_sequence(ps, ptd);
         }
     }
 
@@ -106,7 +108,7 @@ size_t __cdecl __crt_mbstring::__mbrtoc32_utf8(char32_t* pc32, const char* s, si
         if ((current_byte & 0xc0) != 0x80)
         {
             // Not a continuation character
-            return return_illegal_sequence(ps);
+            return return_illegal_sequence(ps, ptd);
         }
         c32 = (c32 << 6) | (current_byte & 0x3f);
     }
@@ -125,14 +127,14 @@ size_t __cdecl __crt_mbstring::__mbrtoc32_utf8(char32_t* pc32, const char* s, si
     if ((0xd800 <= c32 && c32 <= 0xdfff) || (0x10ffff < c32))
     {
         // Invalid code point (surrogate or out of range)
-        return return_illegal_sequence(ps);
+        return return_illegal_sequence(ps, ptd);
     }
 
     constexpr char32_t min_legal[3]{ 0x80, 0x800, 0x10000 };
     if (c32 < min_legal[length - 2])
     {
         // Overlong encoding
-        return return_illegal_sequence(ps);
+        return return_illegal_sequence(ps, ptd);
     }
 
     // Success! Store results

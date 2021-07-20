@@ -4,9 +4,10 @@
 //      Copyright (c) Microsoft Corporation. All rights reserved.
 //
 
+#include <corecrt_internal_mbstring.h>
+#include <corecrt_internal_ptd_propagation.h>
 #include <errno.h>
 #include <uchar.h>
-#include <corecrt_internal_mbstring.h>
 #include <wchar.h>
 
 using namespace __crt_mbstring;
@@ -42,10 +43,11 @@ namespace
 extern "C" size_t __cdecl mbrtoc16(char16_t* pc16, const char* s, size_t n, mbstate_t* ps)
 {
     // TODO: Bug 13307590 says this is always assuming UTF-8.
-    return __mbrtoc16_utf8(pc16, s, n, ps);
+     __crt_cached_ptd_host ptd;
+    return __mbrtoc16_utf8(pc16, s, n, ps, ptd);
 }
 
-size_t __cdecl __crt_mbstring::__mbrtoc16_utf8(char16_t* pc16, const char* s, size_t n, mbstate_t* ps)
+size_t __cdecl __crt_mbstring::__mbrtoc16_utf8(char16_t* pc16, const char* s, size_t n, mbstate_t* ps, __crt_cached_ptd_host& ptd)
 {
     static mbstate_t internal_pst{};
     if (ps == nullptr)
@@ -59,7 +61,7 @@ size_t __cdecl __crt_mbstring::__mbrtoc16_utf8(char16_t* pc16, const char* s, si
     }
 
     char32_t c32;
-    const size_t retval = __mbrtoc32_utf8(&c32, s, n, ps);
+    const size_t retval = __mbrtoc32_utf8(&c32, s, n, ps, ptd);
     if (!s || retval == INVALID || retval == INCOMPLETE)
     {
         return retval;
@@ -67,9 +69,9 @@ size_t __cdecl __crt_mbstring::__mbrtoc16_utf8(char16_t* pc16, const char* s, si
     else if (c32 > 0x10ffff)
     {
         // Input is out of range for UTF-16
-        return return_illegal_sequence(ps);
+        return return_illegal_sequence(ps, ptd);
     }
-    
+
     // Got a valid character
     if (c32 <= 0xffff)
     {

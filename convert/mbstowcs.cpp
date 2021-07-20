@@ -8,10 +8,11 @@
 *
 *******************************************************************************/
 #include <corecrt_internal_mbstring.h>
+#include <corecrt_internal_ptd_propagation.h>
 #include <corecrt_internal_securecrt.h>
 #include <ctype.h>
-#include <locale.h>
 #include <errno.h>
+#include <locale.h>
 #include <stdlib.h>
 
 using namespace __crt_mbstring;
@@ -43,17 +44,19 @@ using namespace __crt_mbstring;
 /* Helper shared by secure and non-secure functions */
 
 static size_t __cdecl _mbstowcs_l_helper(
-    _Out_writes_opt_z_(n)               wchar_t  *pwcs,
-    _In_reads_or_z_(n) _Pre_z_          const char *s,
-    _In_                                size_t n,
-    _In_opt_                            _locale_t plocinfo
+    _Out_writes_opt_z_(n)               wchar_t *              pwcs,
+    _In_reads_or_z_(n) _Pre_z_          const char *           s,
+    _In_                                size_t                 n,
+    _In_opt_                            __crt_cached_ptd_host& ptd
     ) throw()
 {
     size_t count = 0;
 
     if (pwcs && n == 0)
+    {
         /* dest string exists, but 0 bytes converted */
         return (size_t) 0;
+    }
 
     if (pwcs && n > 0)
     {
@@ -61,28 +64,29 @@ static size_t __cdecl _mbstowcs_l_helper(
     }
 
     /* validation section */
-    _VALIDATE_RETURN(s != nullptr, EINVAL, (size_t) - 1);
+    _UCRT_VALIDATE_RETURN(ptd, s != nullptr, EINVAL, (size_t) - 1);
 
+    _locale_t const locale = ptd.get_locale();
 
-    _LocaleUpdate _loc_update(plocinfo);
-
-    if (_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage == CP_UTF8)
+    if (locale->locinfo->_public._locale_lc_codepage == CP_UTF8)
     {
         mbstate_t state{};
-        return __mbsrtowcs_utf8(pwcs, &s, n, &state);
+        return __mbsrtowcs_utf8(pwcs, &s, n, &state, ptd);
     }
 
     /* if destination string exists, fill it in */
     if (pwcs)
     {
-        if (_loc_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE] == nullptr)
+        if (locale->locinfo->locale_name[LC_CTYPE] == nullptr)
         {
             /* C locale: easy and fast */
             while (count < n)
             {
                 *pwcs = (wchar_t) ((unsigned char) s[count]);
                 if (!s[count])
+                {
                     return count;
+                }
                 count++;
                 pwcs++;
             }
@@ -94,18 +98,20 @@ static size_t __cdecl _mbstowcs_l_helper(
             unsigned char *p;
 
             /* Assume that the buffer is large enough */
-            if ((count = __acrt_MultiByteToWideChar(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+            if ((count = __acrt_MultiByteToWideChar(locale->locinfo->_public._locale_lc_codepage,
                 MB_PRECOMPOSED |
                 MB_ERR_INVALID_CHARS,
                 s,
                 -1,
                 pwcs,
                 (int) n)) != 0)
+            {
                 return count - 1; /* don't count NUL */
+            }
 
             if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
             {
-                errno = EILSEQ;
+                ptd.get_errno().set(EILSEQ);
                 *pwcs = '\0';
                 return (size_t) - 1;
             }
@@ -116,9 +122,7 @@ static size_t __cdecl _mbstowcs_l_helper(
             charcnt = (int) n;
             for (p = (unsigned char *) s; (charcnt-- && *p); p++)
             {
-                if (
-                    _isleadbyte_l(*p, _loc_update.GetLocaleT())
-                    )
+                if (_isleadbyte_fast_internal(*p, locale))
                 {
                     if (p[1] == '\0')
                     {
@@ -127,7 +131,7 @@ static size_t __cdecl _mbstowcs_l_helper(
                         function is defined to deal with dud strings on
                         input and return a known value
                         */
-                        errno = EILSEQ;
+                        ptd.get_errno().set(EILSEQ);
                         *pwcs = '\0';
                         return (size_t) - 1;
                     }
@@ -139,14 +143,14 @@ static size_t __cdecl _mbstowcs_l_helper(
             }
             bytecnt = ((int) ((char *) p - (char *) s));
 
-            if ((count = __acrt_MultiByteToWideChar(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+            if ((count = __acrt_MultiByteToWideChar(locale->locinfo->_public._locale_lc_codepage,
                 MB_PRECOMPOSED,
                 s,
                 bytecnt,
                 pwcs,
                 (int) n)) == 0)
             {
-                errno = EILSEQ;
+                ptd.get_errno().set(EILSEQ);
                 *pwcs = '\0';
                 return (size_t) - 1;
             }
@@ -156,19 +160,22 @@ static size_t __cdecl _mbstowcs_l_helper(
     }
     else {
         /* pwcs == nullptr, get size only, s must be NUL-terminated */
-        if (_loc_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE] == nullptr) {
+        if (locale->locinfo->locale_name[LC_CTYPE] == nullptr)
+        {
             return strlen(s);
         }
-        else if ((count = __acrt_MultiByteToWideChar(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+        else if ((count = __acrt_MultiByteToWideChar(locale->locinfo->_public._locale_lc_codepage,
             MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
             s,
             -1,
             nullptr,
-            0)) == 0) {
-                errno = EILSEQ;
+            0)) == 0)
+        {
+                ptd.get_errno().set(EILSEQ);
                 return (size_t) - 1;
         }
-        else {
+        else
+        {
             return count - 1;
         }
     }
@@ -183,8 +190,8 @@ extern "C" size_t __cdecl _mbstowcs_l(
     )
 {
     /* Call a non-deprecated helper to do the work. */
-
-    return _mbstowcs_l_helper(pwcs, s, n, plocinfo);
+    __crt_cached_ptd_host ptd(plocinfo);
+    return _mbstowcs_l_helper(pwcs, s, n, ptd);
 }
 
 extern "C" size_t __cdecl mbstowcs(
@@ -193,16 +200,8 @@ extern "C" size_t __cdecl mbstowcs(
     size_t n
     )
 {
-    _BEGIN_SECURE_CRT_DEPRECATION_DISABLE
-        if (!__acrt_locale_changed())
-        {
-            return _mbstowcs_l(pwcs, s, n, &__acrt_initial_locale_pointers);
-        }
-        else
-        {
-            return _mbstowcs_l(pwcs, s, n, nullptr);
-        }
-        _END_SECURE_CRT_DEPRECATION_DISABLE
+    __crt_cached_ptd_host ptd;
+    return _mbstowcs_l_helper(pwcs, s, n, ptd);
 }
 
 /***
@@ -230,20 +229,20 @@ extern "C" size_t __cdecl mbstowcs(
 *
 *******************************************************************************/
 
-extern "C" errno_t __cdecl _mbstowcs_s_l(
-    size_t *pConvertedChars,
-    wchar_t  *pwcs,
-    size_t sizeInWords,
-    const char *s,
-    size_t n,
-    _locale_t plocinfo
+static errno_t __cdecl _mbstowcs_internal(
+    size_t *               pConvertedChars,
+    wchar_t *              pwcs,
+    size_t                 sizeInWords,
+    const char *           s,
+    size_t                 n,
+    __crt_cached_ptd_host& ptd
     )
 {
     size_t retsize;
     errno_t retvalue = 0;
 
     /* validation section */
-    _VALIDATE_RETURN_ERRCODE((pwcs == nullptr && sizeInWords == 0) || (pwcs != nullptr && sizeInWords > 0), EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, (pwcs == nullptr && sizeInWords == 0) || (pwcs != nullptr && sizeInWords > 0), EINVAL);
 
     if (pwcs != nullptr)
     {
@@ -255,15 +254,13 @@ extern "C" errno_t __cdecl _mbstowcs_s_l(
         *pConvertedChars = 0;
     }
 
-    _LocaleUpdate _loc_update(plocinfo);
-
     size_t bufferSize = n > sizeInWords ? sizeInWords : n;
     /* n must fit into an int for MultiByteToWideChar */
-    _VALIDATE_RETURN_ERRCODE(bufferSize <= INT_MAX, EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, bufferSize <= INT_MAX, EINVAL);
 
     /* Call a non-deprecated helper to do the work. */
 
-    retsize = _mbstowcs_l_helper(pwcs, s, bufferSize, _loc_update.GetLocaleT());
+    retsize = _mbstowcs_l_helper(pwcs, s, bufferSize, ptd);
 
     if (retsize == (size_t) - 1)
     {
@@ -271,7 +268,7 @@ extern "C" errno_t __cdecl _mbstowcs_s_l(
         {
             _RESET_STRING(pwcs, sizeInWords);
         }
-        return errno;
+        return ptd.get_errno().value_or(0);
     }
 
     /* count the null terminator */
@@ -285,7 +282,7 @@ extern "C" errno_t __cdecl _mbstowcs_s_l(
             if (n != _TRUNCATE)
             {
                 _RESET_STRING(pwcs, sizeInWords);
-                _VALIDATE_RETURN_ERRCODE(retsize <= sizeInWords, ERANGE);
+                _UCRT_VALIDATE_RETURN_ERRCODE(ptd, retsize <= sizeInWords, ERANGE);
             }
             retsize = sizeInWords;
             retvalue = STRUNCATE;
@@ -303,6 +300,19 @@ extern "C" errno_t __cdecl _mbstowcs_s_l(
     return retvalue;
 }
 
+extern "C" errno_t __cdecl _mbstowcs_s_l(
+    size_t *     pConvertedChars,
+    wchar_t *    pwcs,
+    size_t       sizeInWords,
+    const char * s,
+    size_t       n,
+    _locale_t    plocinfo
+    )
+{
+    __crt_cached_ptd_host ptd(plocinfo);
+    return _mbstowcs_internal(pConvertedChars, pwcs, sizeInWords, s, n, ptd);
+}
+
 extern "C" errno_t __cdecl mbstowcs_s(
     size_t *pConvertedChars,
     wchar_t  *pwcs,
@@ -311,5 +321,6 @@ extern "C" errno_t __cdecl mbstowcs_s(
     size_t n
     )
 {
-    return _mbstowcs_s_l(pConvertedChars, pwcs, sizeInWords, s, n, nullptr);
+    __crt_cached_ptd_host ptd;
+    return _mbstowcs_internal(pConvertedChars, pwcs, sizeInWords, s, n, ptd);
 }

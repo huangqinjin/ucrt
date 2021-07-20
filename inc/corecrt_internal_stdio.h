@@ -111,7 +111,52 @@ enum : long
 
 #ifndef _M_CEE
 
+//-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// Internal stdio functions with PTD propagation
+//
+//-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+_Check_return_opt_
+extern "C" int __cdecl _putch_nolock_internal(
+    _In_    int                    _Ch,
+    _Inout_ __crt_cached_ptd_host& _Ptd
+    );
 
+_Check_return_opt_
+extern "C" wint_t __cdecl _putwch_nolock_internal(
+    _In_    wchar_t                _Ch,
+    _Inout_ __crt_cached_ptd_host& _Ptd
+    );
+
+_Check_return_opt_
+extern "C" wint_t __cdecl _fputwc_nolock_internal(
+    _In_    wchar_t                _Character,
+    _Inout_ FILE*                  _Stream,
+    _Inout_ __crt_cached_ptd_host& _Ptd
+    );
+
+_Success_(return != EOF)
+_Check_return_opt_
+extern "C" int __cdecl _fputc_nolock_internal(
+    _In_    int                    _Character,
+    _Inout_ FILE*                  _Stream,
+    _Inout_ __crt_cached_ptd_host& _Ptd
+    );
+
+_Check_return_opt_
+extern "C" size_t __cdecl _fwrite_nolock_internal(
+    _In_reads_bytes_(_ElementSize * _ElementCount) void const*            _Buffer,
+    _In_                                           size_t                 _ElementSize,
+    _In_                                           size_t                 _ElementCount,
+    _Inout_                                        FILE*                  _Stream,
+    _Inout_                                        __crt_cached_ptd_host& _Ptd
+    );
+
+_Check_return_
+extern "C" __int64 __cdecl _ftelli64_nolock_internal(
+    _Inout_ FILE*                  _Stream,
+    _Inout_ __crt_cached_ptd_host& _Ptd
+    );
 
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
@@ -354,14 +399,16 @@ int __cdecl __acrt_stdio_refill_and_read_wide_nolock(
 
 _Check_return_opt_
 int __cdecl __acrt_stdio_flush_and_write_narrow_nolock(
-    _In_    int   c,
-    _Inout_ FILE* stream
+    _In_    int                    c,
+    _Inout_ FILE*                  stream,
+    _Inout_ __crt_cached_ptd_host& ptd
     );
 
 _Check_return_opt_
 int __cdecl __acrt_stdio_flush_and_write_wide_nolock(
-    _In_    int   c,
-    _Inout_ FILE* stream
+    _In_    int                    c,
+    _Inout_ FILE*                  stream,
+    _Inout_ __crt_cached_ptd_host& ptd
     );
 
 void __cdecl __acrt_stdio_allocate_buffer_nolock(
@@ -381,11 +428,15 @@ bool __cdecl __acrt_should_use_temporary_buffer(
 );
 
 void __cdecl __acrt_stdio_end_temporary_buffering_nolock(
-    _In_    bool  flag,
-    _Inout_ FILE* stream
+    _In_    bool                 flag,
+    _Inout_ FILE*                  stream,
+    _Inout_ __crt_cached_ptd_host& ptd
     );
 
-int  __cdecl __acrt_stdio_flush_nolock(_Inout_ FILE* stream);
+int  __cdecl __acrt_stdio_flush_nolock(
+    _Inout_ FILE*                  stream,
+    _Inout_ __crt_cached_ptd_host& ptd
+    );
 
 void __cdecl __acrt_stdio_free_tmpfile_name_buffers_nolock();
 
@@ -404,8 +455,8 @@ class __acrt_stdio_temporary_buffering_guard
 {
 public:
 
-    explicit __acrt_stdio_temporary_buffering_guard(FILE* const stream) throw()
-        : _stream(stream)
+    explicit __acrt_stdio_temporary_buffering_guard(FILE* const stream, __crt_cached_ptd_host& ptd) throw()
+        : _stream(stream), _ptd(ptd)
     {
         _flag = __acrt_stdio_begin_temporary_buffering_nolock(stream);
     }
@@ -415,13 +466,13 @@ public:
 
     ~__acrt_stdio_temporary_buffering_guard() throw()
     {
-        __acrt_stdio_end_temporary_buffering_nolock(_flag, _stream);
+        __acrt_stdio_end_temporary_buffering_nolock(_flag, _stream, _ptd);
     }
 
 private:
-
-    FILE* _stream;
-    bool  _flag;
+    FILE*                  _stream;
+    __crt_cached_ptd_host& _ptd;
+    bool                   _flag;
 };
 
 

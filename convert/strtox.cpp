@@ -41,11 +41,12 @@
 // See also atox.cpp, which defines the "simple" functions--the atox and wtox
 // families of functions.
 //
+#define _ALLOW_OLD_VALIDATE_MACROS
 #include <corecrt_internal.h>
 #include <corecrt_internal_strtox.h>
 #include <corecrt_wstdlib.h>
 #include <ctype.h>
-#include <errno.h> 
+#include <errno.h>
 #include <limits.h>
 #include <locale.h>
 #include <stdint.h>

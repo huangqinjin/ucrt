@@ -11,6 +11,7 @@
 //
 #include <corecrt_internal.h>
 #include <corecrt_internal_fltintrn.h>
+#include <corecrt_internal_ptd_propagation.h>
 #include <corecrt_internal_securecrt.h>
 #include <corecrt_stdio_config.h>
 #include <locale.h>
@@ -18,21 +19,21 @@
 
 
 
-extern "C" errno_t __cdecl _gcvt_s(
-    char*  const buffer,
-    size_t const buffer_count,
-    double const value,
-    int    const precision
+static errno_t __cdecl _gcvt_s_internal(
+    char*              const buffer,
+    size_t             const buffer_count,
+    double             const value,
+    int                const precision,
+    __crt_cached_ptd_host&   ptd
     )
 {
-    _VALIDATE_RETURN_ERRCODE(buffer != nullptr, EINVAL);
-    _VALIDATE_RETURN_ERRCODE(buffer_count > 0,  EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, buffer != nullptr, EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, buffer_count > 0,  EINVAL);
     _RESET_STRING(buffer, buffer_count);
-    _VALIDATE_RETURN_ERRCODE(static_cast<size_t>(precision) < buffer_count, ERANGE);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, static_cast<size_t>(precision) < buffer_count, ERANGE);
     // Additional validation will be performed in the fp_format functions.
 
-    _LocaleUpdate locale_update(nullptr);
-    char const decimal_point = *locale_update.GetLocaleT()->locinfo->lconv->decimal_point;
+    char const decimal_point = *ptd.get_locale()->locinfo->lconv->decimal_point;
 
     // We only call __acrt_fltout in order to parse the correct exponent value (strflt.decpt).
     // Therefore, we don't want to generate any digits, so we pass a buffer size only large
@@ -46,6 +47,7 @@ extern "C" errno_t __cdecl _gcvt_s(
     __acrt_fltout(
         reinterpret_cast<_CRT_DOUBLE const&>(value),
         precision,
+        __acrt_precision_style::fixed,
         &strflt,
         result_string,
         restricted_count);
@@ -67,12 +69,12 @@ extern "C" errno_t __cdecl _gcvt_s(
             'e',
             precision - 1,
             _CRT_INTERNAL_PRINTF_LEGACY_THREE_DIGIT_EXPONENTS,
-            nullptr,
-            __acrt_rounding_mode::legacy);
+            __acrt_rounding_mode::legacy,
+            ptd);
 
         if (e != 0)
         {
-            return errno = e;
+            return ptd.get_errno().set(e);
         }
     }
     else
@@ -88,12 +90,12 @@ extern "C" errno_t __cdecl _gcvt_s(
             'f',
             precision - strflt.decpt,
             _CRT_INTERNAL_PRINTF_LEGACY_THREE_DIGIT_EXPONENTS,
-            nullptr,
-            __acrt_rounding_mode::legacy);
+            __acrt_rounding_mode::legacy,
+            ptd);
 
         if (e != 0)
         {
-            return errno = e;
+            return ptd.get_errno().set(e);
         }
     }
 
@@ -101,25 +103,44 @@ extern "C" errno_t __cdecl _gcvt_s(
     // for buffer_count:
     char* p = buffer;
     while (*p && *p != decimal_point)
+    {
         ++p;
+    }
 
     if (*p == '\0')
+    {
         return 0;
+    }
 
     ++p;
 
     while (*p && *p != 'e')
+    {
         ++p;
+    }
 
     char* stop = p;
     --p;
 
     while (*p == '0')
+    {
         --p;
+    }
 
     while ((*++p = *stop++) != '\0') { }
 
     return 0;
+}
+
+extern "C" errno_t __cdecl _gcvt_s(
+    char*  const buffer,
+    size_t const buffer_count,
+    double const value,
+    int    const precision
+    )
+{
+    __crt_cached_ptd_host ptd;
+    return _gcvt_s_internal(buffer, buffer_count, value, precision, ptd);
 }
 
 extern "C" char* __cdecl _gcvt(
@@ -130,7 +151,9 @@ extern "C" char* __cdecl _gcvt(
 {
     errno_t const e = _gcvt_s(buffer, _CRT_UNBOUNDED_BUFFER_SIZE, value, precision);
     if (e != 0)
+    {
         return nullptr;
+    }
 
     return buffer;
 }

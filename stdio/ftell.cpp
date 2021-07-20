@@ -7,7 +7,7 @@
 // of the file pointer of a stream.
 //
 #include <corecrt_internal_stdio.h>
-
+#include <corecrt_internal_ptd_propagation.h>
 
 
 static bool __cdecl buffer_contains_wide_characters(__crt_lowio_text_mode const text_mode) throw()
@@ -71,7 +71,8 @@ static __int64 __cdecl count_newline_bytes(
 // lowio library converts the UTF-8 to UTF-16).
 static __int64 __cdecl common_ftell_translated_utf8_nolock(
     __crt_stdio_stream const stream,
-    __int64            const lowio_position
+    __int64            const lowio_position,
+    __crt_cached_ptd_host&   ptd
     ) throw()
 {
     int const fh = _fileno(stream.public_stream());
@@ -79,7 +80,9 @@ static __int64 __cdecl common_ftell_translated_utf8_nolock(
     // If the buffer has been exhausted, then the current lowio position is also
     // the current stdio position:
     if (stream->_cnt == 0)
+    {
         return lowio_position;
+    }
 
     __int64 const current_buffer_position = (stream->_ptr - stream->_base) / static_cast<__int64>(sizeof(wchar_t));
 
@@ -88,9 +91,11 @@ static __int64 __cdecl common_ftell_translated_utf8_nolock(
     // file.  To do this, we seek the lowio pointer back to the beginning of
     // the stdio buffer, re-read the buffer, then seek the lowio pointer back
     // to its original location:
-    __int64 const base_buffer_position = _lseeki64(fh, _startpos(fh), SEEK_SET);
+    __int64 const base_buffer_position = _lseeki64_internal(fh, _startpos(fh), SEEK_SET, ptd);
     if (base_buffer_position != _startpos(fh))
+    {
         return -1;
+    }
 
     DWORD bytes_read;
     char  raw_buffer[_INTERNAL_BUFSIZ];
@@ -99,12 +104,16 @@ static __int64 __cdecl common_ftell_translated_utf8_nolock(
 
     // Seek back to where we were, to ensure the stdio stream is left in a
     // consistent state (and "unmodified" from before the call):
-    if (_lseeki64(fh, lowio_position, SEEK_SET) < 0)
+    if (_lseeki64_internal(fh, lowio_position, SEEK_SET, ptd) < 0)
+    {
         return -1;
+    }
 
     // This should not normally happen:  we should always read enough bytes:
     if (current_buffer_position > static_cast<__int64>(bytes_read))
+    {
         return -1;
+    }
 
     // Scan the raw, untranslated buffer to find the current position, updating
     // the file pointer to account for newline translation in the buffer:
@@ -136,7 +145,8 @@ static __int64 __cdecl common_ftell_translated_utf8_nolock(
 static __int64 __cdecl common_ftell_read_mode_nolock(
     __crt_stdio_stream const stream,
     __int64            const lowio_position,
-    __int64            const buffer_offset
+    __int64            const buffer_offset,
+    __crt_cached_ptd_host&   ptd
     ) throw()
 {
     int const fh = _fileno(stream.public_stream());
@@ -152,7 +162,9 @@ static __int64 __cdecl common_ftell_read_mode_nolock(
     // If the buffer has been exhausted, then the current lowio position is also
     // the current stdio position:
     if (stream->_cnt == 0)
+    {
         return lowio_position;
+    }
 
     // The lowio position points one-past-the-end of the current stdio buffer.
     // We need to find the position of the beginning of the buffer.  To start,
@@ -182,7 +194,7 @@ static __int64 __cdecl common_ftell_read_mode_nolock(
 
     // Seek to the end of the file.  If the current position is the end of the
     // file, then scan the buffer for newlines and adjust bytes_read:
-    if (_lseeki64(fh, 0, SEEK_END) == lowio_position)
+    if (_lseeki64_internal(fh, 0, SEEK_END, ptd) == lowio_position)
     {
         bytes_read += count_newline_bytes(stream->_base, stream->_base + bytes_read, text_mode);
 
@@ -197,7 +209,7 @@ static __int64 __cdecl common_ftell_read_mode_nolock(
     // seek back to the original position and compute the size of the buffer:
     else
     {
-        if (_lseeki64(fh, lowio_position, SEEK_SET) == -1)
+        if (_lseeki64_internal(fh, lowio_position, SEEK_SET, ptd) == -1)
             return -1;
 
         // If the number of bytes read is smaller than the small buffer and was
@@ -232,28 +244,34 @@ static __int64 __cdecl common_ftell_read_mode_nolock(
 
 
 template <typename Integer>
-static Integer __cdecl common_ftell_nolock(__crt_stdio_stream) throw();
+static Integer __cdecl common_ftell_nolock(__crt_stdio_stream, __crt_cached_ptd_host& ptd) throw();
 
 template <>
-__int64 __cdecl common_ftell_nolock(__crt_stdio_stream const stream) throw()
+__int64 __cdecl common_ftell_nolock(__crt_stdio_stream const stream, __crt_cached_ptd_host& ptd) throw()
 {
-    _VALIDATE_RETURN(stream.public_stream(), EINVAL, -1);
+    _UCRT_VALIDATE_RETURN(ptd, stream.public_stream(), EINVAL, -1);
 
     int const fh = _fileno(stream.public_stream());
 
     if (stream->_cnt < 0)
+    {
         stream->_cnt = 0;
+    }
 
     // Get the current lowio file position.  If stdio is buffering the stream,
     // this position will point one past the end of the current stdio buffer.
-    __int64 const lowio_position = _lseeki64(fh, 0, SEEK_CUR);
+    __int64 const lowio_position = _lseeki64_internal(fh, 0, SEEK_CUR, ptd);
     if (lowio_position < 0)
+    {
         return -1;
+    }
 
     // If the stream is unbuffered or no buffering is designated, we can simply
     // compute the stdio position via the remaining stdio stream count:
     if (!stream.has_big_buffer())
+    {
         return lowio_position - stream->_cnt;
+    }
 
     // The above lseek validates the handle, so it's okay to get the text mode:
     __crt_lowio_text_mode const text_mode = _textmode(fh);
@@ -269,7 +287,7 @@ __int64 __cdecl common_ftell_nolock(__crt_stdio_stream const stream) throw()
     {
         if (text_mode == __crt_lowio_text_mode::utf8 && _utf8translations(fh))
         {
-            return common_ftell_translated_utf8_nolock(stream, lowio_position);
+            return common_ftell_translated_utf8_nolock(stream, lowio_position, ptd);
         }
 
         // For text mode files, adjust the buffer offset to account for newline
@@ -282,33 +300,37 @@ __int64 __cdecl common_ftell_nolock(__crt_stdio_stream const stream) throw()
     // Otherwise, if the file is not in read/write mode, ftell cannot proceed:
     else if (!stream.has_all_of(_IOUPDATE))
     {
-        errno = EINVAL;
+        ptd.get_errno().set(EINVAL);
         return -1;
     }
 
     // If the current lowio position is at the beginning of the file, the stdio
     // position is whatever the offset is:
     if (lowio_position == 0)
+    {
         return buffer_offset;
+    }
 
     if (stream.has_all_of(_IOREAD))
     {
-        return common_ftell_read_mode_nolock(stream, lowio_position, buffer_offset);
+        return common_ftell_read_mode_nolock(stream, lowio_position, buffer_offset, ptd);
     }
 
     if (text_mode == __crt_lowio_text_mode::utf8)
+    {
         buffer_offset /= sizeof(wchar_t);
+    }
 
     return lowio_position + buffer_offset;
 }
 
 template <>
-long __cdecl common_ftell_nolock(__crt_stdio_stream const stream) throw()
+long __cdecl common_ftell_nolock(__crt_stdio_stream const stream, __crt_cached_ptd_host& ptd) throw()
 {
-    __int64 const result = common_ftell_nolock<__int64>(stream);
+    __int64 const result = common_ftell_nolock<__int64>(stream, ptd);
     if (result > LONG_MAX)
     {
-        errno = EINVAL;
+        ptd.get_errno().set(EINVAL);
         return -1;
     }
 
@@ -325,16 +347,16 @@ long __cdecl common_ftell_nolock(__crt_stdio_stream const stream) throw()
 // Returns the present file position on success; returns -1 and sets errno on
 // failure.
 template <typename Integer>
-static Integer __cdecl common_ftell(__crt_stdio_stream const stream) throw()
+static Integer __cdecl common_ftell(__crt_stdio_stream const stream, __crt_cached_ptd_host& ptd) throw()
 {
-    _VALIDATE_RETURN(stream.valid(), EINVAL, -1);
+    _UCRT_VALIDATE_RETURN(ptd, stream.valid(), EINVAL, -1);
 
     Integer return_value = 0;
 
     _lock_file(stream.public_stream());
     __try
     {
-        return_value = common_ftell_nolock<Integer>(stream);
+        return_value = common_ftell_nolock<Integer>(stream, ptd);
     }
     __finally
     {
@@ -349,20 +371,29 @@ static Integer __cdecl common_ftell(__crt_stdio_stream const stream) throw()
 
 extern "C" long __cdecl ftell(FILE* const public_stream)
 {
-    return common_ftell<long>(__crt_stdio_stream(public_stream));
+    __crt_cached_ptd_host ptd;
+    return common_ftell<long>(__crt_stdio_stream(public_stream), ptd);
 }
 
 extern "C" long __cdecl _ftell_nolock(FILE* const public_stream)
 {
-    return common_ftell_nolock<long>(__crt_stdio_stream(public_stream));
+    __crt_cached_ptd_host ptd;
+    return common_ftell_nolock<long>(__crt_stdio_stream(public_stream), ptd);
 }
 
 extern "C" __int64 __cdecl _ftelli64(FILE* const public_stream)
 {
-    return common_ftell<__int64>(__crt_stdio_stream(public_stream));
+    __crt_cached_ptd_host ptd;
+    return common_ftell<__int64>(__crt_stdio_stream(public_stream), ptd);
 }
 
 extern "C" __int64 __cdecl _ftelli64_nolock(FILE* const public_stream)
 {
-    return common_ftell_nolock<__int64>(__crt_stdio_stream(public_stream));
+    __crt_cached_ptd_host ptd;
+    return common_ftell_nolock<__int64>(__crt_stdio_stream(public_stream), ptd);
+}
+
+extern "C" __int64 __cdecl _ftelli64_nolock_internal(FILE* const public_stream, __crt_cached_ptd_host& ptd)
+{
+    return common_ftell_nolock<__int64>(__crt_stdio_stream(public_stream), ptd);
 }

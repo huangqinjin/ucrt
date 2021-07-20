@@ -22,12 +22,16 @@
         ;                            ; fallthrough into strnlen code
         ; ALTERNATE_ENTRY strnlen    ; change LEAF_ENTRY for strnlen to ALTERNATE_ENTRY
         ; ...                        ; current body of strnlen
-        ; LEAF_END   strnlen_s       ; change strnlen leaf_end to strnlen_s.
+        ; LEAF_END                   ; change strnlen leaf_end to strnlen_s.
 
-        EXPORT strlen    [FUNC]
-        EXPORT strnlen   [FUNC]
+#if !defined(_M_ARM64EC)
 
-        AREA    |.text|,ALIGN=5,CODE,READONLY,CODEALIGN
+        EXPORT A64NAME(strlen)    [FUNC]
+        EXPORT A64NAME(strnlen)   [FUNC]
+
+#endif
+
+        SET_COMDAT_ALIGNMENT 5
 
         ; With strlen we will usually read some bytes past the end of the string. To avoid getting an AV
         ; when a byte-by-byte implementation would not, we must ensure that we never cross a page boundary with a
@@ -51,8 +55,6 @@
 
 __strnlen_forceAlignThreshold  EQU 448                     ; code below assumes must be >= 32
 
-        ALIGN 32
-
         ; If a strlen is performed on an unterminated buffer, strlen may try to access an invalid address
         ; and generate an access violation. The prime imperative is for us not to generate an AV by loading
         ; characters beyond the end of a valid string. But also, in the case of an invalid string that should
@@ -69,7 +71,8 @@ __strnlen_forceAlignThreshold  EQU 448                     ; code below assumes 
         ; For strings less than 16 characters long the byte-by-byte loop will be about as fast as the
         ; compiler could produce, so we're not losing any performance vs. compiled C in any case.
 
-        LEAF_ENTRY strlen
+        ARM64EC_ENTRY_THUNK A64NAME(strlen),1,0
+        LEAF_ENTRY_COMDAT A64NAME(strlen)
 
         ; check for empty string to avoid huge perf degradation in this case.
         ldrb    w2, [x0], #0
@@ -102,9 +105,6 @@ StrlenMainLoop                                              ; test 16 bytes at a
         fmov    w2, s1                                      ; need to move min byte into gpr to test it
         cbnz    w2, StrlenMainLoop                          ; fall through when any one of the bytes in v0 is zero
 
-        ; Note that the code below is common with strnlen and strnlen_s; they can jump into this function at any of the next 3 labels
-
-UndoPI_FindNullInVector                                     ; this label is the target of a jump from strnlen
         sub     x5, x5, #16                                 ; undo the last #16 post-increment of x5
 
 FindNullInVector                                            ; this label is also the target of a jump from strnlen
@@ -122,7 +122,6 @@ FindNullInVector                                            ; this label is also
 
 ByteByByteFoundIt                                           ; this label is also the target of a jump from strnlen
         sub     x5, x5, #1                                  ; Undo the final post-increment that happened on the load of the null char.
-ByteByByteReachedMax
         sub     x0, x5, x0                                  ; With x5 pointing at the null char, x5-x0 is the strlen
         ret
 
@@ -136,6 +135,10 @@ ByteByByteLoop                                              ; test one byte at a
         bgt     ByteByByteLoop                              ; fall through when not found and 16-byte aligned
         b       StrlenMainLoop
 
+EmptyStr
+        mov     x0, 0
+        ret
+
         ; The challenge is to find a way to efficiently determine which of the 16 bytes we loaded is the end of the string.
         ; The trick is to load a position indicator mask and generate the position of the rightmost null from that.
         ; Little-endian order means when we load the mask below v1.16b[0] has 0x0F, and v0.16b[0] is the byte of the string
@@ -147,11 +150,14 @@ ByteByByteLoop                                              ; test one byte at a
         ; Exclusive oring the position indicator byte with 15 inverts the order, which gives us the offset of the null
         ; counting from the first character we loaded into the v0 SIMD reg.
 
-ReverseBytePos
+ReverseBytePos \
         dcb     15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
-        LEAF_END strlen
 
-        LEAF_ENTRY strnlen                                  ; start here for strnlen
+        LEAF_END
+
+
+        ARM64EC_ENTRY_THUNK A64NAME(strnlen),1,0
+        LEAF_ENTRY_COMDAT A64NAME(strnlen)                  ; start here for strnlen
 
         mov     x5, x0
         cmp     x1, #16                                     ; x1 has length. When < 16 we have to go byte-by-byte
@@ -171,7 +177,7 @@ ReverseBytePos
         ld1     v0.16b, [x5]                                ; don't post-increment
         uminv   b1, v0.16b
         fmov    w2, s1                                      ; fmov is sometimes 1 cycle faster than 'umov w2, v1.b[0]'
-        cbz     w2, FindNullInVector                        ; jump out when null found in first 16 bytes
+        cbz     w2, FindNullInVector_Strnlen                ; jump out when null found in first 16 bytes
         sub     x1, x1, x3                                  ; reduce length remaining by number of bytes needed to get aligned
         add     x5, x5, x3                                  ; move x5 forward only to aligned address
 ResumeAfterAlignByteByByte
@@ -216,7 +222,7 @@ ShortStrNLen
 
 ShortStrNLenLoop
         ldrb    w2, [x5], #1
-        cbz     w2, ByteByByteFoundIt                       ; jump into other function to avoid code duplication
+        cbz     w2, ByteByByteFoundIt_Strnlen               ; jump into other function to avoid code duplication
         subs    x1, x1, #1
         bhi     ShortStrNLenLoop
 
@@ -229,16 +235,38 @@ AlignByteByByte_Strnlen
         neg     x3, x3                                      ; x3 = 16 - (addr mod 16) = count for byte-by-byte loop
 ByteByByteLoop_Strnlen                                      ; test one byte at a time until we are 16-byte aligned
         ldrb    w2, [x5], #1
-        cbz     w2, ByteByByteFoundIt                       ; branch if byte-at-a-time testing finds the null
+        cbz     w2, ByteByByteFoundIt_Strnlen               ; branch if byte-at-a-time testing finds the null
         subs    x1, x1, #1                                  ; check remaining length = 0
-        beq     ByteByByteReachedMax                        ; branch if byte-at-a-time testing reached end of buffer count
+        beq     ByteByByteReachedMax_Strnlen                ; branch if byte-at-a-time testing reached end of buffer count
         subs    x3, x3, #1
         bgt     ByteByByteLoop_Strnlen                      ; fall through when not found and 16-byte aligned
         b       ResumeAfterAlignByteByByte
 
-EmptyStr
-        mov     x0, 0
+UndoPI_FindNullInVector                                     ; this label is the target of a jump from strnlen
+        sub     x5, x5, #16                                 ; undo the last #16 post-increment of x5
+
+FindNullInVector_Strnlen                                    ; this label is also the target of a jump from strnlen
+        ldr     q1, ReverseBytePos_Strnlen                  ; load the position indicator mask
+
+        cmeq    v0.16b, v0.16b, #0                          ; +----
+        and     v0.16b, v0.16b, v1.16b                      ; |
+        umaxv   b0, v0.16b                                  ; | see big comment below
+        fmov    w2, s0                                      ; |
+        eor     w2, w2, #15                                 ; +----
+
+        add     x5, x5, x2                                  ; which is the offset we need to add to x5 to point at the null byte
+        sub     x0, x5, x0                                  ; subtract ptr to null char from ptr to first char to get the strlen
         ret
 
-        LEAF_END strnlen
+ByteByByteFoundIt_Strnlen                                   ; this label is also the target of a jump from strnlen
+        sub     x5, x5, #1                                  ; Undo the final post-increment that happened on the load of the null char.
+ByteByByteReachedMax_Strnlen
+        sub     x0, x5, x0                                  ; With x5 pointing at the null char, x5-x0 is the strlen
+        ret
+
+ReverseBytePos_Strnlen \
+        dcb     15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+
+        LEAF_END
+
         END

@@ -438,7 +438,7 @@ extern "C" void __cdecl _wassert(
     wchar_t const* const expression,
     wchar_t const* const file_name,
     unsigned       const line_number
-    ) throw()
+    ) 
 {
     return common_assert(expression, file_name, line_number, _ReturnAddress());
 }

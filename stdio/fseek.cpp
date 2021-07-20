@@ -7,6 +7,7 @@
 // a new place in a stream.
 //
 #include <corecrt_internal_stdio.h>
+#include <corecrt_internal_ptd_propagation.h>
 
 #define ENABLE_INTSAFE_SIGNED_FUNCTIONS
 #include <intsafe.h>
@@ -90,7 +91,7 @@ static bool __cdecl common_fseek_binary_mode_read_only_fast_track_nolock(
     // range.  Note that the minimum reverse seek is a negative value.
     __int64 const minimum_reverse_seek = -(stream->_ptr - stream->_base);
     __int64 const maximum_forward_seek = stream->_cnt;
-    
+
     bool const seek_is_within_buffer = minimum_reverse_seek <= offset && offset <= maximum_forward_seek;
     if (!seek_is_within_buffer)
     {
@@ -110,12 +111,13 @@ static bool __cdecl common_fseek_binary_mode_read_only_fast_track_nolock(
 static int __cdecl common_fseek_nolock(
     __crt_stdio_stream const stream,
     __int64                  offset,
-    int                      whence
+    int                      whence,
+    __crt_cached_ptd_host&   ptd
     ) throw()
 {
     if (!stream.is_in_use())
     {
-        errno = EINVAL;
+        ptd.get_errno().set(EINVAL);
         return -1;
     }
 
@@ -131,16 +133,16 @@ static int __cdecl common_fseek_nolock(
     // etc., by letting fseek() tell us where we are:
     if (whence == SEEK_CUR)
     {
-        offset += _ftelli64_nolock(stream.public_stream());
+        offset += _ftelli64_nolock_internal(stream.public_stream(), ptd);
         whence = SEEK_SET;
     }
 
-    __acrt_stdio_flush_nolock(stream.public_stream());
+    __acrt_stdio_flush_nolock(stream.public_stream(), ptd);
     // If the stream is opened in update mode and is currently in use for reading,
     // the buffer must be abandoned to ensure consistency when transitioning from
-    // reading to writing. 
+    // reading to writing.
     // __acrt_stdio_flush_nolock will not reset the buffer when _IOWRITE flag
-    // is not set. 
+    // is not set.
     __acrt_stdio_reset_buffer(stream);
 
     // If the file was opened for read/write, clear flags since we don't know
@@ -157,7 +159,7 @@ static int __cdecl common_fseek_nolock(
         stream->_bufsiz = _SMALL_BUFSIZ;
     }
 
-    if (_lseeki64_nolock(stream.lowio_handle(), offset, whence) == -1)
+    if (_lseeki64_nolock_internal(stream.lowio_handle(), offset, whence, ptd) == -1)
     {
         return -1;
     }
@@ -174,18 +176,19 @@ static int __cdecl common_fseek_nolock(
 static int __cdecl common_fseek(
     __crt_stdio_stream const stream,
     __int64            const offset,
-    int                const whence
+    int                const whence,
+    __crt_cached_ptd_host&   ptd
     ) throw()
 {
-    _VALIDATE_RETURN(stream.valid(), EINVAL, -1);
-    _VALIDATE_RETURN(whence == SEEK_SET || whence == SEEK_CUR || whence == SEEK_END, EINVAL, -1);
+    _UCRT_VALIDATE_RETURN(ptd, stream.valid(), EINVAL, -1);
+    _UCRT_VALIDATE_RETURN(ptd, whence == SEEK_SET || whence == SEEK_CUR || whence == SEEK_END, EINVAL, -1);
 
     int return_value = -1;
 
     _lock_file(stream.public_stream());
     __try
     {
-        return_value = common_fseek_nolock(stream, offset, whence);
+        return_value = common_fseek_nolock(stream, offset, whence, ptd);
     }
     __finally
     {
@@ -203,7 +206,8 @@ extern "C" int __cdecl fseek(
     int   const whence
     )
 {
-    return common_fseek(__crt_stdio_stream(public_stream), offset, whence);
+    __crt_cached_ptd_host ptd;
+    return common_fseek(__crt_stdio_stream(public_stream), offset, whence, ptd);
 }
 
 
@@ -214,7 +218,8 @@ extern "C" int __cdecl _fseek_nolock(
     int   const whence
     )
 {
-    return common_fseek_nolock(__crt_stdio_stream(public_stream), offset, whence);
+    __crt_cached_ptd_host ptd;
+    return common_fseek_nolock(__crt_stdio_stream(public_stream), offset, whence, ptd);
 }
 
 
@@ -225,7 +230,8 @@ extern "C" int __cdecl _fseeki64(
     int     const whence
     )
 {
-    return common_fseek(__crt_stdio_stream(public_stream), offset, whence);
+    __crt_cached_ptd_host ptd;
+    return common_fseek(__crt_stdio_stream(public_stream), offset, whence, ptd);
 }
 
 
@@ -236,5 +242,6 @@ extern "C" int __cdecl _fseeki64_nolock(
     int     const whence
     )
 {
-    return common_fseek_nolock(__crt_stdio_stream(public_stream), offset, whence);
+    __crt_cached_ptd_host ptd;
+    return common_fseek_nolock(__crt_stdio_stream(public_stream), offset, whence, ptd);
 }

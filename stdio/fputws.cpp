@@ -6,6 +6,7 @@
 // Defines fputws(), which writes a wide character string to a stream.
 //
 #include <corecrt_internal_stdio.h>
+#include <corecrt_internal_ptd_propagation.h>
 
 
 
@@ -14,18 +15,18 @@
 // a nonnegative value on success; EOF on failure.  (Note well that we return EOF
 // and not WEOF on failure.  This is intentional, and is the correct behavior per
 // the C Language Standard).
-extern "C" int __cdecl fputws(wchar_t const* const string, FILE* const stream)
+static int __cdecl _fputws_internal(wchar_t const* const string, FILE* const stream, __crt_cached_ptd_host& ptd)
 {
-    _VALIDATE_RETURN(string != nullptr, EINVAL, EOF);
-    _VALIDATE_RETURN(stream != nullptr, EINVAL, EOF);
+    _UCRT_VALIDATE_RETURN(ptd, string != nullptr, EINVAL, EOF);
+    _UCRT_VALIDATE_RETURN(ptd, stream != nullptr, EINVAL, EOF);
 
     return __acrt_lock_stream_and_call(stream, [&]() -> int
     {
-        __acrt_stdio_temporary_buffering_guard const buffering(stream);
+        __acrt_stdio_temporary_buffering_guard const buffering(stream, ptd);
 
         for (wchar_t const* it = string; *it != L'\0'; ++it)
         {
-            if (_fputwc_nolock(*it, stream) == WEOF)
+            if (_fputwc_nolock_internal(*it, stream, ptd) == WEOF)
             {
                 return EOF;
             }
@@ -33,4 +34,10 @@ extern "C" int __cdecl fputws(wchar_t const* const string, FILE* const stream)
 
         return 0;
     });
+}
+
+extern "C" int __cdecl fputws(wchar_t const* const string, FILE* const stream)
+{
+    __crt_cached_ptd_host ptd;
+    return _fputws_internal(string, stream, ptd);
 }

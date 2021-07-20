@@ -6,17 +6,20 @@
 // Functions that flush a stdio stream buffer and write a character.
 //
 #include <corecrt_internal_stdio.h>
+#include <corecrt_internal_ptd_propagation.h>
 
 static bool __cdecl stream_is_at_end_of_file_nolock(
     __crt_stdio_stream const stream
     ) throw()
 {
-    if (stream.has_any_of(_IOEOF)) {
+    if (stream.has_any_of(_IOEOF))
+    {
         return true;
     }
 
     // If there is any data in the buffer, then we are not at the end of the file.
-    if (stream.has_big_buffer() && (stream->_ptr == stream->_base)) {
+    if (stream.has_big_buffer() && (stream->_ptr == stream->_base))
+    {
         return false;
     }
 
@@ -24,7 +27,8 @@ static bool __cdecl stream_is_at_end_of_file_nolock(
 
     // If we fail at querying for the file size, proceed as though we cannot
     // gather that information. For example, this will fail with pipes.
-    if (os_handle == INVALID_HANDLE_VALUE) {
+    if (os_handle == INVALID_HANDLE_VALUE)
+    {
         return false;
     }
 
@@ -36,12 +40,14 @@ static bool __cdecl stream_is_at_end_of_file_nolock(
     // In that case, the write function looking to switch from read to write mode
     // will fail in the usual manner when the write was not possible.
     LARGE_INTEGER current_position;
-    if (!SetFilePointerEx(os_handle, {}, &current_position, FILE_CURRENT)) {
+    if (!SetFilePointerEx(os_handle, {}, &current_position, FILE_CURRENT))
+    {
         return false;
     }
 
     LARGE_INTEGER eof_position;
-    if (!GetFileSizeEx(os_handle, &eof_position)) {
+    if (!GetFileSizeEx(os_handle, &eof_position))
+    {
         return false;
     }
 
@@ -51,7 +57,8 @@ static bool __cdecl stream_is_at_end_of_file_nolock(
 template <typename Character>
 static bool __cdecl write_buffer_nolock(
     Character          const c,
-    __crt_stdio_stream const stream
+    __crt_stdio_stream const stream,
+    __crt_cached_ptd_host&   ptd
     ) throw()
 {
     typedef __acrt_stdio_char_traits<Character> stdio_traits;
@@ -71,7 +78,7 @@ static bool __cdecl write_buffer_nolock(
         int chars_written = 0;
         if (chars_to_write > 0)
         {
-            chars_written = _write(fh, stream->_base, chars_to_write);
+            chars_written = _write_internal(fh, stream->_base, chars_to_write, ptd);
         }
         else
         {
@@ -92,7 +99,7 @@ static bool __cdecl write_buffer_nolock(
     // _IONBF is set or there is no buffering):
     else
     {
-        return _write(fh, reinterpret_cast<char const*>(&c), sizeof(c)) == sizeof(Character);
+        return _write_internal(fh, reinterpret_cast<char const*>(&c), sizeof(c), ptd) == sizeof(Character);
     }
 }
 
@@ -105,7 +112,8 @@ static bool __cdecl write_buffer_nolock(
 template <typename Character>
 static int __cdecl common_flush_and_write_nolock(
     int                const c,
-    __crt_stdio_stream const stream
+    __crt_stdio_stream const stream,
+    __crt_cached_ptd_host&   ptd
     ) throw()
 {
     typedef __acrt_stdio_char_traits<Character> stdio_traits;
@@ -118,13 +126,13 @@ static int __cdecl common_flush_and_write_nolock(
 
     if (!stream.has_any_of(_IOWRITE | _IOUPDATE))
     {
-        errno = EBADF;
+        ptd.get_errno().set(EBADF);
         stream.set_flags(_IOERROR);
         return stdio_traits::eof;
     }
     else if (stream.is_string_backed())
     {
-        errno = ERANGE;
+        ptd.get_errno().set(ERANGE);
         stream.set_flags(_IOERROR);
         return stdio_traits::eof;
     }
@@ -167,11 +175,13 @@ static int __cdecl common_flush_and_write_nolock(
         // the _IONBF flag being set. (See _stbuf() and _ftbuf() for more
         //information on stdout and stderr buffering.)
         if (!__acrt_should_use_temporary_buffer(stream.public_stream()))
+        {
             __acrt_stdio_allocate_buffer_nolock(stream.public_stream());
+        }
     }
 
     // Write the character; return (W)EOF if it fails:
-    if (!write_buffer_nolock(static_cast<Character>(c & character_mask), stream))
+    if (!write_buffer_nolock(static_cast<Character>(c & character_mask), stream, ptd))
     {
         stream.set_flags(_IOERROR);
         return stdio_traits::eof;
@@ -183,19 +193,21 @@ static int __cdecl common_flush_and_write_nolock(
 
 
 extern "C" int __cdecl __acrt_stdio_flush_and_write_narrow_nolock(
-    int   const c,
-    FILE* const stream
+    int                const c,
+    FILE*              const stream,
+    __crt_cached_ptd_host&   ptd
     )
 {
-    return common_flush_and_write_nolock<char>(c, __crt_stdio_stream(stream));
+    return common_flush_and_write_nolock<char>(c, __crt_stdio_stream(stream), ptd);
 }
 
 
 
 extern "C" int __cdecl __acrt_stdio_flush_and_write_wide_nolock(
-    int   const c,
-    FILE* const stream
+    int                const c,
+    FILE*              const stream,
+    __crt_cached_ptd_host&   ptd
     )
 {
-    return common_flush_and_write_nolock<wchar_t>(c, __crt_stdio_stream(stream));
+    return common_flush_and_write_nolock<wchar_t>(c, __crt_stdio_stream(stream), ptd);
 }

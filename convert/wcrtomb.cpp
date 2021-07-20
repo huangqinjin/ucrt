@@ -1,5 +1,5 @@
 /***
-*wcrtomb.c - Convert wide character to multibyte character, with locale.
+*wcrtomb.cpp - Convert wide character to multibyte character, with locale.
 *
 *       Copyright (c) Microsoft Corporation. All rights reserved.
 *
@@ -8,18 +8,19 @@
 *
 *******************************************************************************/
 #include <corecrt_internal_mbstring.h>
+#include <corecrt_internal_ptd_propagation.h>
 #include <corecrt_internal_securecrt.h>
-#include <wchar.h>
+#include <limits.h>
+#include <locale.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
-#include <stdio.h>
-#include <locale.h>
+#include <wchar.h>
 
 using namespace __crt_mbstring;
 
 /***
-*errno_t _wcrtomb_s_l() - Helper function to convert wide character to multibyte character.
+*errno_t _wcrtomb_internal() - Helper function to convert wide character to multibyte character.
 *
 *Purpose:
 *       Convert a wide character into the equivalent multi-byte character,
@@ -45,34 +46,36 @@ using namespace __crt_mbstring;
 *******************************************************************************/
 
 _Success_(return == 0)
-static errno_t __cdecl _wcrtomb_s_l(
-                                            int*        const   return_value,
-    __out_bcount_z_opt(destination_count)   char*       const   destination,
-                                            size_t      const   destination_count,
-                                            wchar_t     const   wchar,
-                                            mbstate_t*  const   state,
-                                            _locale_t   const   locale
+static errno_t __cdecl _wcrtomb_internal(
+                                            int*               const return_value,
+    __out_bcount_z_opt(destination_count)   char*              const destination,
+                                            size_t             const destination_count,
+                                            wchar_t            const wchar,
+                                            mbstate_t*         const state,
+    _Inout_                                 __crt_cached_ptd_host&   ptd
     )
 {
     _ASSERTE(destination != nullptr && destination_count > 0);
 
-    _LocaleUpdate locale_update(locale);
+    _locale_t const locale = ptd.get_locale();
 
     _ASSERTE(
-        locale_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max == 1 ||
-        locale_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max == 2 ||
-        locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage == CP_UTF8);
+        locale->locinfo->_public._locale_mb_cur_max == 1 ||
+        locale->locinfo->_public._locale_mb_cur_max == 2 ||
+        locale->locinfo->_public._locale_lc_codepage == CP_UTF8);
 
     if (state)
+    {
         state->_Wchar = 0;
+    }
 
-    if (locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage == CP_UTF8)
+    if (locale->locinfo->_public._locale_lc_codepage == CP_UTF8)
     {
         // Unlike c16rtomb. wctomb/wcrtomb have no ability to process a partial code point.
         // So, we could call c16rtomb and check for a lone surrogate or other error, or for simplicity
         // We can instead just call c32rtomb and check for any error. I choose the latter.
         static mbstate_t local_state{};
-        int result = static_cast<int>(__crt_mbstring::__c32rtomb_utf8(destination, static_cast<char32_t>(wchar), (state != nullptr ? state : &local_state)));
+        int result = static_cast<int>(__crt_mbstring::__c32rtomb_utf8(destination, static_cast<char32_t>(wchar), (state != nullptr ? state : &local_state), ptd));
         if (return_value != nullptr)
         {
             *return_value = result;
@@ -83,30 +86,32 @@ static errno_t __cdecl _wcrtomb_s_l(
         }
         else
         {
-            return errno;
+            return ptd.get_errno().value_or(0);
         }
     }
 
-    if (!locale_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE])
+    if (!locale->locinfo->locale_name[LC_CTYPE])
     {
         if (wchar > 255) // Validate high byte
         {
             if (return_value)
                 *return_value = -1;
 
-            return errno = EILSEQ;
+            return ptd.get_errno().set(EILSEQ);
         }
 
         *destination = static_cast<char>(wchar);
         if (return_value)
+        {
             *return_value = 1;
+        }
 
         return 0;
     }
 
     BOOL default_used{};
     int const size = __acrt_WideCharToMultiByte(
-        locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+        locale->locinfo->_public._locale_lc_codepage,
         0,
         &wchar,
         1,
@@ -118,13 +123,17 @@ static errno_t __cdecl _wcrtomb_s_l(
     if (size == 0 || default_used)
     {
         if (return_value)
+        {
             *return_value = -1;
+        }
 
-        return errno = EILSEQ;
+        return ptd.get_errno().set(EILSEQ);
     }
 
     if (return_value)
+    {
         *return_value = size;
+    }
 
     return 0;
 }
@@ -142,6 +151,40 @@ static errno_t __cdecl _wcrtomb_s_l(
 *
 *******************************************************************************/
 
+static errno_t __cdecl wcrtomb_s_internal(
+    size_t*            const return_value,
+    char*              const destination,
+    size_t             const destination_count,
+    wchar_t            const wchar,
+    mbstate_t*         const state,
+    __crt_cached_ptd_host&   ptd
+    )
+{
+    // Note that we do not force destination_count > 0 in the destination !=
+    // nullptr case because we do not need to add a null terminator, due to
+    // the fact that the destination will receive a character and not a string.
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, (destination == nullptr && destination_count == 0) || (destination != nullptr), EINVAL);
+
+    errno_t e = 0;
+    int     int_return_value = -1;
+    if (destination == nullptr)
+    {
+        char buf[MB_LEN_MAX];
+        e = _wcrtomb_internal(&int_return_value, buf, MB_LEN_MAX, wchar, state, ptd);
+    }
+    else
+    {
+        e = _wcrtomb_internal(&int_return_value, destination, destination_count, wchar, state, ptd);
+    }
+
+    if (return_value != nullptr)
+    {
+        *return_value = static_cast<size_t>(int_return_value);
+    }
+
+    return e;
+}
+
 extern "C" errno_t __cdecl wcrtomb_s(
     size_t*    const return_value,
     char*      const destination,
@@ -150,27 +193,8 @@ extern "C" errno_t __cdecl wcrtomb_s(
     mbstate_t* const state
     )
 {
-    // Note that we do not force destination_count > 0 in the destination !=
-    // nullptr case because we do not need to add a null terminator, due to
-    // the fact that the destination will receive a character and not a string.
-    _VALIDATE_RETURN_ERRCODE((destination == nullptr && destination_count == 0) || (destination != nullptr), EINVAL);
-
-    errno_t e = 0;
-    int     int_return_value = -1;
-    if (destination == nullptr)
-    {
-        char buf[MB_LEN_MAX];
-        e = _wcrtomb_s_l(&int_return_value, buf, MB_LEN_MAX, wchar, state, nullptr);
-    }
-    else
-    {
-        e = _wcrtomb_s_l(&int_return_value, destination, destination_count, wchar, state, nullptr);
-    }
-
-    if (return_value != nullptr)
-        *return_value = static_cast<size_t>(int_return_value);
-
-    return e;
+    __crt_cached_ptd_host ptd;
+    return wcrtomb_s_internal(return_value, destination, destination_count, wchar, state, ptd);
 }
 
 extern "C" size_t __cdecl wcrtomb(
@@ -200,21 +224,22 @@ extern "C" size_t __cdecl wcrtomb(
 
 /* Helper shared by secure and non-secure functions. */
 
-extern "C" static size_t __cdecl internal_wcsrtombs(
+static size_t __cdecl _wcsrtombs_internal(
     _Pre_maybenull_ _Post_z_    char*                   destination,
     _Inout_ _Deref_prepost_z_   wchar_t const** const   source,
     _In_                        size_t                  n,
-    _Out_opt_                   mbstate_t*      const   state
+    _Out_opt_                   mbstate_t*      const   state,
+    _Inout_                     __crt_cached_ptd_host&  ptd
     ) throw()
 {
     /* validation section */
-    _VALIDATE_RETURN(source != nullptr, EINVAL, (size_t)-1);
+    _UCRT_VALIDATE_RETURN(ptd, source != nullptr, EINVAL, (size_t)-1);
 
-    _LocaleUpdate locale_update(nullptr);
+    _locale_t const locale = ptd.get_locale();
 
-    if (locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage == CP_UTF8)
+    if (locale->locinfo->_public._locale_lc_codepage == CP_UTF8)
     {
-        return __wcsrtombs_utf8(destination, source, n, state);
+        return __wcsrtombs_utf8(destination, source, n, state, ptd);
     }
 
     char buf[MB_LEN_MAX];
@@ -227,7 +252,7 @@ extern "C" static size_t __cdecl internal_wcsrtombs(
         for (; ; nc += i, ++wcs)
         {
             /* translate but don't store */
-            _wcrtomb_s_l(&i, buf, MB_LEN_MAX, *wcs, state, locale_update.GetLocaleT());
+            _wcrtomb_internal(&i, buf, MB_LEN_MAX, *wcs, state, ptd);
             if (i <= 0)
             {
                 return static_cast<size_t>(-1);
@@ -244,7 +269,7 @@ extern "C" static size_t __cdecl internal_wcsrtombs(
         /* translate and store */
         char *t = nullptr;
 
-        if (n < (size_t)locale_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max)
+        if (n < (size_t)locale->locinfo->_public._locale_mb_cur_max)
         {
             t = buf;
         }
@@ -253,7 +278,7 @@ extern "C" static size_t __cdecl internal_wcsrtombs(
             t = destination;
         }
 
-        _wcrtomb_s_l(&i, t, MB_LEN_MAX, *wcs, state, locale_update.GetLocaleT());
+        _wcrtomb_internal(&i, t, MB_LEN_MAX, *wcs, state, ptd);
         if (i <= 0)
         {
             /* encountered invalid sequence */
@@ -293,7 +318,8 @@ extern "C" size_t __cdecl wcsrtombs(
     mbstate_t*      const state
     )
 {
-    return internal_wcsrtombs(destination, source, n, state);
+    __crt_cached_ptd_host ptd;
+    return _wcsrtombs_internal(destination, source, n, state, ptd);
 }
 
 /***
@@ -331,10 +357,15 @@ extern "C" errno_t __cdecl wcsrtombs_s(
     mbstate_t*      const state
     )
 {
-    if (return_value != nullptr)
-        *return_value = static_cast<size_t>(-1);
+    __crt_cached_ptd_host ptd;
 
-    _VALIDATE_RETURN_ERRCODE(
+    if (return_value != nullptr)
+    {
+        *return_value = static_cast<size_t>(-1);
+    }
+
+    _UCRT_VALIDATE_RETURN_ERRCODE(
+        ptd,
         (destination == nullptr && destination_count == 0) ||
         (destination != nullptr && destination_count >  0),
     EINVAL);
@@ -344,9 +375,9 @@ extern "C" errno_t __cdecl wcsrtombs_s(
         _RESET_STRING(destination, destination_count);
     }
 
-    _VALIDATE_RETURN_ERRCODE(source != nullptr, EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, source != nullptr, EINVAL);
 
-    size_t retsize = internal_wcsrtombs(destination, source, (n > destination_count ? destination_count : n), state);
+    size_t retsize = _wcsrtombs_internal(destination, source, (n > destination_count ? destination_count : n), state, ptd);
     if (retsize == static_cast<size_t>(-1))
     {
         if (destination != nullptr)
@@ -354,9 +385,7 @@ extern "C" errno_t __cdecl wcsrtombs_s(
             _RESET_STRING(destination, destination_count);
         }
 
-        errno_t const err = errno;
-        _Analysis_assume_(err == EILSEQ);
-        return err;
+        return ptd.get_errno().value_or(0);
     }
 
     ++retsize; // Account for the null terminator
@@ -367,7 +396,7 @@ extern "C" errno_t __cdecl wcsrtombs_s(
         if (retsize > destination_count)
         {
             _RESET_STRING(destination, destination_count);
-            _VALIDATE_RETURN_ERRCODE(retsize <= destination_count, ERANGE);
+            _UCRT_VALIDATE_RETURN_ERRCODE(ptd, retsize <= destination_count, ERANGE);
         }
 
         // Ensure the string is null terminated:
@@ -375,7 +404,9 @@ extern "C" errno_t __cdecl wcsrtombs_s(
     }
 
     if (return_value != nullptr)
+    {
         *return_value = retsize;
+    }
 
     return 0;
 }
@@ -385,21 +416,27 @@ extern "C" errno_t __cdecl wcsrtombs_s(
 // Converts a wide character into a one-byte character
 extern "C" int __cdecl wctob(wint_t const wchar)
 {
+    __crt_cached_ptd_host ptd;
+
     if (wchar == WEOF)
+    {
         return EOF;
+    }
 
     int  return_value = -1;
     char local_buffer[MB_LEN_MAX];
 
     mbstate_t state{};
-    errno_t const e = _wcrtomb_s_l(&return_value, local_buffer, MB_LEN_MAX, wchar, &state, nullptr);
+    errno_t const e = _wcrtomb_internal(&return_value, local_buffer, MB_LEN_MAX, wchar, &state, ptd);
     if (e == 0 && return_value == 1)
+    {
         return local_buffer[0];
+    }
 
     return EOF;
 }
 
-size_t __cdecl __crt_mbstring::__wcsrtombs_utf8(char* dst, const wchar_t** src, size_t len, mbstate_t* ps)
+size_t __cdecl __crt_mbstring::__wcsrtombs_utf8(char* dst, const wchar_t** src, size_t len, mbstate_t* ps, __crt_cached_ptd_host& ptd)
 {
     const wchar_t* current_src = *src;
     char buf[MB_LEN_MAX];
@@ -425,7 +462,7 @@ size_t __cdecl __crt_mbstring::__wcsrtombs_utf8(char* dst, const wchar_t** src, 
             {
                 temp = current_dest;
             }
-            const size_t retval = __c16rtomb_utf8(temp, *current_src, ps);
+            const size_t retval = __c16rtomb_utf8(temp, *current_src, ps, ptd);
 
             if (retval == __crt_mbstring::INVALID)
             {
@@ -477,7 +514,7 @@ size_t __cdecl __crt_mbstring::__wcsrtombs_utf8(char* dst, const wchar_t** src, 
         size_t total_count = 0;
         for (;;)
         {
-            const size_t retval = __c16rtomb_utf8(buf, *current_src, ps);
+            const size_t retval = __c16rtomb_utf8(buf, *current_src, ps, ptd);
             if (retval == __crt_mbstring::INVALID)
             {
                 return retval;

@@ -111,7 +111,7 @@ extern "C" char const* const _sys_posix_errlist[] =
 
 
 extern "C" size_t const _sys_first_posix_error = 100;
-extern "C" size_t const _sys_last_posix_error = _sys_first_posix_error + _countof(_sys_errlist) - 1;
+extern "C" size_t const _sys_last_posix_error = _sys_first_posix_error + _countof(_sys_posix_errlist) - 1;
 extern "C" int const _sys_nerr = _countof(_sys_errlist) - 1;
 
 // The above array contains all the errors including unknown error

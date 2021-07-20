@@ -6,6 +6,7 @@
 // Per-Thread Data (PTD) used by the AppCRT.
 //
 #include <corecrt_internal.h>
+#include <corecrt_internal_ptd_propagation.h>
 #include <stddef.h>
 
 
@@ -261,17 +262,32 @@ static __forceinline __acrt_ptd* internal_get_ptd_head() throw()
 // force it to be inlined into both __acrt_getptd_noexit and __acrt_getptd.  These
 // functions are performance critical and this change has substantially improved
 // __acrt_getptd performance.
-static __forceinline __acrt_ptd* __cdecl internal_getptd_noexit() throw()
+static __forceinline __acrt_ptd* __cdecl internal_getptd_noexit(
+    __crt_scoped_get_last_error_reset const& last_error_reset,
+    size_t                            const  global_state_index
+    ) throw()
 {
-    __crt_scoped_get_last_error_reset const last_error_reset;
-
+    UNREFERENCED_PARAMETER(last_error_reset);
     __acrt_ptd* const ptd_head = internal_get_ptd_head();
     if (!ptd_head)
     {
         return nullptr;
     }
 
-    return ptd_head + __crt_state_management::get_current_state_index(last_error_reset);
+    return ptd_head + global_state_index;
+}
+
+static __forceinline __acrt_ptd* __cdecl internal_getptd_noexit() throw()
+{
+    __crt_scoped_get_last_error_reset const last_error_reset;
+    return internal_getptd_noexit(last_error_reset, __crt_state_management::get_current_state_index(last_error_reset));
+}
+
+__acrt_ptd* __cdecl __acrt_getptd_noexit_explicit(__crt_scoped_get_last_error_reset const& last_error_reset, size_t const global_state_index)
+{   // An extra function to grab the PTD while a GetLastError() reset guard is already in place
+    // and the global state index is already known.
+
+    return internal_getptd_noexit(last_error_reset, global_state_index);
 }
 
 extern "C" __acrt_ptd* __cdecl __acrt_getptd_noexit()

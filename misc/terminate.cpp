@@ -24,7 +24,7 @@ extern "C" terminate_handler __cdecl _get_terminate()
 
 extern "C" terminate_handler __cdecl set_terminate(
     terminate_handler const new_handler
-    )
+    ) throw()
 {
     __acrt_ptd* const ptd = __acrt_getptd();
 
@@ -35,7 +35,7 @@ extern "C" terminate_handler __cdecl set_terminate(
     return old_handler;
 }
 
-extern "C" void __cdecl terminate()
+extern "C" void __cdecl terminate() throw()
 {
     terminate_handler const handler = __acrt_getptd()->_terminate;
     if (handler)

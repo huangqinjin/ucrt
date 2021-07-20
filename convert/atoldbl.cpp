@@ -6,10 +6,11 @@
 // The _atoldbl and _atoldbl_l functions, which convert a string representation
 // of a floating point number into a 10-byte _LDOUBLE object.
 //
+#define _ALLOW_OLD_VALIDATE_MACROS
 #include <corecrt_internal.h>
-#include <float.h>
 #include <corecrt_internal_fltintrn.h>
 #include <corecrt_internal_strtox.h>
+#include <float.h>
 #include <locale.h>
 #include <math.h>
 #include <stdlib.h>
@@ -218,7 +219,7 @@ static __forceinline void __cdecl shl_ld12(_LDBL12* const p) throw()
     uint32_t const msb_mask{static_cast<uint32_t>(-1) ^ lsb_mask};
 
     uint32_t const lo_carry {(*UL_LO_12 (p) & msb_mask) >> lsb_bits};
-    uint32_t const med_carry{(*UL_MED_12(p) & msb_mask) >> lsb_bits}; 
+    uint32_t const med_carry{(*UL_MED_12(p) & msb_mask) >> lsb_bits};
 
     *UL_LO_12 (p) = (*UL_LO_12 (p) << msb_bits);
     *UL_MED_12(p) = (*UL_MED_12(p) << msb_bits) | lo_carry;

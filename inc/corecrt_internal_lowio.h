@@ -171,7 +171,11 @@ int __cdecl _alloc_osfhnd(void);
 int __cdecl _free_osfhnd(int);
 int __cdecl __acrt_lowio_set_os_handle(int, intptr_t);
 
-
+//-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// Internal lowio functions
+//
+//-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 _Success_(return == 0)
 errno_t __cdecl _sopen_nolock(
@@ -274,10 +278,48 @@ _Check_return_opt_ int __cdecl _close_nolock(_In_ int _FileHandle);
 _Check_return_opt_ long __cdecl _lseek_nolock(_In_ int _FileHandle, _In_ long _Offset, _In_ int _Origin);
 _Check_return_ int __cdecl _setmode_nolock(_In_ int _FileHandle, _In_ int _Mode);
 _Check_return_ _Success_(return >= 0 && return <= _MaxCharCount) int __cdecl _read_nolock(_In_ int _FileHandle, _Out_writes_bytes_(_MaxCharCount) void * _DstBuf, _In_ unsigned int _MaxCharCount);
-_Check_return_ int __cdecl _write_nolock(_In_ int _FileHandle, _In_reads_bytes_(_MaxCharCount) const void * _Buf, _In_ unsigned int _MaxCharCount);
+_Check_return_ int __cdecl _write_nolock(_In_ int _FileHandle, _In_reads_bytes_(_MaxCharCount) const void * _Buf, _In_ unsigned int _MaxCharCount, __crt_cached_ptd_host& _Ptd);
 _Check_return_opt_ __int64 __cdecl _lseeki64_nolock(_In_ int _FileHandle, _In_ __int64 _Offset, _In_ int _Origin);
 
+// Temporary until non-PTD propagating versions can be replaced:
+_Check_return_ int __cdecl _chsize_nolock_internal(_In_ int _FileHandle, _In_ __int64 _Size, _Inout_ __crt_cached_ptd_host& _Ptd);
+_Check_return_opt_ __int64 __cdecl _lseeki64_nolock_internal(_In_ int _FileHandle, _In_ __int64 _Offset, _In_ int _Origin, _Inout_ __crt_cached_ptd_host& _Ptd);
+_Check_return_opt_ int __cdecl _close_nolock_internal(_In_ int _FileHandle, _Inout_ __crt_cached_ptd_host& _Ptd);
 
+//-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// Internal stdio functions with PTD propagation
+//
+//-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+_Check_return_opt_
+int __cdecl _close_internal(
+    _In_    int                    _FileHandle,
+    _Inout_ __crt_cached_ptd_host& _Ptd
+    );
+
+_Check_return_opt_
+long __cdecl _lseek_internal(
+    _In_    int                    _FileHandle,
+    _In_    long                   _Offset,
+    _In_    int                    _Origin,
+    _Inout_ __crt_cached_ptd_host& _Ptd
+    );
+
+_Check_return_opt_
+__int64 __cdecl _lseeki64_internal(
+    _In_    int                    _FileHandle,
+    _In_    __int64                _Offset,
+    _In_    int                    _Origin,
+    _Inout_ __crt_cached_ptd_host& _Ptd
+    );
+
+int __cdecl _write_internal(
+    _In_                            int                    _FileHandle,
+    _In_reads_bytes_(_MaxCharCount) void const*            _Buf,
+    _In_                            unsigned int           _MaxCharCount,
+    _Inout_                         __crt_cached_ptd_host& _Ptd
+    );
 
 // fileno for stdout, stdin & stderr when there is no console
 #define _NO_CONSOLE_FILENO ((intptr_t)-2)

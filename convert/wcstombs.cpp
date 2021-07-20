@@ -8,10 +8,11 @@
 *
 *******************************************************************************/
 #include <corecrt_internal_mbstring.h>
+#include <corecrt_internal_ptd_propagation.h>
 #include <corecrt_internal_securecrt.h>
 #include <ctype.h>
-#include <locale.h>
 #include <errno.h>
+#include <locale.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -79,12 +80,12 @@ static size_t __cdecl wcsncnt (
 *******************************************************************************/
 
 _Success_(return != static_cast<size_t>(-1))
-static size_t __cdecl _wcstombs_l_helper (
-        _Out_writes_(n) char * s,
-        _In_z_          const wchar_t * pwcs,
-        _In_            size_t n,
-        _In_opt_        _locale_t plocinfo
-        )
+static size_t __cdecl _wcstombs_l_helper(
+    _Out_writes_(n) char *                 s,
+    _In_z_          const wchar_t *        pwcs,
+    _In_            size_t                 n,
+    _Inout_         __crt_cached_ptd_host& ptd
+    )
 {
     size_t count = 0;
     int i, retval;
@@ -96,22 +97,21 @@ static size_t __cdecl _wcstombs_l_helper (
         return 0;
 
     /* validation section */
-    _VALIDATE_RETURN(pwcs != nullptr, EINVAL, (size_t)-1);
+    _UCRT_VALIDATE_RETURN(ptd, pwcs != nullptr, EINVAL, (size_t)-1);
 
 
     /* if destination string exists, fill it in */
+    const _locale_t locale = ptd.get_locale();
 
-    _LocaleUpdate _loc_update(plocinfo);
-
-    if (_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage == CP_UTF8)
+    if (locale->locinfo->_public._locale_lc_codepage == CP_UTF8)
     {
         mbstate_t state{};
-        return __crt_mbstring::__wcsrtombs_utf8(s, &pwcs, n, &state);
+        return __crt_mbstring::__wcsrtombs_utf8(s, &pwcs, n, &state, ptd);
     }
 
     if (s)
     {
-        if ( _loc_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE] == nullptr )
+        if ( locale->locinfo->locale_name[LC_CTYPE] == nullptr )
         {
             /* C locale: easy and fast */
             /* Actually, there are such wchar_t characters which are > 255,
@@ -126,25 +126,31 @@ static size_t __cdecl _wcstombs_l_helper (
             {
                 if (static_cast<uint16_t>(*pwcs) > 0xFF)  /* validate high byte */
                 {
-                    errno = EILSEQ;
+                    ptd.get_errno().set(EILSEQ);
                     return (size_t)-1;  /* error */
                 }
                 s[count] = (char) *pwcs;
                 if (*pwcs++ == L'\0')
+                {
                     return count;
+                }
                 count++;
             }
             return count;
-        } else {
+        }
+        else
+        {
 
-            if (1 == _loc_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max)
+            if (1 == locale->locinfo->_public._locale_mb_cur_max)
             {
                 /* If SBCS, one wchar_t maps to one char */
 
                 /* WideCharToMultiByte will compare past nullptr - reset n */
                 if (n > 0)
+                {
                     n = wcsncnt(pwcs, n);
-                if ( ((count = __acrt_WideCharToMultiByte( _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+                }
+                if ( ((count = __acrt_WideCharToMultiByte( locale->locinfo->_public._locale_lc_codepage,
                                                     0,
                                                     pwcs,
                                                     (int)n,
@@ -154,22 +160,24 @@ static size_t __cdecl _wcstombs_l_helper (
                                                     &defused )) != 0) &&
                      (!defused) )
                 {
-                    if (s[count - 1] == '\0') {
+                    if (s[count - 1] == '\0')
+                    {
                         count--; /* don't count NUL */
                     }
 
                     return count;
                 }
 
-                errno = EILSEQ;
+                ptd.get_errno().set(EILSEQ);
                 return (size_t)-1;
             }
-            else {
+            else
+            {
 
                 /* If MBCS, wchar_t to char mapping unknown */
 
                 /* Assume that usually the buffer is large enough */
-                if ( ((count = __acrt_WideCharToMultiByte( _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+                if ( ((count = __acrt_WideCharToMultiByte( locale->locinfo->_public._locale_lc_codepage,
                                                     0,
                                                     pwcs,
                                                     -1,
@@ -184,15 +192,15 @@ static size_t __cdecl _wcstombs_l_helper (
 
                 if (defused || GetLastError() != ERROR_INSUFFICIENT_BUFFER)
                 {
-                    errno = EILSEQ;
+                    ptd.get_errno().set(EILSEQ);
                     return (size_t)-1;
                 }
 
                 /* buffer not large enough, must do char by char */
                 while (count < n)
                 {
-                    int mb_cur_max = _loc_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max;
-                    if ( ((retval = __acrt_WideCharToMultiByte( _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+                    int mb_cur_max = locale->locinfo->_public._locale_mb_cur_max;
+                    if ( ((retval = __acrt_WideCharToMultiByte( locale->locinfo->_public._locale_lc_codepage,
                                                          0,
                                                          pwcs,
                                                          1,
@@ -202,7 +210,7 @@ static size_t __cdecl _wcstombs_l_helper (
                                                          &defused )) == 0)
                          || defused )
                     {
-                        errno = EILSEQ;
+                        ptd.get_errno().set(EILSEQ);
                         return (size_t)-1;
                     }
 
@@ -210,7 +218,7 @@ static size_t __cdecl _wcstombs_l_helper (
                     if (retval < 0 ||
                         retval > _countof(buffer))
                     {
-                        errno = EILSEQ;
+                        ptd.get_errno().set(EILSEQ);
                         return (size_t)-1;
                     }
 
@@ -218,8 +226,12 @@ static size_t __cdecl _wcstombs_l_helper (
                         return count;
 
                     for (i = 0; i < retval; i++, count++) /* store character */
+                    {
                         if((s[count] = buffer[i])=='\0')
+                        {
                             return count;
+                        }
+                    }
 
                     pwcs++;
                 }
@@ -228,15 +240,16 @@ static size_t __cdecl _wcstombs_l_helper (
             }
         }
     }
-    else { /* s == nullptr, get size only, pwcs must be NUL-terminated */
-        if ( _loc_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE] == nullptr )
+    else
+    { /* s == nullptr, get size only, pwcs must be NUL-terminated */
+        if ( locale->locinfo->locale_name[LC_CTYPE] == nullptr )
         {
             size_t len = 0;
             for (wchar_t *pw = (wchar_t *)pwcs; *pw != 0; pw++)  /* validate high byte */
             {
                 if (*pw > 255)  /* validate high byte */
                 {
-                    errno = EILSEQ;
+                    ptd.get_errno().set(EILSEQ);
                     return (size_t)-1;  /* error */
                 }
                 ++len;
@@ -244,8 +257,9 @@ static size_t __cdecl _wcstombs_l_helper (
 
             return len;
         }
-        else {
-            if ( ((count = __acrt_WideCharToMultiByte( _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+        else
+        {
+            if ( ((count = __acrt_WideCharToMultiByte( locale->locinfo->_public._locale_lc_codepage,
                                                 0,
                                                 pwcs,
                                                 -1,
@@ -255,33 +269,34 @@ static size_t __cdecl _wcstombs_l_helper (
                                                 &defused )) == 0) ||
                  (defused) )
             {
-                errno = EILSEQ;
+                ptd.get_errno().set(EILSEQ);
                 return (size_t)-1;
             }
 
             return count - 1;
         }
     }
-
 }
 
-extern "C" size_t __cdecl _wcstombs_l (
-        char * s,
-        const wchar_t * pwcs,
-        size_t n,
-        _locale_t plocinfo
-        )
+extern "C" size_t __cdecl _wcstombs_l(
+    char * s,
+    const wchar_t * pwcs,
+    size_t n,
+    _locale_t plocinfo
+    )
 {
-    return _wcstombs_l_helper(s, pwcs, n, plocinfo);
+    __crt_cached_ptd_host ptd(plocinfo);
+    return _wcstombs_l_helper(s, pwcs, n, ptd);
 }
 
-extern "C" size_t __cdecl wcstombs (
+extern "C" size_t __cdecl wcstombs(
         char * s,
         const wchar_t * pwcs,
         size_t n
         )
 {
-    return _wcstombs_l_helper(s, pwcs, n, nullptr);
+    __crt_cached_ptd_host ptd;
+    return _wcstombs_l_helper(s, pwcs, n, ptd);
 }
 
 /***
@@ -309,20 +324,20 @@ extern "C" size_t __cdecl wcstombs (
 *
 *******************************************************************************/
 
-extern "C" errno_t __cdecl _wcstombs_s_l (
-        size_t *pConvertedChars,
-        char * dst,
-        size_t sizeInBytes,
-        const wchar_t * src,
-        size_t n,
-        _locale_t plocinfo
-        )
+static errno_t __cdecl _wcstombs_internal (
+    size_t *               pConvertedChars,
+    char *                 dst,
+    size_t                 sizeInBytes,
+    const wchar_t *        src,
+    size_t                 n,
+    __crt_cached_ptd_host& ptd
+    )
 {
     size_t retsize;
     errno_t retvalue = 0;
 
     /* validation section */
-    _VALIDATE_RETURN_ERRCODE((dst != nullptr && sizeInBytes > 0) || (dst == nullptr && sizeInBytes == 0), EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, (dst != nullptr && sizeInBytes > 0) || (dst == nullptr && sizeInBytes == 0), EINVAL);
     if (dst != nullptr)
     {
         _RESET_STRING(dst, sizeInBytes);
@@ -334,9 +349,9 @@ extern "C" errno_t __cdecl _wcstombs_s_l (
     }
 
     size_t bufferSize = n > sizeInBytes ? sizeInBytes : n;
-    _VALIDATE_RETURN_ERRCODE(bufferSize <= INT_MAX, EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, bufferSize <= INT_MAX, EINVAL);
 
-    retsize = _wcstombs_l_helper(dst, src, bufferSize, plocinfo);
+    retsize = _wcstombs_l_helper(dst, src, bufferSize, ptd);
 
     if (retsize == (size_t)-1)
     {
@@ -344,7 +359,7 @@ extern "C" errno_t __cdecl _wcstombs_s_l (
         {
             _RESET_STRING(dst, sizeInBytes);
         }
-        return errno;
+        return ptd.get_errno().value_or(0);
     }
 
     /* count the null terminator */
@@ -358,7 +373,7 @@ extern "C" errno_t __cdecl _wcstombs_s_l (
             if (n != _TRUNCATE)
             {
                 _RESET_STRING(dst, sizeInBytes);
-                _VALIDATE_RETURN_ERRCODE(sizeInBytes > retsize, ERANGE);
+                _UCRT_VALIDATE_RETURN_ERRCODE(ptd, sizeInBytes > retsize, ERANGE);
             }
             retsize = sizeInBytes;
             retvalue = STRUNCATE;
@@ -376,13 +391,27 @@ extern "C" errno_t __cdecl _wcstombs_s_l (
     return retvalue;
 }
 
-extern "C" errno_t __cdecl wcstombs_s (
-        size_t *pConvertedChars,
-        char * dst,
-        size_t sizeInBytes,
-        const wchar_t * src,
-        size_t n
-        )
+extern "C" errno_t __cdecl _wcstombs_s_l (
+    size_t *pConvertedChars,
+    char * dst,
+    size_t sizeInBytes,
+    const wchar_t * src,
+    size_t n,
+    _locale_t plocinfo
+    )
 {
-    return _wcstombs_s_l(pConvertedChars, dst, sizeInBytes, src, n, nullptr);
+    __crt_cached_ptd_host ptd(plocinfo);
+    return _wcstombs_internal(pConvertedChars, dst, sizeInBytes, src, n, ptd);
+}
+
+extern "C" errno_t __cdecl wcstombs_s (
+    size_t *pConvertedChars,
+    char * dst,
+    size_t sizeInBytes,
+    const wchar_t * src,
+    size_t n
+    )
+{
+    __crt_cached_ptd_host ptd;
+    return _wcstombs_internal(pConvertedChars, dst, sizeInBytes, src, n, ptd);
 }

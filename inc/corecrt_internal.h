@@ -31,8 +31,6 @@
 
 _CRT_BEGIN_C_HEADER
 
-
-
 #define _DEFINE_SET_FUNCTION(function_name, type, variable_name) \
     __inline void function_name(type value)                      \
     {                                                            \
@@ -1437,10 +1435,10 @@ extern wchar_t** __dcrt_initial_wide_environment;
 extern char**    __dcrt_initial_narrow_environment;
 
 _Ret_opt_z_
-char*    __cdecl __dcrt_get_narrow_environment_from_os(void);
+char*    __cdecl __dcrt_get_narrow_environment_from_os(void) _CRT_NOEXCEPT;
 
 _Ret_opt_z_
-wchar_t* __cdecl __dcrt_get_wide_environment_from_os(void);
+wchar_t* __cdecl __dcrt_get_wide_environment_from_os(void) _CRT_NOEXCEPT;
 
 _Deref_ret_opt_z_
 char**    __cdecl __dcrt_get_or_create_narrow_environment_nolock(void);
@@ -1561,6 +1559,13 @@ _Check_return_ __forceinline unsigned short __cdecl _isdigit_fast_internal(
 {
     return _ctype_fast_check_internal(c, _DIGIT, locale);
 }
+
+// isleadbyte has a macro that casts the first argument to unsigned char
+// Instead of using _isleadbyte_l (which requires the caller to cast to unsigned char),
+// use _isleadbyte_fast_internal to prevent any unintentional casting errors that may occur.
+// As long as the locale is already updated via _LocaleUpdate or retrieved from __crt_cached_ptd_host,
+// this function is safe to use.
+#define _isleadbyte_l(_C, _L) use_isleadbyte_fast_internal_instead_to_prevent_casting_errors()
 
 _Check_return_ __forceinline unsigned short __cdecl _isleadbyte_fast_internal(
     _In_ unsigned char const c,
@@ -1792,6 +1797,35 @@ extern "C++"
 {
     //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     //
+    // Forward declare PTD propagation host
+    //
+    // To use the PTD propagation utilities, include corecrt_internal_ptd_propagation.h.
+    // That header also opts into removing old validation macros that would use errno,
+    // so the __crt_cached_ptd_host is declared here so that headers don't need to be fully converted.
+    //
+    //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+    class __crt_cached_ptd_host;
+
+    //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    //
+    // Internals with PTD propagation
+    //
+    //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+    extern "C" void __cdecl __acrt_errno_map_os_error_ptd(unsigned long, __crt_cached_ptd_host&);
+
+    extern "C" void __cdecl _invalid_parameter_internal(
+        _In_opt_z_ wchar_t const*,
+        _In_opt_z_ wchar_t const*,
+        _In_opt_z_ wchar_t const*,
+        _In_       unsigned int,
+        _In_       uintptr_t,
+        _Inout_    __crt_cached_ptd_host&
+        );
+
+    //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    //
     // Locale Update
     //
     //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -1801,8 +1835,22 @@ extern "C++"
         );
 
     extern "C" void __acrt_update_multibyte_info(
-        _In_ __acrt_ptd*               const ptd,
+        _In_    __acrt_ptd*            const ptd,
         _Inout_ __crt_multibyte_data** const data
+        );
+
+    // Querying the global state index queries TLS.
+    // If the global state index is known, use the explicit functions to avoid a GetFlsValue call.
+    extern "C" void __acrt_update_locale_info_explicit(
+        _In_     __acrt_ptd*        const ptd,
+        _Inout_ __crt_locale_data** const data,
+        _In_    size_t              const current_global_state_index
+        );
+
+    extern "C" void __acrt_update_multibyte_info_explicit(
+        _In_    __acrt_ptd*            const ptd,
+        _Inout_ __crt_multibyte_data** const data,
+        _In_    size_t                 const current_global_state_index
         );
 
     extern "C" __inline bool __acrt_should_sync_with_global_locale(
@@ -1855,7 +1903,9 @@ extern "C++"
     }
 
     class _LocaleUpdate
-    {
+    {   // Retained for old code paths - updating/locking/unlocking locale
+        // in every function is costly.
+        // Prefer using __crt_cached_ptd_host&.
     public:
 
         explicit _LocaleUpdate(_locale_t const locale) throw()
@@ -1912,7 +1962,6 @@ extern "C++"
     };
 
 
-
     //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     //
     // errno Cache
@@ -1925,7 +1974,8 @@ extern "C++"
     // time that errno is actually needed (when we aren't calling functions that may
     // set errno, there's no need to acquire errno at all).
     class __crt_deferred_errno_cache
-    {
+    {   // Retained for old code paths - querying errno is a performance issue.
+        // Prefer using __crt_cached_ptd_host&.
     public:
 
         __crt_deferred_errno_cache() throw()
@@ -1956,8 +2006,10 @@ extern "C++"
     //
     //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     #ifndef _M_CEE
+
     struct __crt_errno_guard
-    {
+    {   // Retained for old code paths - querying errno is a performance issue.
+        // Prefer using __crt_cached_ptd_host& (via ->get_errno().create_guard()).
     public:
 
         __crt_errno_guard(errno_t* const errno_address = &errno) throw()
@@ -2054,6 +2106,7 @@ typedef enum
 } windowing_model_policy;
 
 windowing_model_policy __cdecl __acrt_get_windowing_model_policy(void);
+
 
 _CRT_END_C_HEADER
 

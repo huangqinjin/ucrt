@@ -12,17 +12,44 @@
 //
 #include <corecrt_internal.h>
 #include <corecrt_internal_fltintrn.h>
+#include <corecrt_internal_ptd_propagation.h>
 #include <fenv.h>
 #include <string.h>
 #include <stddef.h>
 
-
-#pragma warning(disable:__WARNING_BUFFER_UNDERFLOW) // 26001
-
-static bool should_round_up(char const * const mantissa_it, int const sign, __acrt_has_trailing_digits const trailing_digits, __acrt_rounding_mode const rounding_mode)
+// __acrt_has_trailing_digits::no_trailing isn't indicative of how to round if we're rounding to a point before the end of the generated digits.
+// __acrt_has_trailing_digits::no_trailing only says if there are any digits after the mantisa we got.
+// We need to ensure the remaining generated digits are all zero before choosing rounds-to-even behavior intended for exactly representable floating point numbers.
+static bool check_trailing(char const * mantissa_it, __acrt_has_trailing_digits const trailing_digits)
 {
+    if (trailing_digits == __acrt_has_trailing_digits::trailing)
+    {
+        return true;
+    }
 
-    if (rounding_mode == __acrt_rounding_mode::legacy) {
+    while (*mantissa_it == '0')
+    {
+        mantissa_it++;
+    }
+
+    if (*mantissa_it != '\0')
+    {
+        return true;
+    }
+
+    return false;
+}
+
+static bool should_round_up(
+    char const *               const mantissa_base,
+    char const *               const mantissa_it,
+    int                        const sign,
+    __acrt_has_trailing_digits const trailing_digits,
+    __acrt_rounding_mode       const rounding_mode
+)
+{
+    if (rounding_mode == __acrt_rounding_mode::legacy)
+    {
         return *mantissa_it >= '5';
     }
 
@@ -41,12 +68,23 @@ static bool should_round_up(char const * const mantissa_it, int const sign, __ac
         }
 
         // If there are trailing digits we are in a scenario like this .5000000001 and should round up
-        if (trailing_digits == __acrt_has_trailing_digits::trailing)
+        if (check_trailing(mantissa_it + 1, trailing_digits))
         {
             return true;
         }
 
-        // If the previous digit is odd we should round to the closest even.
+        // At this point, the number is exactly representable and we are rounding 5.
+        // In this case, IEEE 754 states to round towards the nearest even number.
+        // Therefore: if the previous digit is odd, we round up (1.5 -> 2).
+        //            if the previous digit is even, we round down (2.5 -> 2).
+
+        // If there is no preceding digit, it is considered zero, so round down.
+        if (mantissa_it == mantissa_base)
+        {
+            return false;
+        }
+
+        // If the previous digit is odd, we should round up to the closest even.
         return *(mantissa_it - 1) % 2;
     }
 
@@ -62,24 +100,27 @@ static bool should_round_up(char const * const mantissa_it, int const sign, __ac
 
     return false;
 }
+
 extern "C" errno_t __cdecl __acrt_fp_strflt_to_string(
     char*                        const buffer,
     size_t                       const buffer_count,
     int                                digits,
     STRFLT                       const pflt,
     __acrt_has_trailing_digits   const trailing_digits,
-    __acrt_rounding_mode         const rounding_mode
+    __acrt_rounding_mode         const rounding_mode,
+    __crt_cached_ptd_host&             ptd
 )
 {
-    _VALIDATE_RETURN_ERRCODE(buffer != nullptr, EINVAL);
-    _VALIDATE_RETURN_ERRCODE(buffer_count > 0,  EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, buffer != nullptr, EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, buffer_count > 0,  EINVAL);
     buffer[0] = '\0';
 
-    _VALIDATE_RETURN_ERRCODE(buffer_count > static_cast<size_t>((digits > 0 ? digits : 0) + 1), ERANGE);
-    _VALIDATE_RETURN_ERRCODE(pflt != nullptr, EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, buffer_count > static_cast<size_t>((digits > 0 ? digits : 0) + 1), ERANGE);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, pflt != nullptr, EINVAL);
 
-    char* buffer_it   = buffer;
-    char* mantissa_it = pflt->mantissa;
+    char* buffer_it           = buffer;
+    char* const mantissa_base = pflt->mantissa;
+    char* mantissa_it         = pflt->mantissa;
 
     // The buffer will contain 'digits' decimal digits plus an optional overflow
     // digit for the rounding.
@@ -103,7 +144,7 @@ extern "C" errno_t __cdecl __acrt_fp_strflt_to_string(
     // Do any rounding which may be needed.  Note:  if digits < 0, we don't do
     // any rounding because in this case, the rounding occurs in a digit which
     // will not be output because of the precision requested.
-    if (digits >= 0 && should_round_up(mantissa_it, pflt->sign, trailing_digits, rounding_mode))
+    if (digits >= 0 && should_round_up(mantissa_base, mantissa_it, pflt->sign, trailing_digits, rounding_mode))
     {
         buffer_it--;
 

@@ -22,7 +22,7 @@ extern "C" extern __inline int (__cdecl _isleadbyte_l)(int const c, _locale_t co
 
 extern "C" extern __inline int (__cdecl isleadbyte)(int const c)
 {
-    return _isleadbyte_l(c, nullptr);
+    return (_isleadbyte_l)(c, nullptr);
 }
 
 extern "C" extern __inline int (__cdecl _iswalpha_l)(wint_t const c, _locale_t)

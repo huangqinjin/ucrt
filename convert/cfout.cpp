@@ -77,11 +77,12 @@ namespace
 // or [3] all remaining digits are known to be zero.
 template <typename FloatingType>
 __forceinline static __acrt_has_trailing_digits __cdecl convert_to_fos_high_precision(
-    FloatingType const value,
-    uint32_t     const precision,
-    int*         const exponent,
-    char*        const mantissa_buffer,
-    size_t       const mantissa_buffer_count
+    FloatingType           const value,
+    uint32_t               const precision,
+    __acrt_precision_style const precision_style,
+    int*                   const exponent,
+    char*                  const mantissa_buffer,
+    size_t                 const mantissa_buffer_count
     ) throw()
 {
     using floating_traits = __acrt_floating_type_traits<FloatingType>;
@@ -96,7 +97,6 @@ __forceinline static __acrt_has_trailing_digits __cdecl convert_to_fos_high_prec
     // we expand the mantissa, and [2] increment the exponent to account for the
     // extra shift.
     bool const is_denormal = value_components._exponent == 0;
-    bool only_zeros_remaining = true;
 
     uint64_t const mantissa_adjustment = is_denormal
         ? 0
@@ -208,13 +208,17 @@ __forceinline static __acrt_has_trailing_digits __cdecl convert_to_fos_high_prec
 
     // convert_to_fos_high_precision() generates digits assuming we're formatting with %f
     // When %e is the format specifier, adding the exponent to the number of required digits
-    // is not needed. To avoid a change in export surface, this is supported by controlling the
-    // size of the mantissa buffer by the caller (see fp_format_e()).
-    uint32_t const required_digits = k >= 0 && precision <= INT_MAX
+    // is not needed.
+    uint32_t const required_digits = k >= 0 && precision <= INT_MAX && precision_style == __acrt_precision_style::fixed
         ? k + precision
         : precision;
 
     char* const mantissa_last = mantissa_buffer + __min(mantissa_buffer_count - 1, required_digits);
+
+    // We must track whether there are any non-zero digits that were not written to the mantissa,
+    // since just checking whether 'r' is zero is insufficient for knowing whether there are any
+    // remaining zeros after the generated digits.
+    bool unwritten_nonzero_digits_in_chunk = false;
     for (;;)
     {
         if (mantissa_it == mantissa_last)
@@ -237,8 +241,6 @@ __forceinline static __acrt_has_trailing_digits __cdecl convert_to_fos_high_prec
         multiply(r, digits_per_iteration_multiplier);
         uint32_t quotient = static_cast<uint32_t>(divide(r, s));
 
-        only_zeros_remaining = is_zero(r);
-
         _ASSERTE(quotient < digits_per_iteration_multiplier);
 
         // Decompose the quotient into its nine component digits by repeatedly
@@ -249,13 +251,14 @@ __forceinline static __acrt_has_trailing_digits __cdecl convert_to_fos_high_prec
             char const d = static_cast<char>('0' + quotient % 10);
             quotient /= 10;
 
-            // We may not have room in the mantissa buffer for all of the digits;
-            // ignore the ones for which we do not have room:
-            if (static_cast<uint32_t>(mantissa_last - mantissa_it) < i)
+            // We may not have room in the mantissa buffer for all of the digits.
+            // Ignore the ones for which we do not have room.
+            // Last value in mantissa must be null terminator, account for one place after digit generation.
+            if (static_cast<uint32_t>(mantissa_last - mantissa_it) <= i)
             {
                 if (d != '0')
                 {
-                    only_zeros_remaining = false;
+                    unwritten_nonzero_digits_in_chunk = true;
                 }
 
                 continue;
@@ -268,17 +271,27 @@ __forceinline static __acrt_has_trailing_digits __cdecl convert_to_fos_high_prec
     }
 
     *mantissa_it = '\0';
-    return only_zeros_remaining ?
-        __acrt_has_trailing_digits::no_trailing :
-        __acrt_has_trailing_digits::trailing;
+
+    // To detect whether there are zeros after the generated digits for the purposes of rounding,
+    // we must check whether 'r' is zero, but also whether there were any non-zero numbers that were
+    // not written to the mantissa in the last evaluated chunk.
+    bool const all_zeros_after_chunk = is_zero(r);
+
+    if (all_zeros_after_chunk && !unwritten_nonzero_digits_in_chunk)
+    {
+        return __acrt_has_trailing_digits::no_trailing;
+    }
+
+    return __acrt_has_trailing_digits::trailing;
 }
 
 extern "C" __acrt_has_trailing_digits __cdecl __acrt_fltout(
-    _CRT_DOUBLE       value,
-    unsigned    const precision,
-    STRFLT      const flt,
-    char*       const result,
-    size_t      const result_count
+    _CRT_DOUBLE                  value,
+    unsigned               const precision,
+    __acrt_precision_style const precision_style,
+    STRFLT                 const flt,
+    char*                  const result,
+    size_t                 const result_count
     )
 {
     using floating_traits = __acrt_floating_type_traits<double>;
@@ -322,5 +335,5 @@ extern "C" __acrt_has_trailing_digits __cdecl __acrt_fltout(
     // The digit generator produces a truncated sequence of digits.  To allow
     // our caller to correctly round the mantissa, we need to generate an extra
     // digit.
-    return convert_to_fos_high_precision(value.x, precision + 1, &flt->decpt, result, result_count);
+    return convert_to_fos_high_precision(value.x, precision + 1, precision_style, &flt->decpt, result, result_count);
 }

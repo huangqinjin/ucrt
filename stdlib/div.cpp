@@ -9,7 +9,9 @@
 #include <stdlib.h>
 
 
-
+#ifdef  _MSC_VER
+#pragma function(div)
+#endif
 extern "C" div_t __cdecl div(int const numerator, int const denominator)
 {
     div_t result;

@@ -18,11 +18,11 @@ using namespace __crt_stdio_output;
 
 template <template <typename, typename> class Base, typename Character>
 static int __cdecl common_vfprintf(
-    unsigned __int64 const options,
-    FILE*            const stream,
-    Character const* const format,
-    _locale_t        const locale,
-    va_list          const arglist
+    unsigned __int64   const options,
+    FILE*              const stream,
+    Character const*   const format,
+    __crt_cached_ptd_host&   ptd,
+    va_list            const arglist
     ) throw()
 {
     typedef output_processor<
@@ -31,19 +31,18 @@ static int __cdecl common_vfprintf(
         Base<Character, stream_output_adapter<Character>>
     > processor_type;
 
-    _VALIDATE_RETURN(stream != nullptr, EINVAL, -1);
-    _VALIDATE_RETURN(format != nullptr, EINVAL, -1);
+    _UCRT_VALIDATE_RETURN(ptd, stream != nullptr, EINVAL, -1);
+    _UCRT_VALIDATE_RETURN(ptd, format != nullptr, EINVAL, -1);
 
     return __acrt_lock_stream_and_call(stream, [&]() -> int
     {
-        __acrt_stdio_temporary_buffering_guard const buffering(stream);
+        __acrt_stdio_temporary_buffering_guard const buffering(stream, ptd);
 
-        _LocaleUpdate locale_update(locale);
         processor_type processor(
             stream_output_adapter<Character>(stream),
             options,
             format,
-            locale_update.GetLocaleT(),
+            ptd,
             arglist);
 
         return processor.process();
@@ -58,7 +57,8 @@ extern "C" int __cdecl __stdio_common_vfprintf(
     va_list          const arglist
     )
 {
-    return common_vfprintf<standard_base>(options, stream, format, locale, arglist);
+    __crt_cached_ptd_host ptd(locale);
+    return common_vfprintf<standard_base>(options, stream, format, ptd, arglist);
 }
 
 extern "C" int __cdecl __stdio_common_vfwprintf(
@@ -69,7 +69,8 @@ extern "C" int __cdecl __stdio_common_vfwprintf(
     va_list          const arglist
     )
 {
-    return common_vfprintf<standard_base>(options, stream, format, locale, arglist);
+    __crt_cached_ptd_host ptd(locale);
+    return common_vfprintf<standard_base>(options, stream, format, ptd, arglist);
 }
 
 extern "C" int __cdecl __stdio_common_vfprintf_s(
@@ -80,7 +81,8 @@ extern "C" int __cdecl __stdio_common_vfprintf_s(
     va_list          const arglist
     )
 {
-    return common_vfprintf<format_validation_base>(options, stream, format, locale, arglist);
+    __crt_cached_ptd_host ptd(locale);
+    return common_vfprintf<format_validation_base>(options, stream, format, ptd, arglist);
 }
 
 extern "C" int __cdecl __stdio_common_vfwprintf_s(
@@ -91,7 +93,8 @@ extern "C" int __cdecl __stdio_common_vfwprintf_s(
     va_list          const arglist
     )
 {
-    return common_vfprintf<format_validation_base>(options, stream, format, locale, arglist);
+    __crt_cached_ptd_host ptd(locale);
+    return common_vfprintf<format_validation_base>(options, stream, format, ptd, arglist);
 }
 
 extern "C" int __cdecl __stdio_common_vfprintf_p(
@@ -102,7 +105,8 @@ extern "C" int __cdecl __stdio_common_vfprintf_p(
     va_list          const arglist
     )
 {
-    return common_vfprintf<positional_parameter_base>(options, stream, format, locale, arglist);
+    __crt_cached_ptd_host ptd(locale);
+    return common_vfprintf<positional_parameter_base>(options, stream, format, ptd, arglist);
 }
 
 extern "C" int __cdecl __stdio_common_vfwprintf_p(
@@ -113,7 +117,8 @@ extern "C" int __cdecl __stdio_common_vfwprintf_p(
     va_list          const arglist
     )
 {
-    return common_vfprintf<positional_parameter_base>(options, stream, format, locale, arglist);
+    __crt_cached_ptd_host ptd(locale);
+    return common_vfprintf<positional_parameter_base>(options, stream, format, ptd, arglist);
 }
 
 #endif /* _UCRT_ENCLAVE_BUILD */
@@ -122,12 +127,12 @@ extern "C" int __cdecl __stdio_common_vfwprintf_p(
 template <template <typename, typename> class Base, typename Character>
 _Success_(return >= 0)
 static int __cdecl common_vsprintf(
-                                    unsigned __int64    const   options,
-    _Out_writes_z_(buffer_count)    Character*          const   buffer,
-                                    size_t              const   buffer_count,
-                                    Character const*    const   format,
-                                    _locale_t           const   locale,
-                                    va_list             const   arglist
+                                    unsigned __int64   const options,
+    _Out_writes_z_(buffer_count)    Character*         const buffer,
+                                    size_t             const buffer_count,
+                                    Character const*   const format,
+                                    __crt_cached_ptd_host&   ptd,
+                                    va_list            const arglist
     ) throw()
 {
     typedef __acrt_stdio_char_traits<Character> char_traits;
@@ -138,10 +143,8 @@ static int __cdecl common_vsprintf(
         Base<Character, string_output_adapter<Character>>
     > processor_type;
 
-    _VALIDATE_RETURN(format != nullptr,                      EINVAL, -1);
-    _VALIDATE_RETURN(buffer_count == 0 || buffer != nullptr, EINVAL, -1);
-
-    _LocaleUpdate locale_update(locale);
+    _UCRT_VALIDATE_RETURN(ptd, format != nullptr,                      EINVAL, -1);
+    _UCRT_VALIDATE_RETURN(ptd, buffer_count == 0 || buffer != nullptr, EINVAL, -1);
 
     string_output_adapter_context<Character> context{};
     context._buffer         = buffer;
@@ -161,7 +164,7 @@ static int __cdecl common_vsprintf(
         string_output_adapter<Character>(&context),
         options,
         format,
-        locale_update.GetLocaleT(),
+        ptd,
         arglist);
 
     int const result = processor.process();
@@ -236,7 +239,8 @@ extern "C" int __cdecl __stdio_common_vsprintf(
     va_list          const arglist
     )
 {
-    return common_vsprintf<standard_base>(options, buffer, buffer_count, format, locale, arglist);
+    __crt_cached_ptd_host ptd(locale);
+    return common_vsprintf<standard_base>(options, buffer, buffer_count, format, ptd, arglist);
 }
 
 extern "C" int __cdecl __stdio_common_vswprintf(
@@ -248,24 +252,25 @@ extern "C" int __cdecl __stdio_common_vswprintf(
     va_list          const arglist
     )
 {
-    return common_vsprintf<standard_base>(options, buffer, buffer_count, format, locale, arglist);
+    __crt_cached_ptd_host ptd(locale);
+    return common_vsprintf<standard_base>(options, buffer, buffer_count, format, ptd, arglist);
 }
 
 template <typename Character>
 _Success_(return >= 0)
 static int __cdecl common_vsprintf_s(
-                                    unsigned __int64    const   options,
-    _Out_writes_z_(buffer_count)    Character*          const   buffer,
-                                    size_t              const   buffer_count,
-                                    Character const*    const   format,
-                                    _locale_t           const   locale,
-                                    va_list             const   arglist
+                                    unsigned __int64   const options,
+    _Out_writes_z_(buffer_count)    Character*         const buffer,
+                                    size_t             const buffer_count,
+                                    Character const*   const format,
+                                    __crt_cached_ptd_host&   ptd,
+                                    va_list            const arglist
     ) throw()
 {
-    _VALIDATE_RETURN(format != nullptr,                     EINVAL, -1);
-    _VALIDATE_RETURN(buffer != nullptr && buffer_count > 0, EINVAL, -1);
+    _UCRT_VALIDATE_RETURN(ptd, format != nullptr,                     EINVAL, -1);
+    _UCRT_VALIDATE_RETURN(ptd, buffer != nullptr && buffer_count > 0, EINVAL, -1);
 
-    int const result = common_vsprintf<format_validation_base>(options, buffer, buffer_count, format, locale, arglist);
+    int const result = common_vsprintf<format_validation_base>(options, buffer, buffer_count, format, ptd, arglist);
     if (result < 0)
     {
         buffer[0] = 0;
@@ -274,7 +279,7 @@ static int __cdecl common_vsprintf_s(
 
     if (result == -2)
     {
-        _VALIDATE_RETURN(("Buffer too small", 0), ERANGE, -1);
+        _UCRT_VALIDATE_RETURN(ptd, ("Buffer too small", 0), ERANGE, -1);
     }
     else if (result >= 0)
     {
@@ -293,7 +298,8 @@ extern "C" int __cdecl __stdio_common_vsprintf_s(
     va_list          const arglist
     )
 {
-    return common_vsprintf_s(options, buffer, buffer_count, format, locale, arglist);
+    __crt_cached_ptd_host ptd(locale);
+    return common_vsprintf_s(options, buffer, buffer_count, format, ptd, arglist);
 }
 
 extern "C" int __cdecl __stdio_common_vswprintf_s(
@@ -305,59 +311,65 @@ extern "C" int __cdecl __stdio_common_vswprintf_s(
     va_list          const arglist
     )
 {
-    return common_vsprintf_s(options, buffer, buffer_count, format, locale, arglist);
+    __crt_cached_ptd_host ptd(locale);
+    return common_vsprintf_s(options, buffer, buffer_count, format, ptd, arglist);
 }
 
 template <typename Character>
 _Success_(return >= 0)
 static int __cdecl common_vsnprintf_s(
-                                    unsigned __int64    const   options,
-    _Out_writes_z_(buffer_count)    Character*          const   buffer,
-                                    size_t              const   buffer_count,
-                                    size_t              const   max_count,
-                                    Character const*    const   format,
-                                    _locale_t           const   locale,
-                                    va_list             const   arglist
+                                    unsigned __int64   const options,
+    _Out_writes_z_(buffer_count)    Character*         const buffer,
+                                    size_t             const buffer_count,
+                                    size_t             const max_count,
+                                    Character const*   const format,
+                                    __crt_cached_ptd_host&   ptd,
+                                    va_list            const arglist
     ) throw()
 {
-    _VALIDATE_RETURN(format != nullptr, EINVAL, -1);
+    _UCRT_VALIDATE_RETURN(ptd, format != nullptr, EINVAL, -1);
 
     if (max_count == 0 && buffer == nullptr && buffer_count == 0)
         return 0; // No work to do
 
-    _VALIDATE_RETURN(buffer != nullptr && buffer_count > 0, EINVAL, -1);
+    _UCRT_VALIDATE_RETURN(ptd, buffer != nullptr && buffer_count > 0, EINVAL, -1);
 
     int result = -1;
-    if (buffer_count > max_count)
     {
-        errno_t const saved_errno = errno;
-        result = common_vsprintf<format_validation_base>(options, buffer, max_count + 1, format, locale, arglist);
+        auto errno_restore_point = ptd.get_errno().create_guard();
+        errno_restore_point.disable();
 
-        if (result == -2)
+        if (buffer_count > max_count)
         {
-            // The string has been truncated; return -1:
-            _SECURECRT__FILL_STRING(buffer, buffer_count, max_count + 1);
-            if (errno == ERANGE)
-                errno = saved_errno;
+            result = common_vsprintf<format_validation_base>(options, buffer, max_count + 1, format, ptd, arglist);
 
-            return -1;
+            if (result == -2)
+            {
+                // The string has been truncated; return -1:
+                _SECURECRT__FILL_STRING(buffer, buffer_count, max_count + 1);
+                if (ptd.get_errno().check(ERANGE))
+                {
+                    errno_restore_point.enable();
+                }
+
+                return -1;
+            }
         }
-    }
-    else
-    {
-#pragma warning(suppress:__WARNING_UNUSED_ASSIGNMENT) // 28931
-        errno_t const saved_errno = errno;
-        result = common_vsprintf<format_validation_base>(options, buffer, buffer_count, format, locale, arglist);
-
-        buffer[buffer_count - 1] = 0;
-
-        // We allow truncation if count == _TRUNCATE
-        if (result == -2 && max_count == _TRUNCATE)
+        else
         {
-            if (errno == ERANGE)
-                errno = saved_errno;
+            result = common_vsprintf<format_validation_base>(options, buffer, buffer_count, format, ptd, arglist);
+            buffer[buffer_count - 1] = 0;
 
-            return -1;
+            // We allow truncation if count == _TRUNCATE
+            if (result == -2 && max_count == _TRUNCATE)
+            {
+                if (ptd.get_errno().check(ERANGE))
+                {
+                    errno_restore_point.enable();
+                }
+
+                return -1;
+            }
         }
     }
 
@@ -367,7 +379,7 @@ static int __cdecl common_vsnprintf_s(
         _SECURECRT__FILL_STRING(buffer, buffer_count, 1);
         if (result == -2)
         {
-            _VALIDATE_RETURN(("Buffer too small", 0), ERANGE, -1);
+            _UCRT_VALIDATE_RETURN(ptd, ("Buffer too small", 0), ERANGE, -1);
         }
 
         return -1;
@@ -388,7 +400,8 @@ extern "C" int __cdecl __stdio_common_vsnprintf_s(
     va_list          const arglist
     )
 {
-    return common_vsnprintf_s(options, buffer, buffer_count, max_count, format, locale, arglist);
+    __crt_cached_ptd_host ptd(locale);
+    return common_vsnprintf_s(options, buffer, buffer_count, max_count, format, ptd, arglist);
 }
 
 extern "C" int __cdecl __stdio_common_vsnwprintf_s(
@@ -401,7 +414,8 @@ extern "C" int __cdecl __stdio_common_vsnwprintf_s(
     va_list          const arglist
     )
 {
-    return common_vsnprintf_s(options, buffer, buffer_count, max_count, format, locale, arglist);
+    __crt_cached_ptd_host ptd(locale);
+    return common_vsnprintf_s(options, buffer, buffer_count, max_count, format, ptd, arglist);
 }
 
 extern "C" int __cdecl __stdio_common_vsprintf_p(
@@ -413,7 +427,8 @@ extern "C" int __cdecl __stdio_common_vsprintf_p(
     va_list          const arglist
     )
 {
-    return common_vsprintf<positional_parameter_base>(options, buffer, buffer_count, format, locale, arglist);
+    __crt_cached_ptd_host ptd(locale);
+    return common_vsprintf<positional_parameter_base>(options, buffer, buffer_count, format, ptd, arglist);
 }
 
 extern "C" int __cdecl __stdio_common_vswprintf_p(
@@ -425,5 +440,6 @@ extern "C" int __cdecl __stdio_common_vswprintf_p(
     va_list          const arglist
     )
 {
-    return common_vsprintf<positional_parameter_base>(options, buffer, buffer_count, format, locale, arglist);
+    __crt_cached_ptd_host ptd(locale);
+    return common_vsprintf<positional_parameter_base>(options, buffer, buffer_count, format, ptd, arglist);
 }

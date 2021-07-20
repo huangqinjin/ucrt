@@ -6,6 +6,7 @@
 // The "simple" string conversion functions:  atoi, atol, atoll, and their wide
 // string functions.
 //
+#define _ALLOW_OLD_VALIDATE_MACROS
 #include <corecrt_internal_strtox.h>
 #include <stdlib.h>
 

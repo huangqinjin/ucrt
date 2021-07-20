@@ -17,7 +17,7 @@
 // _msize_base will have identical COMDATs, and the linker will fold
 // them when calling one from the CRT. This is necessary because _msize
 // needs to support users patching in custom implementations.
-extern "C" __declspec(noinline) size_t __cdecl _msize_base(void* const block) throw()
+extern "C" __declspec(noinline) size_t __cdecl _msize_base(void* const block) noexcept
 {
     // Validation section
     _VALIDATE_RETURN(block != nullptr, EINVAL, static_cast<size_t>(-1));

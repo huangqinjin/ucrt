@@ -7,6 +7,7 @@
 //
 #include <corecrt_internal_lowio.h>
 #include <corecrt_internal_mbstring.h>
+#include <corecrt_internal_ptd_propagation.h>
 #include <ctype.h>
 #include <locale.h>
 #include <stdlib.h>
@@ -43,11 +44,11 @@ static size_t const BUF_SIZE = 5 * 1024;
 // may have actually been written, due to linefeed translation, codepage
 // translation, and other transformations).  On failure, this function returns 0
 // and sets errno.
-extern "C" int __cdecl _write(int const fh, void const* const buffer, unsigned const size)
+extern "C" int __cdecl _write_internal(int const fh, void const* const buffer, unsigned const size, __crt_cached_ptd_host& ptd)
 {
-    _CHECK_FH_CLEAR_OSSERR_RETURN(fh, EBADF, -1);
-    _VALIDATE_CLEAR_OSSERR_RETURN((fh >= 0 && (unsigned)fh < (unsigned)_nhandle), EBADF, -1);
-    _VALIDATE_CLEAR_OSSERR_RETURN((_osfile(fh) & FOPEN), EBADF, -1);
+    _UCRT_CHECK_FH_CLEAR_OSSERR_RETURN(ptd, fh, EBADF, -1);
+    _UCRT_VALIDATE_CLEAR_OSSERR_RETURN(ptd, (fh >= 0 && (unsigned)fh < (unsigned)_nhandle), EBADF, -1);
+    _UCRT_VALIDATE_CLEAR_OSSERR_RETURN(ptd, (_osfile(fh) & FOPEN), EBADF, -1);
 
     __acrt_lowio_lock_fh(fh);
     int result = -1;
@@ -55,13 +56,13 @@ extern "C" int __cdecl _write(int const fh, void const* const buffer, unsigned c
     {
         if ((_osfile(fh) & FOPEN) == 0)
         {
-            errno = EBADF;
-            _doserrno = 0;
+            ptd.get_errno().set(EBADF);
+            ptd.get_doserrno().set(0);
             _ASSERTE(("Invalid file descriptor. File possibly closed by a different thread",0));
             __leave;
         }
 
-        result = _write_nolock(fh, buffer, size);
+        result = _write_nolock(fh, buffer, size, ptd);
     }
     __finally
     {
@@ -70,9 +71,13 @@ extern "C" int __cdecl _write(int const fh, void const* const buffer, unsigned c
     return result;
 }
 
+extern "C" int __cdecl _write(int const fh, void const* const buffer, unsigned const size)
+{
+    __crt_cached_ptd_host ptd;
+    return _write_internal(fh, buffer, size, ptd);
+}
 
-
-static bool __cdecl write_requires_double_translation_nolock(int const fh) throw()
+static bool __cdecl write_requires_double_translation_nolock(int const fh, __crt_cached_ptd_host& ptd) throw()
 {
     // Double translation is required if both [a] the current locale is not the C
     // locale or the file is open in a non-ANSI mode and [b] we are writing to the
@@ -80,22 +85,28 @@ static bool __cdecl write_requires_double_translation_nolock(int const fh) throw
 
     // If this isn't a TTY or a text mode screen, then it isn't the console:
     if (!_isatty(fh))
+    {
         return false;
+    }
 
-    if ((_osfile(fh) & FTEXT) == 0)
+    if ((_osfile(fh) & FTEXT) == 0) {
         return false;
+    }
 
     // Get the current locale.  If we're in the C locale and the file is open
     // in ANSI mode, we don't need double translation:
-    __acrt_ptd* const ptd = __acrt_getptd();
-    bool const is_c_locale = ptd->_locale_info->locale_name[LC_CTYPE] == nullptr;
+    bool const is_c_locale = ptd.get_locale()->locinfo->locale_name[LC_CTYPE] == nullptr;
     if (is_c_locale && _textmode(fh) == __crt_lowio_text_mode::ansi)
+    {
         return false;
+    }
 
     // If we can't get the console mode, it's not the console:
     DWORD mode;
     if (!GetConsoleMode(reinterpret_cast<HANDLE>(_osfhnd(fh)), &mode))
+    {
         return false;
+    }
 
     // Otherwise, double translation is required:
     return true;
@@ -106,14 +117,15 @@ static bool __cdecl write_requires_double_translation_nolock(int const fh) throw
 static write_result __cdecl write_double_translated_ansi_nolock(
     int                                 const fh,
     _In_reads_(buffer_size) char const* const buffer,
-    unsigned                            const buffer_size
+    unsigned                            const buffer_size,
+    __crt_cached_ptd_host&                    ptd
     ) throw()
 {
     HANDLE      const os_handle  = reinterpret_cast<HANDLE>(_osfhnd(fh));
     char const* const buffer_end = buffer + buffer_size;
     UINT        const console_cp = GetConsoleOutputCP();
-    _LocaleUpdate _loc_update(nullptr);
-    const bool is_utf8 = _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage == CP_UTF8;
+    _locale_t   const locale     = ptd.get_locale();
+    bool        const is_utf8    = locale->locinfo->_public._locale_lc_codepage == CP_UTF8;
 
     write_result result = { 0 };
 
@@ -170,8 +182,10 @@ static write_result __cdecl write_double_translated_ansi_nolock(
                     {
                         wc_used = 2;
                     }
-                    if (__crt_mbstring::__mbsrtowcs_utf8(wc, &str, wc_used, &state) == -1)
+                    if (__crt_mbstring::__mbsrtowcs_utf8(wc, &str, wc_used, &state, ptd) == -1)
+                    {
                         return result;
+                    }
                     source_it += (remaining_bytes - 1);
                 }
                 else
@@ -201,8 +215,10 @@ static write_result __cdecl write_double_translated_ansi_nolock(
                     {
                         wc_used = 2;
                     }
-                    if (__crt_mbstring::__mbsrtowcs_utf8(wc, &str, wc_used, &state) == -1)
+                    if (__crt_mbstring::__mbsrtowcs_utf8(wc, &str, wc_used, &state, ptd) == -1)
+                    {
                         return result;
+                    }
                     source_it += (mb_len - 1);
                 }
                 else
@@ -223,7 +239,7 @@ static write_result __cdecl write_double_translated_ansi_nolock(
         {
             // We already have a DBCS lead byte buffered.  Take the current
             // character, combine it with the lead byte, and convert:
-            _ASSERTE(isleadbyte(_dbcsBuffer(fh)));
+            _ASSERTE(_isleadbyte_fast_internal(_dbcsBuffer(fh), locale));
 
             char mb_buffer[MB_LEN_MAX];
             mb_buffer[0] = _dbcsBuffer(fh);
@@ -231,18 +247,22 @@ static write_result __cdecl write_double_translated_ansi_nolock(
 
             _dbcsBufferUsed(fh) = false;
 
-            if (mbtowc(wc, mb_buffer, 2) == -1)
+            if (_mbtowc_internal(wc, mb_buffer, 2, ptd) == -1)
+            {
                 return result;
+            }
         }
         else
         {
-            if (isleadbyte(*source_it))
+            if (_isleadbyte_fast_internal(*source_it, locale))
             {
                 if ((source_it + 1) < buffer_end)
                 {
                     // And we have more bytes to read, just convert...
-                    if (mbtowc(wc, source_it, 2) == -1)
+                    if (_mbtowc_internal(wc, source_it, 2, ptd) == -1)
+                    {
                         return result;
+                    }
 
                     // Increment the source_it to accomodate the DBCS character:
                     ++source_it;
@@ -262,8 +282,10 @@ static write_result __cdecl write_double_translated_ansi_nolock(
             else
             {
                 // single character conversion:
-                if (mbtowc(wc, source_it, 1) == -1)
+                if (_mbtowc_internal(wc, source_it, 1, ptd) == -1)
+                {
                     return result;
+                }
             }
         }
 
@@ -297,7 +319,9 @@ static write_result __cdecl write_double_translated_ansi_nolock(
 
         // If the write succeeded but didn't write all of the characters, return:
         if (written < size)
+        {
             return result;
+        }
 
         // If the original character that we read was an LF, write a CR too:
         // CRT_REFACTOR TODO Doesn't this write LFCR instead of CRLF?
@@ -311,7 +335,9 @@ static write_result __cdecl write_double_translated_ansi_nolock(
             }
 
             if (written < 1)
+            {
                 return result;
+            }
 
             ++result.lf_count;
             ++result.char_count;
@@ -343,6 +369,7 @@ static write_result __cdecl write_double_translated_unicode_nolock(
     {
         wchar_t const c = *reinterpret_cast<wchar_t const*>(pch);
 
+        // _putwch_nolock does not depend on global state, no PTD needed to be propagated.
         if (_putwch_nolock(c) == c)
         {
             result.char_count += 2;
@@ -357,6 +384,7 @@ static write_result __cdecl write_double_translated_unicode_nolock(
         // CRT_REFACTOR TODO Doesn't this print LFCR instead of CRLF?
         if (c == LF)
         {
+            // _putwch_nolock does not depend on global state, no PTD needed to be propagated.
             if (_putwch_nolock(CR) != CR)
             {
                 result.error_code = GetLastError();
@@ -420,7 +448,9 @@ static write_result __cdecl write_text_ansi_nolock(
 
         result.char_count += written;
         if (written < lfbuf_length)
+        {
             return result; // The write succeeded but didn't write everything
+        }
     }
 
     return result;
@@ -601,40 +631,42 @@ static write_result __cdecl write_binary_nolock(
     // Compared to text files, binary files are easy...
     write_result result = { 0 };
     if (!WriteFile(os_handle, buffer, buffer_size, &result.char_count, nullptr))
+    {
         result.error_code = GetLastError();
+    }
 
     return result;
 }
 
 
 
-extern "C" int __cdecl _write_nolock(int const fh, void const* const buffer, unsigned const buffer_size)
+extern "C" int __cdecl _write_nolock(int const fh, void const* const buffer, unsigned const buffer_size, __crt_cached_ptd_host& ptd)
 {
     // If the buffer is empty, there is nothing to be written:
     if (buffer_size == 0)
+    {
         return 0;
+    }
 
     // If the buffer is null, though... well, that is not allowed:
-    _VALIDATE_CLEAR_OSSERR_RETURN(buffer != nullptr, EINVAL, -1);
-
-
+    _UCRT_VALIDATE_CLEAR_OSSERR_RETURN(ptd, buffer != nullptr, EINVAL, -1);
 
     __crt_lowio_text_mode const fh_textmode = _textmode(fh);
 
     // If the file is open for Unicode, the buffer size must always be even:
     if (fh_textmode == __crt_lowio_text_mode::utf16le || fh_textmode == __crt_lowio_text_mode::utf8)
-        _VALIDATE_CLEAR_OSSERR_RETURN(buffer_size % 2 == 0, EINVAL, -1);
+    {
+        _UCRT_VALIDATE_CLEAR_OSSERR_RETURN(ptd, buffer_size % 2 == 0, EINVAL, -1);
+    }
 
     // If the file is opened for appending, seek to the end of the file.  We
     // ignore errors because the underlying file may not allow seeking.
     if (_osfile(fh) & FAPPEND)
-        (void)_lseeki64_nolock(fh, 0, FILE_END);
-
-
+    {
+        (void)_lseeki64_nolock_internal(fh, 0, FILE_END, ptd);
+    }
 
     char const* const char_buffer = static_cast<char const*>(buffer);
-
-
 
     // Dispatch the actual writing to one of the helper routines based on the
     // text mode of the file and whether or not the file refers to the console.
@@ -644,12 +676,12 @@ extern "C" int __cdecl _write_nolock(int const fh, void const* const buffer, uns
     // to print ANSI.  Also note that when printing to the console, we need to
     // convert the characters to the console codepge.
     write_result result = { 0 };
-    if (write_requires_double_translation_nolock(fh))
+    if (write_requires_double_translation_nolock(fh, ptd))
     {
         switch (fh_textmode)
         {
         case __crt_lowio_text_mode::ansi:
-            result = write_double_translated_ansi_nolock(fh, char_buffer, buffer_size);
+            result = write_double_translated_ansi_nolock(fh, char_buffer, buffer_size, ptd);
             break;
 
         case __crt_lowio_text_mode::utf16le:
@@ -693,12 +725,12 @@ extern "C" int __cdecl _write_nolock(int const fh, void const* const buffer, uns
             // normally:
             if (result.error_code == ERROR_ACCESS_DENIED)
             {
-                errno = EBADF;
-                _doserrno = result.error_code;
+                ptd.get_errno().set(EBADF);
+                ptd.get_doserrno().set(result.error_code);
             }
             else
             {
-                __acrt_errno_map_os_error(result.error_code);
+                __acrt_errno_map_os_error_ptd(result.error_code, ptd);
             }
 
             return -1;
@@ -712,11 +744,10 @@ extern "C" int __cdecl _write_nolock(int const fh, void const* const buffer, uns
         }
 
         // Otherwise, the error is reported as ENOSPC:
-        errno = ENOSPC;
-        _doserrno = 0;
+        ptd.get_errno().set(ENOSPC);
+        ptd.get_doserrno().set(0);
         return -1;
     }
-
 
     // The write succeeded.  Return the adjusted number of bytes written:
     return result.char_count - result.lf_count;

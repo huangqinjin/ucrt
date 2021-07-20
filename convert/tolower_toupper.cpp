@@ -19,7 +19,7 @@ static __forceinline int __cdecl common_tox_win_lookup(int const c, DWORD const 
     // Convert the character to a multibyte string:
     size_t        in_count    {};
     unsigned char in_buffer[3]{};
-    if (locale->locinfo->_public._locale_mb_cur_max > 1 && _isleadbyte_l(c >> 8 & 0xff, locale))
+    if (locale->locinfo->_public._locale_mb_cur_max > 1 && _isleadbyte_fast_internal(c >> 8 & 0xff, locale))
     {
         in_buffer[0] = c >> 8 & 0xff; // Put the lead byte at start of the string
         in_buffer[1] = static_cast<unsigned char>(c);

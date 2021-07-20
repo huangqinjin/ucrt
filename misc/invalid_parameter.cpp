@@ -6,7 +6,7 @@
 // The invalid parameter handlers and related functionality
 //
 #include <corecrt_internal.h>
-
+#include <corecrt_internal_ptd_propagation.h>
 
 
 static __crt_state_management::dual_state_global<_invalid_parameter_handler> __acrt_invalid_parameter_handler;
@@ -87,6 +87,32 @@ extern "C" void __cdecl __acrt_initialize_invalid_parameter_handler(void* const 
 // _invalid_parameter
 //
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+extern "C" void __cdecl _invalid_parameter_internal(
+    wchar_t const*     const expression,
+    wchar_t const*     const function_name,
+    wchar_t const*     const file_name,
+    unsigned int       const line_number,
+    uintptr_t          const reserved,
+    __crt_cached_ptd_host&   ptd
+    )
+{
+    __acrt_ptd * const raw_ptd = ptd.get_raw_ptd_noexit();
+    if (raw_ptd && raw_ptd->_thread_local_iph)
+    {
+        raw_ptd->_thread_local_iph(expression, function_name, file_name, line_number, reserved);
+        return;
+    }
+
+    _invalid_parameter_handler const global_handler = __crt_fast_decode_pointer(__acrt_invalid_parameter_handler.value(ptd));
+    if (global_handler)
+    {
+        global_handler(expression, function_name, file_name, line_number, reserved);
+        return;
+    }
+
+    _invoke_watson(expression, function_name, file_name, line_number, reserved);
+}
+
 extern "C" void __cdecl _invalid_parameter(
     wchar_t const* const expression,
     wchar_t const* const function_name,
@@ -95,21 +121,8 @@ extern "C" void __cdecl _invalid_parameter(
     uintptr_t      const reserved
     )
 {
-    __acrt_ptd* const ptd = __acrt_getptd_noexit();
-    if (ptd && ptd->_thread_local_iph)
-    {
-        ptd->_thread_local_iph(expression, function_name, file_name, line_number, reserved);
-        return;
-    }
-
-    _invalid_parameter_handler const global_handler = __crt_fast_decode_pointer(__acrt_invalid_parameter_handler.value());
-    if (global_handler)
-    {
-        global_handler(expression, function_name, file_name, line_number, reserved);
-        return;
-    }
-
-    _invoke_watson(expression, function_name, file_name, line_number, reserved);
+    __crt_cached_ptd_host ptd;
+    return _invalid_parameter_internal(expression, function_name, file_name, line_number, reserved, ptd);
 }
 
 extern "C" void __cdecl _invalid_parameter_noinfo()

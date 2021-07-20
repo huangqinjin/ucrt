@@ -12,15 +12,52 @@
 #pragma once
 
 #include <corecrt_internal.h>
-#include <ctype.h>
-#include <corecrt_internal_fltintrn.h>
 #include <corecrt_internal_big_integer.h>
+#include <corecrt_internal_fltintrn.h>
+#include <corecrt_internal_ptd_propagation.h>
 #include <corecrt_internal_stdio.h>
+#include <ctype.h>
 #include <fenv.h>
 #include <locale.h>
 #include <stdint.h>
 
+// This header is temporarily mixed PTD-propagation and direct errno usage.
+#pragma push_macro("_VALIDATE_RETURN_VOID")
+#pragma push_macro("_VALIDATE_RETURN")
+#pragma push_macro("_INVALID_PARAMETER")
+#undef _VALIDATE_RETURN_VOID
+#undef _VALIDATE_RETURN
+#undef _INVALID_PARAMETER
 
+#ifdef _DEBUG
+    #define _INVALID_PARAMETER(expr) _invalid_parameter(expr, __FUNCTIONW__, __FILEW__, __LINE__, 0)
+#else
+    #define _INVALID_PARAMETER(expr) _invalid_parameter_noinfo()
+#endif
+
+#define _VALIDATE_RETURN(expr, errorcode, retexpr)                             \
+    {                                                                          \
+        int _Expr_val = !!(expr);                                              \
+        _ASSERT_EXPR((_Expr_val), _CRT_WIDE(#expr));                           \
+        if (!(_Expr_val))                                                      \
+        {                                                                      \
+            *_errno() = (errorcode);                                           \
+            _INVALID_PARAMETER(_CRT_WIDE(#expr));                              \
+            return (retexpr);                                                  \
+        }                                                                      \
+    }
+
+#define _VALIDATE_RETURN_VOID(expr, errorcode)                                 \
+    {                                                                          \
+        int _Expr_val = !!(expr);                                              \
+        _ASSERT_EXPR((_Expr_val), _CRT_WIDE(#expr));                           \
+        if (!(_Expr_val))                                                      \
+        {                                                                      \
+            *_errno() = (errorcode);                                           \
+            _INVALID_PARAMETER(_CRT_WIDE(#expr));                              \
+            return;                                                            \
+        }                                                                      \
+    }
 
 //-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
@@ -182,12 +219,12 @@ bool is_overflow_condition(unsigned const flags, UnsignedInteger const number) t
     return false;
 }
 
-template <typename UnsignedInteger, typename CharacterSource>
+template <typename UnsignedInteger, typename CharacterSource, bool TrimWhitespace = true>
 UnsignedInteger __cdecl parse_integer(
-    _locale_t       const locale,
-    CharacterSource       source,
-    int                   base,
-    bool            const is_signed
+    __crt_cached_ptd_host&   ptd,
+    CharacterSource          source,
+    int                      base,
+    bool               const is_result_signed
     ) throw()
 {
     static_assert(!__crt_strtox::is_signed<UnsignedInteger>::value, "UnsignedInteger must be unsigned");
@@ -197,26 +234,35 @@ UnsignedInteger __cdecl parse_integer(
     if (!source.validate())
         return 0;
 
-    _VALIDATE_RETURN(base == 0 || (2 <= base && base <= 36), EINVAL, 0);
-
-    _LocaleUpdate locale_update{locale};
-
+    _UCRT_VALIDATE_RETURN(ptd, base == 0 || (2 <= base && base <= 36), EINVAL, 0);
     UnsignedInteger number{0}; // number is the accumulator
 
     auto const initial_state = source.save_state();
 
-    char_type c{source.get()};
-    while (is_space(c, locale_update.GetLocaleT()))
-        c = source.get();
 
-    unsigned flags{is_signed ? FL_SIGNED : 0};
+    char_type c{source.get()};
+
+    if constexpr (TrimWhitespace)
+    {
+        const _locale_t loc = ptd.get_locale();
+        while (is_space(c, loc))
+        {
+            c = source.get();
+        }
+    }
+
+    unsigned flags{is_result_signed ? FL_SIGNED : 0};
 
     // Optional sign (+ or -):
     if (c == '-')
+    {
         flags |= FL_NEGATIVE;
+    }
 
     if (c == '-' || c == '+')
+    {
         c = source.get();
+    }
 
     // If the base is zero, we try to detect the base from the string prefix:
     if (base == 0 || base == 16)
@@ -224,7 +270,9 @@ UnsignedInteger __cdecl parse_integer(
         if (parse_digit(c) != 0)
         {
             if (base == 0)
+            {
                 base = 10;
+            }
         }
         else
         {
@@ -232,43 +280,43 @@ UnsignedInteger __cdecl parse_integer(
             if (next_c == 'x' || next_c == 'X')
             {
                 if (base == 0)
+                {
                     base = 16;
+                }
                 c = source.get();
             }
             else
             {
                 if (base == 0)
+                {
                     base = 8;
+                }
                 source.unget(next_c);
             }
         }
     }
 
-    // This is the maximum value that 'number' can hold before multiplication by
-    // the base would cause overflow to occur:
-    UnsignedInteger const max_pre_multiply_value{static_cast<UnsignedInteger>(-1) / base};
-    UnsignedInteger const max_pre_add_value     {static_cast<UnsignedInteger>(-1) % base};
+    UnsignedInteger const max_pre_multiply_value = static_cast<UnsignedInteger>(-1) / base;
 
     for (;;)
     {
         unsigned const digit{parse_digit(c)};
-        if (digit == -1 || digit >= static_cast<unsigned>(base))
+        if (digit >= static_cast<unsigned>(base))
+        {
+            // This also handles the case where the digit could not
+            // be parsed and parse_digit returns -1.
             break;
+        }
 
         flags |= FL_READ_DIGIT;
 
-        bool const will_not_overflow{
-            number < max_pre_multiply_value ||
-            (number == max_pre_multiply_value && digit <= max_pre_add_value)};
+        UnsignedInteger const number_after_multiply = number * base;
+        UnsignedInteger const number_after_add = number_after_multiply + digit;
 
-        if (will_not_overflow)
-        {
-            number = number * base + digit;
-        }
-        else
-        {
-            flags |= FL_OVERFLOW;
-        }
+        // Avoid branching when setting overflow flag.
+        flags |= FL_OVERFLOW * ((number > max_pre_multiply_value) | (number_after_add < number_after_multiply));
+
+        number = number_after_add;
 
         c = source.get();
     }
@@ -284,7 +332,7 @@ UnsignedInteger __cdecl parse_integer(
 
     if (is_overflow_condition(flags, number))
     {
-        errno = ERANGE;
+        ptd.get_errno().set(ERANGE);
 
         if ((flags & FL_SIGNED) == 0)
         {
@@ -305,6 +353,18 @@ UnsignedInteger __cdecl parse_integer(
     }
 
     return number;
+}
+
+template <typename UnsignedInteger, typename CharacterSource>
+UnsignedInteger __cdecl parse_integer(
+    _locale_t       const locale,
+    CharacterSource       source,
+    int                   base,
+    bool            const is_result_signed
+    ) throw()
+{
+    __crt_cached_ptd_host ptd{locale};
+    return parse_integer<UnsignedInteger>(ptd, static_cast<CharacterSource&&>(source), base, is_result_signed);
 }
 
 } // namespace __crt_strtox
@@ -415,7 +475,7 @@ public:
         _ASSERT_AND_INVOKE_WATSON(_is_double);
         return *static_cast<double*>(_value);
     }
-    
+
     float& as_float() const throw()
     {
         _ASSERT_AND_INVOKE_WATSON(!_is_double);
@@ -427,7 +487,7 @@ public:
     int32_t maximum_binary_exponent() const throw() { return _is_double ? traits<double>::maximum_binary_exponent : traits<float>::maximum_binary_exponent; }
     int32_t minimum_binary_exponent() const throw() { return _is_double ? traits<double>::minimum_binary_exponent : traits<float>::minimum_binary_exponent; }
     int32_t exponent_bias          () const throw() { return _is_double ? traits<double>::exponent_bias           : traits<float>::exponent_bias;           }
-    
+
     uint64_t exponent_mask            () const throw() { return _is_double ? traits<double>::exponent_mask             : traits<float>::exponent_mask;             }
     uint64_t normal_mantissa_mask     () const throw() { return _is_double ? traits<double>::normal_mantissa_mask      : traits<float>::normal_mantissa_mask;      }
     uint64_t denormal_mantissa_mask   () const throw() { return _is_double ? traits<double>::denormal_mantissa_mask    : traits<float>::denormal_mantissa_mask;    }
@@ -630,7 +690,7 @@ __forceinline uint64_t __cdecl right_shift_with_rounding(
     uint64_t const extra_bits_mask = (1ui64 << (shift - 1)) - 1;
     uint64_t const round_bit_mask  = (1ui64 << (shift - 1));
     uint64_t const lsb_bit_mask    =  1ui64 <<  shift;
-    
+
     bool const lsb_bit   = (value & lsb_bit_mask)   != 0;
     bool const round_bit = (value & round_bit_mask) != 0;
     bool const tail_bits = !has_zero_tail || (value & extra_bits_mask) != 0;
@@ -875,7 +935,7 @@ inline SLD_STATUS __cdecl assemble_floating_point_value_from_big_integer(
         (static_cast<uint64_t>(integer_value._data[top_element_index] & top_element_mask)       << top_element_shift)    +
         (static_cast<uint64_t>(integer_value._data[middle_element_index])                       << middle_element_shift) +
         (static_cast<uint64_t>(integer_value._data[bottom_element_index] & bottom_element_mask) >> bottom_element_shift);
-    
+
     bool has_zero_tail =
         !has_nonzero_fractional_part &&
         (integer_value._data[bottom_element_index] & top_element_mask) == 0;
@@ -907,7 +967,7 @@ __forceinline void __cdecl accumulate_decimal_digits_into_big_integer(
         {
             multiply(result, 1000 * 1000 * 1000);
             add(result, accumulator);
-            
+
             accumulator       = 0;
             accumulator_count = 0;
         }
@@ -990,7 +1050,7 @@ inline SLD_STATUS __cdecl convert_decimal_string_to_floating_type_common(
     // and the mantissa has a fractional part.  We parse the fractional part of
     // the mantsisa to obtain more bits of precision.  To do this, we convert
     // the fractional part into an actual fraction N/M, where the numerator N is
-    // computed from the digits of the fractional part, and the denominator M is 
+    // computed from the digits of the fractional part, and the denominator M is
     // computed as the power of 10 such that N/M is equal to the value of the
     // fractional part of the mantissa.
     big_integer fractional_numerator{};
@@ -1381,7 +1441,7 @@ floating_point_parse_result __cdecl parse_floating_point_from_source(
     {
         return parse_floating_point_possible_infinity(c, source, stored_state);
     }
-        
+
     // Handle special cases "NAN" and "NAN(...)" (these are the only accepted
     // character sequences that start with 'N'):
     if (c == 'N' || c == 'n')
@@ -1821,13 +1881,14 @@ __forceinline Integer __cdecl parse_integer_from_string(
     _locale_t        const locale
     ) throw()
 {
+    __crt_cached_ptd_host ptd{locale};
+
     return static_cast<Integer>(parse_integer<typename make_unsigned<Integer>::type>(
-        locale,
+        ptd,
         make_c_string_character_source(string, end),
         base,
         is_signed<Integer>::value));
 }
-
 
 template <typename InputAdapter>
 class input_adapter_character_source
@@ -1957,3 +2018,29 @@ input_adapter_character_source<InputAdapter> __cdecl make_input_adapter_characte
 }
 
 } // namespace __crt_strtox
+
+// Internal-only variations of the above functions
+
+// Note this is different from a usual tcstol call in that whitespace is not
+// trimmed in order to avoid acquiring the global locale for code paths that
+// do not require that functionality.
+template <typename Character, typename EndPointer, bool TrimWhitespace = false>
+__forceinline long __cdecl _tcstol_internal(
+    __crt_cached_ptd_host&   ptd,
+    Character const*   const string,
+    EndPointer         const end,
+    int                const base
+    ) throw()
+{
+    return static_cast<long>(__crt_strtox::parse_integer<unsigned long, __crt_strtox::c_string_character_source<Character>, TrimWhitespace>(
+        ptd,
+        __crt_strtox::make_c_string_character_source(string, end),
+        base,
+        true // long is signed
+        ));
+}
+
+#pragma pop_macro("_INVALID_PARAMETER")
+#pragma pop_macro("_VALIDATE_RETURN")
+#pragma pop_macro("_VALIDATE_RETURN_VOID")
+

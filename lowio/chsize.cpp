@@ -6,31 +6,37 @@
 // Defines _chsize() and _chsize_s(), which change the size of a file.
 //
 #include <corecrt_internal_lowio.h>
-
+#include <corecrt_internal_ptd_propagation.h>
 
 
 // Changes the size of the given file, either extending or truncating it.  The
-// file must hvae been opened with write permissions or this will fail.  Returns
+// file must have been opened with write permissions or this will fail.  Returns
 // 0 on success; returns an errno error code on failure,
-extern "C" errno_t __cdecl _chsize_s(int const fh, __int64 const size)
+static errno_t __cdecl _chsize_s_internal(int const fh, __int64 const size, __crt_cached_ptd_host& ptd)
 {
-    _CHECK_FH_CLEAR_OSSERR_RETURN_ERRCODE(fh, EBADF);
-    _VALIDATE_CLEAR_OSSERR_RETURN_ERRCODE((fh >= 0 && (unsigned)fh < (unsigned)_nhandle), EBADF);
-    _VALIDATE_CLEAR_OSSERR_RETURN_ERRCODE((_osfile(fh) & FOPEN), EBADF);
-    _VALIDATE_CLEAR_OSSERR_RETURN_ERRCODE((size >= 0), EINVAL);
+    _UCRT_CHECK_FH_CLEAR_OSSERR_RETURN_ERRCODE(ptd, fh, EBADF);
+    _UCRT_VALIDATE_CLEAR_OSSERR_RETURN_ERRCODE(ptd, (fh >= 0 && (unsigned)fh < (unsigned)_nhandle), EBADF);
+    _UCRT_VALIDATE_CLEAR_OSSERR_RETURN_ERRCODE(ptd, (_osfile(fh) & FOPEN), EBADF);
+    _UCRT_VALIDATE_CLEAR_OSSERR_RETURN_ERRCODE(ptd, (size >= 0), EINVAL);
 
     return __acrt_lowio_lock_fh_and_call(fh, [&]()
     {
         if (_osfile(fh) & FOPEN)
         {
-            return _chsize_nolock(fh, size);
+            return _chsize_nolock_internal(fh, size, ptd);
         }
         else
         {
             _ASSERTE(("Invalid file descriptor. File possibly closed by a different thread", 0));
-            return errno = EBADF;
+            return ptd.get_errno().set(EBADF);
         }
     });
+}
+
+extern "C" errno_t __cdecl _chsize_s(int const fh, __int64 const size)
+{
+    __crt_cached_ptd_host ptd;
+    return _chsize_s_internal(fh, size, ptd);
 }
 
 struct __crt_seek_guard
@@ -58,13 +64,16 @@ struct __crt_seek_guard
     int fhh;
 };
 
-extern "C" errno_t __cdecl _chsize_nolock(int const fh, __int64 const size)
+extern "C" errno_t __cdecl _chsize_nolock_internal(int const fh, __int64 const size, __crt_cached_ptd_host& ptd)
 {
     // Get current file position and seek to end
     __crt_seek_guard seek_guard(fh, size);
 
-    if (seek_guard.place == -1 || seek_guard.end == -1) {
-        return errno;
+    if (seek_guard.place == -1 || seek_guard.end == -1)
+    {
+        // EBADF if earlier lseek (in __crt_seek_guard) failed
+        // EINVAL otherwise (ex: too large of a offset)
+        return ptd.get_errno().value_or(EINVAL);
     }
 
     // Grow or shrink the file as necessary:
@@ -74,8 +83,7 @@ extern "C" errno_t __cdecl _chsize_nolock(int const fh, __int64 const size)
         __crt_unique_heap_ptr<char> const zero_buffer(_calloc_crt_t(char, _INTERNAL_BUFSIZ));
         if (!zero_buffer)
         {
-            errno = ENOMEM;
-            return errno;
+            return ptd.get_errno().set(ENOMEM);
         }
 
         int const old_mode = _setmode_nolock(fh, _O_BINARY);
@@ -86,14 +94,16 @@ extern "C" errno_t __cdecl _chsize_nolock(int const fh, __int64 const size)
                 ? _INTERNAL_BUFSIZ
                 : static_cast<int>(seek_guard.extend);
 
-            int const bytes_written = _write_nolock(fh, zero_buffer.get(), bytes_to_write);
+            int const bytes_written = _write_nolock(fh, zero_buffer.get(), bytes_to_write, ptd);
             if (bytes_written == -1)
             {
                 // Error on write:
-                if (_doserrno == ERROR_ACCESS_DENIED)
-                    errno = EACCES;
+                if (ptd.get_doserrno().check(ERROR_ACCESS_DENIED))
+                {
+                    ptd.get_errno().set(EACCES);
+                }
 
-                return errno;
+                return ptd.get_errno().value_or(0);
             }
 
             seek_guard.extend -= bytes_written;
@@ -108,24 +118,29 @@ extern "C" errno_t __cdecl _chsize_nolock(int const fh, __int64 const size)
         __int64 const new_end = _lseeki64_nolock(fh, size, SEEK_SET);
         if (new_end == -1)
         {
-            return errno;
+            return ptd.get_errno().value_or(0);
         }
 
         if (!SetEndOfFile(reinterpret_cast<HANDLE>(_get_osfhandle(fh))))
         {
-            errno = EACCES;
-            _doserrno = GetLastError();
-            return errno;
+            ptd.get_doserrno().set(GetLastError());
+            return ptd.get_errno().set(EACCES);
         }
     }
 
     return 0;
 }
 
+extern "C" errno_t __cdecl _chsize_nolock(int const fh, __int64 const size)
+{   // TODO: _chsize_nolock is already internal-only.
+    // Once PTD is propagated everywhere, rename _chsize_nolock_internal to _chsize_nolock.
+    __crt_cached_ptd_host ptd;
+    return _chsize_nolock_internal(fh, size, ptd);
+}
 
 
 // Changes the size of the given file, either extending or truncating it.  The
-// file must hvae been opened with write permissions or this will fail.  Returns
+// file must have been opened with write permissions or this will fail.  Returns
 // 0 on success; returns -1 and sets errno on failure.
 extern "C" int __cdecl _chsize(int const fh, long const size)
 {

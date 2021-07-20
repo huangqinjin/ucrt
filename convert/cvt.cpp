@@ -7,6 +7,7 @@
 // printf format specifiers.
 //
 #include <corecrt_internal.h>
+#include <corecrt_internal_ptd_propagation.h>
 #include <ctype.h>
 #include <string.h>
 #include <math.h>
@@ -107,14 +108,14 @@ static errno_t __cdecl fp_format_nan_or_infinity(
 // rounded.  If 'capitals' is true, then the exponent will appear as E(+/-)ddd.
 _Success_(return == 0)
 static errno_t fp_format_e_internal(
-    _Maybe_unsafe_(_Inout_updates_z_, result_buffer_count) char*     const result_buffer,
-    _In_fits_precision_(precision)                         size_t    const result_buffer_count,
-    _In_                                                   int       const precision,
-    _In_                                                   bool      const capitals,
-    _In_                                                   unsigned  const min_exponent_digits,
-    _In_                                                   STRFLT    const pflt,
-    _In_                                                   bool      const g_fmt,
-    _In_opt_                                               _locale_t const locale
+    _Maybe_unsafe_(_Inout_updates_z_, result_buffer_count) char*              const result_buffer,
+    _In_fits_precision_(precision)                         size_t             const result_buffer_count,
+    _In_                                                   int                const precision,
+    _In_                                                   bool               const capitals,
+    _In_                                                   unsigned           const min_exponent_digits,
+    _In_                                                   STRFLT             const pflt,
+    _In_                                                   bool               const g_fmt,
+    _Inout_                                                __crt_cached_ptd_host&   ptd
     ) throw()
 {
     // The max length if calculated like this:
@@ -122,9 +123,7 @@ static errno_t fp_format_e_internal(
     // precision = decimal digits
     // 5 = exponent letter (e or E), exponent sign, three digits exponent
     // 1 = extra space for rounding
-    _VALIDATE_RETURN_ERRCODE(result_buffer_count > static_cast<size_t>(3 + (precision > 0 ? precision : 0) + 5 + 1), ERANGE);
-
-    _LocaleUpdate locale_update(locale);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, result_buffer_count > static_cast<size_t>(3 + (precision > 0 ? precision : 0) + 5 + 1), ERANGE);
 
     // Place the output in the buffer and round.  Leave space in the buffer
     // for the '-' sign (if any) and the decimal point (if any):
@@ -147,7 +146,7 @@ static errno_t fp_format_e_internal(
     if (precision > 0)
     {
         *p = *(p + 1);
-        *++p = *locale_update.GetLocaleT()->locinfo->lconv->decimal_point;
+        *++p = *ptd.get_locale()->locinfo->lconv->decimal_point;
     }
 
     // Find the end of the string, attach the exponent field and save the
@@ -221,23 +220,23 @@ static errno_t __cdecl fp_format_e(
     _In_                                                   int                  const precision,
     _In_                                                   bool                 const capitals,
     _In_                                                   unsigned             const min_exponent_digits,
-    _In_opt_                                               _locale_t            const locale,
-    _In_                                                   __acrt_rounding_mode const rounding_mode
+    _In_                                                   __acrt_rounding_mode const rounding_mode,
+    _Inout_                                                __crt_cached_ptd_host&     ptd
     ) throw()
 {
     // The precision passed to __acrt_fltout is the number of fractional digits.
     // To ensure that we get enough digits, we require a total of precision + 1 digits,
     // to account for the digit placed to the left of the decimal point when all digits are fractional.
     _strflt strflt;
-    unsigned const displayed_digits_count = precision + 1; // +1 for digit to left of decimal point
 
-    // Restrict buffer size because we know exactly how much space is needed to display %e formatted floating point numbers.
-    // With this change, we can optimize the %e path to not calculate precision past where will be displayed without
-    // modifying the binary interface of __acrt_fltout, which will calculate all digits that would be needed by %f formatting.
-    size_t const calculated_digits_count = displayed_digits_count + 1; // +1 to calculate the value after last displayed digit (for rounding)
-    size_t const scratch_buffer_restricted_count = min(calculated_digits_count + 1, scratch_buffer_count); // +1 for null terminator
-
-    __acrt_has_trailing_digits const trailing_digits = __acrt_fltout(*reinterpret_cast<_CRT_DOUBLE const*>(argument), displayed_digits_count, &strflt, scratch_buffer, scratch_buffer_restricted_count);
+    __acrt_has_trailing_digits const trailing_digits = __acrt_fltout(
+        *reinterpret_cast<_CRT_DOUBLE const*>(argument),
+        precision + 1,
+        __acrt_precision_style::scientific,
+        &strflt,
+        scratch_buffer,
+        scratch_buffer_count
+        );
 
     errno_t const e = __acrt_fp_strflt_to_string(
         result_buffer + (strflt.sign == '-') + (precision > 0),
@@ -247,7 +246,8 @@ static errno_t __cdecl fp_format_e(
         precision + 1,
         &strflt,
         trailing_digits,
-        rounding_mode);
+        rounding_mode,
+        ptd);
 
     if (e != 0)
     {
@@ -255,12 +255,11 @@ static errno_t __cdecl fp_format_e(
         return e;
     }
 
-    return fp_format_e_internal(result_buffer, result_buffer_count, precision, capitals, min_exponent_digits, &strflt, false, locale);
+    return fp_format_e_internal(result_buffer, result_buffer_count, precision, capitals, min_exponent_digits, &strflt, false, ptd);
 }
 
 static bool fe_to_nearest(double const* const argument, unsigned __int64 const mask, short const maskpos)
 {
-
     using floating_traits = __acrt_floating_type_traits<double>;
     using components_type = floating_traits::components_type;
     components_type const* const components = reinterpret_cast<components_type const*>(argument);
@@ -300,7 +299,6 @@ static bool fe_to_nearest(double const* const argument, unsigned __int64 const m
 
 static bool should_round_up(double const* const argument, unsigned __int64 const mask, short const maskpos, __acrt_rounding_mode const rounding_mode)
 {
-
     using floating_traits = __acrt_floating_type_traits<double>;
     using components_type = floating_traits::components_type;
     components_type const* const components = reinterpret_cast<components_type const*>(argument);
@@ -343,34 +341,34 @@ static bool should_round_up(double const* const argument, unsigned __int64 const
 // true, then the number will appear as [-]0xH.HHHHP(+/-)d.
 _Success_(return == 0)
 static errno_t __cdecl fp_format_a(
-    _In_                                                   double const* const argument,
-    _Maybe_unsafe_(_Inout_updates_z_, result_buffer_count) char*               result_buffer,
-    _In_fits_precision_(precision)                         size_t        const result_buffer_count,
-    _Out_writes_(scratch_buffer_count)                     char*         const scratch_buffer,
-    _In_                                                   size_t        const scratch_buffer_count,
-    _In_                                                   int                 precision,
-    _In_                                                   bool          const capitals,
-    _In_                                                   unsigned      const min_exponent_digits,
-    _In_opt_                                               _locale_t     const locale,
-    _In_                                                   __acrt_rounding_mode const rounding_mode
+    _In_                                                   double const*        const argument,
+    _Maybe_unsafe_(_Inout_updates_z_, result_buffer_count) char*                      result_buffer,
+    _In_fits_precision_(precision)                         size_t               const result_buffer_count,
+    _Out_writes_(scratch_buffer_count)                     char*                const scratch_buffer,
+    _In_                                                   size_t               const scratch_buffer_count,
+    _In_                                                   int                        precision,
+    _In_                                                   bool                 const capitals,
+    _In_                                                   unsigned             const min_exponent_digits,
+    _In_                                                   __acrt_rounding_mode const rounding_mode,
+    _Inout_                                                __crt_cached_ptd_host&     ptd
     )
 {
     using floating_traits = __acrt_floating_type_traits<double>;
     using components_type = floating_traits::components_type;
 
     if (precision < 0)
+    {
         precision = 0;
+    }
 
     result_buffer[0] = '\0';
-
-    _LocaleUpdate locale_update(locale);
 
     // the constraint for the size of buffer is:
     // 1 (sign)
     // 4 ("0xh.")
     // precision (decimal digits)
     // 6 ("p+0000")
-    _VALIDATE_RETURN_ERRCODE(result_buffer_count > static_cast<size_t>(1 + 4 + precision + 6), ERANGE);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, result_buffer_count > static_cast<size_t>(1 + 4 + precision + 6), ERANGE);
 
     // Let __acrt_fp_format_e handle the special cases like SNAN, etc.:
     components_type const* const components = reinterpret_cast<components_type const*>(argument);
@@ -385,8 +383,8 @@ static errno_t __cdecl fp_format_a(
             precision,
             false,
             min_exponent_digits,
-            nullptr,
-            rounding_mode);
+            rounding_mode,
+            ptd);
 
         if (e != 0)
         {
@@ -448,7 +446,7 @@ static errno_t __cdecl fp_format_a(
     }
     else
     {
-        *pos = *locale_update.GetLocaleT()->locinfo->lconv->decimal_point;
+        *pos = *ptd.get_locale()->locinfo->lconv->decimal_point;
     }
 
     // Mantissa:
@@ -579,16 +577,14 @@ static errno_t __cdecl fp_format_a(
 // equal to zero, no decimal point will appear.  The low order digit is rounded.
 _Success_(return == 0)
 static errno_t fp_format_f_internal(
-    _Pre_z_ _Maybe_unsafe_(_Inout_updates_z_, buffer_count) char*     const buffer,
-    _In_fits_precision_(precision)                          size_t    const buffer_count,
-    _In_                                                    int       const precision,
-    _In_                                                    STRFLT    const pflt,
-    _In_                                                    bool      const g_fmt,
-    _In_opt_                                                _locale_t const locale
+    _Pre_z_ _Maybe_unsafe_(_Inout_updates_z_, buffer_count) char*              const buffer,
+    _In_fits_precision_(precision)                          size_t             const buffer_count,
+    _In_                                                    int                const precision,
+    _In_                                                    STRFLT             const pflt,
+    _In_                                                    bool               const g_fmt,
+    _Inout_                                                 __crt_cached_ptd_host&   ptd
     ) throw()
 {
-    _LocaleUpdate locale_update(locale);
-
     int const g_magnitude = pflt->decpt - 1;
 
     // Place the output in the user's buffer and round.  Save space for the
@@ -631,7 +627,7 @@ static errno_t fp_format_f_internal(
     if (precision > 0)
     {
         shift_bytes(buffer, buffer_count, p, 1);
-        *p++ = *locale_update.GetLocaleT()->locinfo->lconv->decimal_point;
+        *p++ = *ptd.get_locale()->locinfo->lconv->decimal_point;
 
         // If the value is less than 1 then we may need to put zeroes out in
         // front of the first non-zero digit of the mantissa:
@@ -657,12 +653,19 @@ static errno_t __cdecl fp_format_f(
     _Out_writes_(scratch_buffer_count)                     char*                const scratch_buffer,
     _In_                                                   size_t               const scratch_buffer_count,
     _In_                                                   int                  const precision,
-    _In_opt_                                               _locale_t            const locale,
-    _In_                                                   __acrt_rounding_mode const rounding_mode
+    _In_                                                   __acrt_rounding_mode const rounding_mode,
+    _Inout_                                                __crt_cached_ptd_host&     ptd
     ) throw()
 {
     _strflt strflt{};
-    __acrt_has_trailing_digits const trailing_digits = __acrt_fltout(*reinterpret_cast<_CRT_DOUBLE const*>(argument), precision, &strflt, scratch_buffer, scratch_buffer_count);
+    __acrt_has_trailing_digits const trailing_digits = __acrt_fltout(
+        *reinterpret_cast<_CRT_DOUBLE const*>(argument),
+        precision,
+        __acrt_precision_style::fixed,
+        &strflt,
+        scratch_buffer,
+        scratch_buffer_count
+        );
 
     errno_t const e = __acrt_fp_strflt_to_string(
         result_buffer + (strflt.sign == '-'),
@@ -670,7 +673,8 @@ static errno_t __cdecl fp_format_f(
         precision + strflt.decpt,
         &strflt,
         trailing_digits,
-        rounding_mode);
+        rounding_mode,
+        ptd);
 
     if (e != 0)
     {
@@ -678,7 +682,7 @@ static errno_t __cdecl fp_format_f(
         return e;
     }
 
-    return fp_format_f_internal(result_buffer, result_buffer_count, precision, &strflt, false, locale);
+    return fp_format_f_internal(result_buffer, result_buffer_count, precision, &strflt, false, ptd);
 }
 
 
@@ -696,19 +700,31 @@ static errno_t __cdecl fp_format_f(
 // appropriately rounded.
 _Success_(return == 0)
 static errno_t __cdecl fp_format_g(
-    _In_                                                   double const* const argument,
-    _Maybe_unsafe_(_Inout_updates_z_, result_buffer_count) char*         const result_buffer,
-    _In_fits_precision_(precision)                         size_t        const result_buffer_count,
-    _Out_writes_(scratch_buffer_count)                     char*         const scratch_buffer,
-    _In_                                                   size_t        const scratch_buffer_count,
-    _In_                                                   int           const precision,
-    _In_                                                   bool          const capitals,
-    _In_                                                   unsigned      const min_exponent_digits,
-    _In_opt_                                               _locale_t     const locale
+    _In_                                                   double const*        const argument,
+    _Maybe_unsafe_(_Inout_updates_z_, result_buffer_count) char*                const result_buffer,
+    _In_fits_precision_(precision)                         size_t               const result_buffer_count,
+    _Out_writes_(scratch_buffer_count)                     char*                const scratch_buffer,
+    _In_                                                   size_t               const scratch_buffer_count,
+    _In_                                                   int                  const precision,
+    _In_                                                   bool                 const capitals,
+    _In_                                                   unsigned             const min_exponent_digits,
+    _In_                                                   __acrt_rounding_mode const rounding_mode,
+    _Inout_                                                __crt_cached_ptd_host&   ptd
     ) throw()
 {
     _strflt strflt{};
-    __acrt_has_trailing_digits const trailing_digits = __acrt_fltout(*reinterpret_cast<_CRT_DOUBLE const*>(argument), precision, &strflt, scratch_buffer, scratch_buffer_count);
+
+    // Generate digits as though we will use %f formatting, then decide based on the result
+    // whether to use %f or %e formatting. %f always requires more generated digits than %e,
+    // so generating them all now will avoid generating more later (generation isn't resumable).
+    __acrt_has_trailing_digits const trailing_digits = __acrt_fltout(
+        *reinterpret_cast<_CRT_DOUBLE const*>(argument),
+        precision,
+        __acrt_precision_style::fixed,
+        &strflt,
+        scratch_buffer,
+        scratch_buffer_count
+        );
 
     size_t const minus_sign_length = strflt.sign == '-' ? 1 : 0;
 
@@ -719,7 +735,7 @@ static errno_t __cdecl fp_format_g(
         ? result_buffer_count
         : result_buffer_count - minus_sign_length;
 
-    errno_t const fptostr_result = __acrt_fp_strflt_to_string(p, buffer_count_for_fptostr, precision, &strflt, trailing_digits, __acrt_rounding_mode::standard);
+    errno_t const fptostr_result = __acrt_fp_strflt_to_string(p, buffer_count_for_fptostr, precision, &strflt, trailing_digits, rounding_mode, ptd);
     if (fptostr_result != 0)
     {
         result_buffer[0] = '\0';
@@ -736,18 +752,22 @@ static errno_t __cdecl fp_format_g(
     {
         // We can ignore the round expansion flag here:  the extra digit will be
         // overwritten by "e+xxx".
-        return fp_format_e_internal(result_buffer, result_buffer_count, precision, capitals, min_exponent_digits, &strflt, true, locale);
+        return fp_format_e_internal(result_buffer, result_buffer_count, precision, capitals, min_exponent_digits, &strflt, true, ptd);
     }
     else // Use f format
     {
         if (g_round_expansion)
         {
             // Throw away extra final digit from expansion:
-            while (*p++);
-                *(p - 2) = '\0';
+            while (*p++)
+            {
+                // Iterate to the end of the string
+            }
+
+            *(p - 2) = '\0';
         }
 
-        return fp_format_f_internal(result_buffer, result_buffer_count, precision, &strflt, true, locale);
+        return fp_format_f_internal(result_buffer, result_buffer_count, precision, &strflt, true, ptd);
     }
 }
 
@@ -772,14 +792,14 @@ extern "C" errno_t __cdecl __acrt_fp_format(
     int                  const format,
     int                  const precision,
     uint64_t             const options,
-    _locale_t            const locale,
-    __acrt_rounding_mode       rounding_mode
+    __acrt_rounding_mode       rounding_mode,
+    __crt_cached_ptd_host&     ptd
     )
 {
-    _VALIDATE_RETURN_ERRCODE(result_buffer != nullptr,  EINVAL);
-    _VALIDATE_RETURN_ERRCODE(result_buffer_count > 0,   EINVAL);
-    _VALIDATE_RETURN_ERRCODE(scratch_buffer != nullptr, EINVAL);
-    _VALIDATE_RETURN_ERRCODE(scratch_buffer_count > 0,  EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, result_buffer != nullptr,  EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, result_buffer_count > 0,   EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, scratch_buffer != nullptr, EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, scratch_buffer_count > 0,  EINVAL);
 
     bool const use_capitals = format == 'A' || format == 'E' || format == 'F' || format == 'G';
 
@@ -810,20 +830,20 @@ extern "C" errno_t __cdecl __acrt_fp_format(
     {
     case 'a':
     case 'A':
-        return fp_format_a(value, result_buffer, result_buffer_count, scratch_buffer, scratch_buffer_count, precision, use_capitals, min_exponent_digits, locale, rounding_mode);
+        return fp_format_a(value, result_buffer, result_buffer_count, scratch_buffer, scratch_buffer_count, precision, use_capitals, min_exponent_digits, rounding_mode, ptd);
 
     case 'e':
     case 'E':
-        return fp_format_e(value, result_buffer, result_buffer_count, scratch_buffer, scratch_buffer_count, precision, use_capitals, min_exponent_digits, locale, rounding_mode);
+        return fp_format_e(value, result_buffer, result_buffer_count, scratch_buffer, scratch_buffer_count, precision, use_capitals, min_exponent_digits, rounding_mode, ptd);
 
     case 'f':
     case 'F':
-        return fp_format_f(value, result_buffer, result_buffer_count, scratch_buffer, scratch_buffer_count, precision, locale, rounding_mode);
+        return fp_format_f(value, result_buffer, result_buffer_count, scratch_buffer, scratch_buffer_count, precision, rounding_mode, ptd);
 
     default:
         _ASSERTE(("Unsupported format specifier", 0));
     case 'g':
     case 'G':
-        return fp_format_g(value, result_buffer, result_buffer_count, scratch_buffer, scratch_buffer_count, precision, use_capitals, min_exponent_digits, locale);
+        return fp_format_g(value, result_buffer, result_buffer_count, scratch_buffer, scratch_buffer_count, precision, use_capitals, min_exponent_digits, rounding_mode, ptd);
     }
 }

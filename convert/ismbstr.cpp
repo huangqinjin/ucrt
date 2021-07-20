@@ -19,6 +19,7 @@
     #error This file should only be compiled with _MBCS defined
 #endif
 
+#define _ALLOW_OLD_VALIDATE_MACROS
 #include <corecrt_internal_mbstring.h>
 #include <locale.h>
 

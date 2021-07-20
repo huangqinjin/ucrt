@@ -8,17 +8,18 @@
 *
 *******************************************************************************/
 #include <corecrt_internal_mbstring.h>
+#include <corecrt_internal_ptd_propagation.h>
 #include <corecrt_internal_securecrt.h>
-#include <locale.h>
-#include <wchar.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <uchar.h>
+#include <wchar.h>
 
 using namespace __crt_mbstring;
 
 /***
-*errno_t _mbrtowc_s_l() - Helper function to convert multibyte char to wide character.
+*errno_t _mbrtowc_internal() - Helper function to convert multibyte char to wide character.
 *
 *Purpose:
 *       Convert a multi-byte character into the equivalent wide character,
@@ -48,13 +49,13 @@ using namespace __crt_mbstring;
 
 _Success_(return != 0)
 _Post_satisfies_(*pRetValue <= _String_length_(s))
-static errno_t __cdecl _mbrtowc_s_l(
-    _Inout_ _Out_range_(<=, 1)              int *           pRetValue,
-    _Pre_maybenull_ _Out_writes_opt_z_(1)   wchar_t *       dst,
-    _In_opt_z_                              const char *    s,
-    _In_                                    size_t          n,
-    _Inout_                                 mbstate_t *     pmbst,
-    _In_opt_                                _locale_t       plocinfo
+static errno_t __cdecl _mbrtowc_internal(
+    _Inout_ _Out_range_(<=, 1)              int *                  pRetValue,
+    _Pre_maybenull_ _Out_writes_opt_z_(1)   wchar_t *              dst,
+    _In_opt_z_                              const char *           s,
+    _In_                                    size_t                 n,
+    _Inout_                                 mbstate_t *            pmbst,
+    _Inout_                                 __crt_cached_ptd_host& ptd
     ) throw()
 {
     _ASSERTE(pmbst != nullptr);
@@ -75,19 +76,19 @@ static errno_t __cdecl _mbrtowc_s_l(
         return 0;
     }
 
-    _LocaleUpdate _loc_update(plocinfo);
+    const _locale_t locale = ptd.get_locale();
 
-    if (_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage == CP_UTF8)
+    if (locale->locinfo->_public._locale_lc_codepage == CP_UTF8)
     {
-        const size_t retval = __mbrtowc_utf8(dst, s, n, pmbst);
+        const size_t retval = __mbrtowc_utf8(dst, s, n, pmbst, ptd);
         _ASSIGN_IF_NOT_NULL(pRetValue, static_cast<int>(retval));
-        return errno;
+        return ptd.get_errno().value_or(0);
     }
 
-    const int locale_mb_cur_max = _loc_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max;
+    const int locale_mb_cur_max = locale->locinfo->_public._locale_mb_cur_max;
     _ASSERTE(locale_mb_cur_max == 1 || locale_mb_cur_max == 2);
 
-    if (_loc_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE] == nullptr)
+    if (locale->locinfo->locale_name[LC_CTYPE] == nullptr)
     {
         _ASSIGN_IF_NOT_NULL(dst, (wchar_t) (unsigned char) *s);
         _ASSIGN_IF_NOT_NULL(pRetValue, 1);
@@ -100,7 +101,7 @@ static errno_t __cdecl _mbrtowc_s_l(
         ((char *) pmbst)[1] = *s;
         if (locale_mb_cur_max <= 1 ||
             (__acrt_MultiByteToWideChar(
-            _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+            locale->locinfo->_public._locale_lc_codepage,
             MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
             (char *) pmbst,
             2,
@@ -109,16 +110,15 @@ static errno_t __cdecl _mbrtowc_s_l(
         {
             /* translation failed */
             pmbst->_Wchar = 0;
-            errno = EILSEQ;
             _ASSIGN_IF_NOT_NULL(dst, 0);
             _ASSIGN_IF_NOT_NULL(pRetValue, -1);
-            return errno;
+            return ptd.get_errno().set(EILSEQ);
         }
         pmbst->_Wchar = 0;
         _ASSIGN_IF_NOT_NULL(pRetValue, locale_mb_cur_max);
         return 0;
     }
-    else if (_isleadbyte_l((unsigned char) *s, _loc_update.GetLocaleT()))
+    else if (_isleadbyte_fast_internal((unsigned char) *s, locale))
     {
         /* multi-byte char */
         if (n < (size_t) locale_mb_cur_max)
@@ -129,7 +129,7 @@ static errno_t __cdecl _mbrtowc_s_l(
             return 0;
         }
         else if (locale_mb_cur_max <= 1 ||
-            (__acrt_MultiByteToWideChar(_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+            (__acrt_MultiByteToWideChar(locale->locinfo->_public._locale_lc_codepage,
             MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
             s,
             static_cast<int>(__min(strlen(s), INT_MAX)),
@@ -140,10 +140,9 @@ static errno_t __cdecl _mbrtowc_s_l(
             if (!*(s + 1))
             {
                 pmbst->_Wchar = 0;
-                errno = EILSEQ;
                 _ASSIGN_IF_NOT_NULL(dst, 0);
                 _ASSIGN_IF_NOT_NULL(pRetValue, -1);
-                return errno;
+                return ptd.get_errno().set(EILSEQ);
             }
         }
         _ASSIGN_IF_NOT_NULL(pRetValue, locale_mb_cur_max);
@@ -152,17 +151,16 @@ static errno_t __cdecl _mbrtowc_s_l(
     else {
         /* single byte char */
         if (__acrt_MultiByteToWideChar(
-            _loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+            locale->locinfo->_public._locale_lc_codepage,
             MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
             s,
             1,
             dst,
             (dst != nullptr ? 1 : 0)) == 0)
         {
-            errno = EILSEQ;
             _ASSIGN_IF_NOT_NULL(dst, 0);
             _ASSIGN_IF_NOT_NULL(pRetValue, -1);
-            return errno;
+            return ptd.get_errno().set(EILSEQ);
         }
 
         _ASSIGN_IF_NOT_NULL(pRetValue, sizeof(char) );
@@ -200,7 +198,8 @@ extern "C" wint_t __cdecl btowc(
         wchar_t wc = 0;
         int retValue = -1;
 
-        _mbrtowc_s_l(&retValue, &wc, &ch, 1, &mbst, nullptr);
+        __crt_cached_ptd_host ptd;
+        _mbrtowc_internal(&retValue, &wc, &ch, 1, &mbst, ptd);
         return (retValue < 0 ? WEOF : wc);
     }
 }
@@ -228,7 +227,8 @@ extern "C" size_t __cdecl mbrlen(
     static mbstate_t mbst = {};
     int retValue = -1;
 
-    _mbrtowc_s_l(&retValue, nullptr, s, n, (pst != nullptr ? pst : &mbst), nullptr);
+    __crt_cached_ptd_host ptd;
+    _mbrtowc_internal(&retValue, nullptr, s, n, (pst != nullptr ? pst : &mbst), ptd);
     return retValue;
 }
 
@@ -256,13 +256,15 @@ extern "C" size_t __cdecl mbrtowc(
     static mbstate_t mbst = {};
     int retValue = -1;
 
+    __crt_cached_ptd_host ptd;
+
     if (s != nullptr)
     {
-        _mbrtowc_s_l(&retValue, dst, s, n, (pst != nullptr ? pst : &mbst), nullptr);
+        _mbrtowc_internal(&retValue, dst, s, n, (pst != nullptr ? pst : &mbst), ptd);
     }
     else
     {
-        _mbrtowc_s_l(&retValue, nullptr, "", 1, (pst != nullptr ? pst : &mbst), nullptr);
+        _mbrtowc_internal(&retValue, nullptr, "", 1, (pst != nullptr ? pst : &mbst), ptd);
     }
     return retValue;
 }
@@ -286,20 +288,20 @@ extern "C" size_t __cdecl mbrtowc(
 
 _Success_(return == 0)
 static size_t __cdecl _mbsrtowcs_helper(
-    _Out_writes_opt_z_(n)               wchar_t *wcs,
-    _Deref_pre_opt_z_                   const char **ps,
-    _In_                                size_t n,
-    _Inout_                             mbstate_t *pst
+    _Out_writes_opt_z_(n)               wchar_t *              wcs,
+    _Deref_pre_opt_z_                   const char **          ps,
+    _In_                                size_t                 n,
+    _Inout_                             mbstate_t *            pst,
+    _Inout_                             __crt_cached_ptd_host& ptd
     ) throw()
 {
     /* validation section */
-    _VALIDATE_RETURN(ps != nullptr, EINVAL, (size_t) - 1);
+    _UCRT_VALIDATE_RETURN(ptd, ps != nullptr, EINVAL, (size_t) - 1);
 
     static mbstate_t mbst = {};
     const char *s = *ps;
     int i = 0;
     size_t nwc = 0;
-    _LocaleUpdate _loc_update(nullptr);
 
     // Use the static cached state if necessary
     if (pst == nullptr)
@@ -307,9 +309,11 @@ static size_t __cdecl _mbsrtowcs_helper(
         pst = &mbst;
     }
 
-    if (_loc_update.GetLocaleT()->locinfo->_public._locale_lc_codepage == CP_UTF8)
+    const _locale_t locale = ptd.get_locale();
+
+    if (locale->locinfo->_public._locale_lc_codepage == CP_UTF8)
     {
-        return __mbsrtowcs_utf8(wcs, ps, n, pst);
+        return __mbsrtowcs_utf8(wcs, ps, n, pst, ptd);
     }
 
     if (wcs == nullptr)
@@ -318,7 +322,7 @@ static size_t __cdecl _mbsrtowcs_helper(
         {
             /* translate but don't store */
             wchar_t wc;
-            _mbrtowc_s_l(&i, &wc, s, INT_MAX, pst, _loc_update.GetLocaleT());
+            _mbrtowc_internal(&i, &wc, s, INT_MAX, pst, ptd);
             if (i < 0)
             {
                 return (size_t) - 1;
@@ -333,7 +337,7 @@ static size_t __cdecl _mbsrtowcs_helper(
     for (; 0 < n; ++nwc, s += i, ++wcs, --n)
     {
         /* translate and store */
-        _mbrtowc_s_l(&i, wcs, s, INT_MAX, pst, _loc_update.GetLocaleT());
+        _mbrtowc_internal(&i, wcs, s, INT_MAX, pst, ptd);
         if (i < 0)
         {
             /* encountered invalid sequence */
@@ -353,7 +357,7 @@ static size_t __cdecl _mbsrtowcs_helper(
 }
 
 /***
-*errno_t mbsrtowcs_s() - Convert multibyte char string to wide char string.
+*size_t mbsrtowcs() - Convert multibyte char string to wide char string.
 *
 *Purpose:
 *       Convert a multi-byte char string into the equivalent wide char string,
@@ -375,15 +379,15 @@ static size_t __cdecl _mbsrtowcs_helper(
 *
 *******************************************************************************/
 extern "C" size_t __cdecl mbsrtowcs(
-    wchar_t *wcs,
-    const char **ps,
-    size_t n,
-    mbstate_t   *pst
+    wchar_t *     wcs,
+    const char ** ps,
+    size_t        n,
+    mbstate_t *   pst
     )
 {
     /* Call a non-deprecated helper to do the work. */
-
-    return _mbsrtowcs_helper(wcs, ps, n, pst);
+    __crt_cached_ptd_host ptd;
+    return _mbsrtowcs_helper(wcs, ps, n, pst, ptd);
 }
 
 
@@ -413,29 +417,30 @@ extern "C" size_t __cdecl mbsrtowcs(
 *
 *******************************************************************************/
 
-extern "C" errno_t __cdecl mbsrtowcs_s(
-    size_t *pRetValue,
-    wchar_t *dst,
-    size_t sizeInWords,
-    const char **ps,
-    size_t n,
-    mbstate_t *pmbst
+static errno_t __cdecl mbsrtowcs_s_internal(
+    size_t *               pRetValue,
+    wchar_t *              dst,
+    size_t                 sizeInWords,
+    const char **          ps,
+    size_t                 n,
+    mbstate_t *            pmbst,
+    __crt_cached_ptd_host& ptd
     )
 {
     size_t retsize;
 
     /* validation section */
     _ASSIGN_IF_NOT_NULL(pRetValue, (size_t) - 1);
-    _VALIDATE_RETURN_ERRCODE((dst == nullptr && sizeInWords == 0) || (dst != nullptr && sizeInWords > 0), EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, (dst == nullptr && sizeInWords == 0) || (dst != nullptr && sizeInWords > 0), EINVAL);
     if (dst != nullptr)
     {
         _RESET_STRING(dst, sizeInWords);
     }
-    _VALIDATE_RETURN_ERRCODE(ps != nullptr, EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, ps != nullptr, EINVAL);
 
     /* Call a non-deprecated helper to do the work. */
 
-    retsize = _mbsrtowcs_helper(dst, ps, (n > sizeInWords ? sizeInWords : n), pmbst);
+    retsize = _mbsrtowcs_helper(dst, ps, (n > sizeInWords ? sizeInWords : n), pmbst, ptd);
 
     if (retsize == (size_t) - 1)
     {
@@ -443,7 +448,7 @@ extern "C" errno_t __cdecl mbsrtowcs_s(
         {
             _RESET_STRING(dst, sizeInWords);
         }
-        return errno;
+        return ptd.get_errno().value_or(0);
     }
 
     /* count the null terminator */
@@ -455,7 +460,7 @@ extern "C" errno_t __cdecl mbsrtowcs_s(
         if (retsize > sizeInWords)
         {
             _RESET_STRING(dst, sizeInWords);
-            _VALIDATE_RETURN_ERRCODE(sizeInWords <= retsize, ERANGE);
+            _UCRT_VALIDATE_RETURN_ERRCODE(ptd, sizeInWords <= retsize, ERANGE);
         }
         else
         {
@@ -469,11 +474,24 @@ extern "C" errno_t __cdecl mbsrtowcs_s(
     return 0;
 }
 
-size_t __cdecl __crt_mbstring::__mbrtowc_utf8(wchar_t* pwc, const char* s, size_t n, mbstate_t* ps)
+extern "C" errno_t __cdecl mbsrtowcs_s(
+    size_t *      pRetValue,
+    wchar_t *     dst,
+    size_t        sizeInWords,
+    const char ** ps,
+    size_t        n,
+    mbstate_t *   pmbst
+    )
+{
+    __crt_cached_ptd_host ptd;
+    return mbsrtowcs_s_internal(pRetValue, dst, sizeInWords, ps, n, pmbst, ptd);
+}
+
+size_t __cdecl __crt_mbstring::__mbrtowc_utf8(wchar_t* pwc, const char* s, size_t n, mbstate_t* ps, __crt_cached_ptd_host& ptd)
 {
     static_assert(sizeof(wchar_t) == 2, "wchar_t is assumed to be 16 bits");
     char32_t c32;
-    const size_t retval = __mbrtoc32_utf8(&c32, s, n, ps);
+    const size_t retval = __mbrtoc32_utf8(&c32, s, n, ps, ptd);
     // If we succesfully consumed a character, write the result after a quick range check
     if (retval <= 4)
     {
@@ -488,7 +506,7 @@ size_t __cdecl __crt_mbstring::__mbrtowc_utf8(wchar_t* pwc, const char* s, size_
     return retval;
 }
 
-size_t __cdecl __crt_mbstring::__mbsrtowcs_utf8(wchar_t* dst, const char** src, size_t len, mbstate_t* ps)
+size_t __cdecl __crt_mbstring::__mbsrtowcs_utf8(wchar_t* dst, const char** src, size_t len, mbstate_t* ps, __crt_cached_ptd_host& ptd)
 {
     const char* current_src = *src;
 
@@ -517,12 +535,12 @@ size_t __cdecl __crt_mbstring::__mbsrtowcs_utf8(wchar_t* dst, const char** src, 
         {
             const size_t avail = compute_available(current_src);
             char32_t c32;
-            const size_t retval = __mbrtoc32_utf8(&c32, current_src, avail, ps);
+            const size_t retval = __mbrtoc32_utf8(&c32, current_src, avail, ps, ptd);
             if (retval == __crt_mbstring::INVALID)
             {
                 // Set src to the beginning of the invalid char
                 *src = current_src;
-                errno = EILSEQ;
+                ptd.get_errno().set(EILSEQ);
                 return retval;
             }
             else if (retval == 0)
@@ -564,10 +582,10 @@ size_t __cdecl __crt_mbstring::__mbsrtowcs_utf8(wchar_t* dst, const char** src, 
         {
             const size_t avail = compute_available(current_src);
 
-            const size_t retval = __mbrtoc32_utf8(nullptr, current_src, avail, ps);
+            const size_t retval = __mbrtoc32_utf8(nullptr, current_src, avail, ps, ptd);
             if (retval == __crt_mbstring::INVALID)
             {
-                errno = EILSEQ;
+                ptd.get_errno().set(EILSEQ);
                 return retval;
             }
             else if (retval == 0)

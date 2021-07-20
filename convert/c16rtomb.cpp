@@ -4,8 +4,9 @@
 //      Copyright (c) Microsoft Corporation. All rights reserved.
 //
 
-#include <uchar.h>
 #include <corecrt_internal_mbstring.h>
+#include <corecrt_internal_ptd_propagation.h>
+#include <uchar.h>
 
 using namespace __crt_mbstring;
 
@@ -46,10 +47,11 @@ namespace
 extern "C" size_t __cdecl c16rtomb(char* s, char16_t c16, mbstate_t* ps)
 {
     // TODO: Bug 13307590 says this is always assuming UTF-8.
-    return __c16rtomb_utf8(s, c16, ps);
+    __crt_cached_ptd_host ptd;
+    return __c16rtomb_utf8(s, c16, ps, ptd);
 }
 
-size_t __cdecl __crt_mbstring::__c16rtomb_utf8(char* s, char16_t c16, mbstate_t* ps)
+size_t __cdecl __crt_mbstring::__c16rtomb_utf8(char* s, char16_t c16, mbstate_t* ps, __crt_cached_ptd_host& ptd)
 {
     static mbstate_t internal_pst{};
     if (ps == nullptr)
@@ -61,7 +63,7 @@ size_t __cdecl __crt_mbstring::__c16rtomb_utf8(char* s, char16_t c16, mbstate_t*
     {
         if (is_second_surrogate(c16))
         {
-            return return_illegal_sequence(ps);
+            return return_illegal_sequence(ps, ptd);
         }
         else if (is_first_surrogate(c16))
         {
@@ -70,7 +72,7 @@ size_t __cdecl __crt_mbstring::__c16rtomb_utf8(char* s, char16_t c16, mbstate_t*
         }
         else
         {
-            return c32rtomb(s, static_cast<char32_t>(c16), ps);
+            return __c32rtomb_utf8(s, static_cast<char32_t>(c16), ps, ptd);
         }
     }
     else
@@ -80,12 +82,12 @@ size_t __cdecl __crt_mbstring::__c16rtomb_utf8(char* s, char16_t c16, mbstate_t*
         // in the second (low) surrogate
         if (!is_second_surrogate(c16))
         {
-            return return_illegal_sequence(ps);
+            return return_illegal_sequence(ps, ptd);
         }
         const char32_t c32 = combine_second_surrogate(c16, ps);
 
         mbstate_t temp{};
-        const size_t retval = c32rtomb(s, c32, &temp);
+        const size_t retval = __c32rtomb_utf8(s, c32, &temp, ptd);
         return reset_and_return(retval, ps);
     }
 }

@@ -7,6 +7,7 @@
 //
 #include <corecrt_internal.h>
 #include <corecrt_internal_fltintrn.h>
+#include <corecrt_internal_ptd_propagation.h>
 #include <corecrt_internal_securecrt.h>
 #include <minmax.h>
 #include <stdlib.h>
@@ -14,18 +15,22 @@
 
 
 // Tries to get the pre-thread conversion buffer; returns nullptr on failure.
-static char* __cdecl try_get_ptd_buffer()
+static char* __cdecl try_get_ptd_buffer(__crt_cached_ptd_host& ptd)
 {
-    __acrt_ptd* const ptd = __acrt_getptd_noexit();
-    if (!ptd)
+    __acrt_ptd* const raw_ptd = ptd.get_raw_ptd_noexit();
+    if (!raw_ptd)
+    {
         return nullptr;
+    }
 
-    if (ptd->_cvtbuf)
-        return ptd->_cvtbuf;
+    if (raw_ptd->_cvtbuf)
+    {
+        return raw_ptd->_cvtbuf;
+    }
 
-    ptd->_cvtbuf = _malloc_crt_t(char, _CVTBUFSIZE).detach();
+    raw_ptd->_cvtbuf = _malloc_crt_t(char, _CVTBUFSIZE).detach();
 
-    return ptd->_cvtbuf;
+    return raw_ptd->_cvtbuf;
 }
 
 
@@ -38,7 +43,8 @@ static errno_t __cdecl internal_to_string(
     STRFLT                             const strflt,
     int                                const requested_digits,
     int*                               const decimal_point,
-    int*                               const sign
+    int*                               const sign,
+    __crt_cached_ptd_host&                   ptd
     ) throw()
 {
     // Make sure we don't overflow the buffer.  If the user asks for more digits
@@ -47,14 +53,16 @@ static errno_t __cdecl internal_to_string(
     // use one character for overflow and one for the null terminator.
     size_t const minimum_buffer_count = static_cast<size_t>((requested_digits > 0 ? requested_digits : 0) + 2);
 
-    _VALIDATE_RETURN_ERRCODE(buffer_count >= minimum_buffer_count, ERANGE);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, buffer_count >= minimum_buffer_count, ERANGE);
 
     int const capped_digits = min(requested_digits, static_cast<int>(buffer_count - 2));
 
-    errno_t const e = __acrt_fp_strflt_to_string(buffer, buffer_count, capped_digits, strflt, __acrt_has_trailing_digits::trailing, __acrt_rounding_mode::legacy);
+    errno_t const e = __acrt_fp_strflt_to_string(buffer, buffer_count, capped_digits, strflt, __acrt_has_trailing_digits::trailing, __acrt_rounding_mode::legacy, ptd);
 
     if (e != 0)
-        return errno = e;
+    {
+        return ptd.get_errno().set(e);
+    }
 
     *sign          = strflt->sign == '-' ? 1 : 0;
     *decimal_point = strflt->decpt;
@@ -75,20 +83,21 @@ static errno_t __cdecl internal_to_string(
 // function returns zero on success, or an error code on failure.  The
 // *decimal_point and *sign values are updated with the results of the
 // conversion.
-extern "C" errno_t __cdecl _fcvt_s(
-    char*  const buffer,
-    size_t const buffer_count,
-    double const value,
-    int    const requested_digits,
-    int*   const decimal_point,
-    int*   const sign
+static errno_t __cdecl _fcvt_s_internal(
+    char*              const buffer,
+    size_t             const buffer_count,
+    double             const value,
+    int                const requested_digits,
+    int*               const decimal_point,
+    int*               const sign,
+    __crt_cached_ptd_host&   ptd
     )
 {
-    _VALIDATE_RETURN_ERRCODE(buffer != nullptr, EINVAL);
-    _VALIDATE_RETURN_ERRCODE(buffer_count > 0,  EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, buffer != nullptr, EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, buffer_count > 0,  EINVAL);
     _RESET_STRING(buffer, buffer_count);
-    _VALIDATE_RETURN_ERRCODE(decimal_point != nullptr, EINVAL);
-    _VALIDATE_RETURN_ERRCODE(sign != nullptr,          EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, decimal_point != nullptr, EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, sign != nullptr,          EINVAL);
 
     char result_string[_CVTBUFSIZE + 1];
 
@@ -96,6 +105,7 @@ extern "C" errno_t __cdecl _fcvt_s(
     __acrt_fltout(
         reinterpret_cast<_CRT_DOUBLE const&>(value),
         _countof(result_string),
+        __acrt_precision_style::fixed,
         &strflt,
         result_string,
         _countof(result_string));
@@ -108,19 +118,35 @@ extern "C" errno_t __cdecl _fcvt_s(
 
     int const capped_digits = buffer_insufficiently_large ? INT_MAX : actual_digits;
 
-    return internal_to_string(buffer, buffer_count, &strflt, capped_digits, decimal_point, sign);
+    return internal_to_string(buffer, buffer_count, &strflt, capped_digits, decimal_point, sign, ptd);
 }
 
-extern "C" char* __cdecl _fcvt(
+extern "C" errno_t __cdecl _fcvt_s(
+    char*  const buffer,
+    size_t const buffer_count,
     double const value,
     int    const requested_digits,
     int*   const decimal_point,
     int*   const sign
     )
 {
-    char* const buffer = try_get_ptd_buffer();
+    __crt_cached_ptd_host ptd;
+    return _fcvt_s_internal(buffer, buffer_count, value, requested_digits, decimal_point, sign, ptd);
+}
+
+static char* __cdecl _fcvt_internal(
+    double             const value,
+    int                const requested_digits,
+    int*               const decimal_point,
+    int*               const sign,
+    __crt_cached_ptd_host&   ptd
+    )
+{
+    char* const buffer = try_get_ptd_buffer(ptd);
     if (!buffer)
+    {
         return nullptr;
+    }
 
     char result_string[_CVTBUFSIZE + 1];
 
@@ -128,6 +154,7 @@ extern "C" char* __cdecl _fcvt(
     __acrt_fltout(
         reinterpret_cast<_CRT_DOUBLE const&>(value),
         _countof(result_string),
+        __acrt_precision_style::fixed,
         &strflt,
         result_string,
         _countof(result_string));
@@ -138,13 +165,25 @@ extern "C" char* __cdecl _fcvt(
     // use one character for overflow and one for the null terminator.
     int const capped_digits = min(requested_digits, _CVTBUFSIZE - 2 - strflt.decpt);
 
-    errno_t const status = _fcvt_s(buffer, _CVTBUFSIZE, value, capped_digits, decimal_point, sign);
+    errno_t const status = _fcvt_s_internal(buffer, _CVTBUFSIZE, value, capped_digits, decimal_point, sign, ptd);
     if (status != 0)
+    {
         return nullptr;
+    }
 
     return buffer;
 }
 
+extern "C" char* __cdecl _fcvt(
+    double const value,
+    int    const requested_digits,
+    int*   const decimal_point,
+    int*   const sign
+    )
+{
+    __crt_cached_ptd_host ptd;
+    return _fcvt_internal(value, requested_digits, decimal_point, sign, ptd);
+}
 
 
 // The _ecvt functions, which convert a floating point value to a string.  The
@@ -159,20 +198,21 @@ extern "C" char* __cdecl _fcvt(
 // function returns zero on success, or an error code on failure.  The
 // *decimal_point and *sign values are updated with the results of the
 // conversion.
-extern "C" errno_t __cdecl _ecvt_s(
-    char*  const buffer,
-    size_t const buffer_count,
-    double const value,
-    int    const requested_digits,
-    int*   const decimal_point,
-    int*   const sign
+static errno_t __cdecl _ecvt_s_internal(
+    char*              const buffer,
+    size_t             const buffer_count,
+    double             const value,
+    int                const requested_digits,
+    int*               const decimal_point,
+    int*               const sign,
+    __crt_cached_ptd_host&   ptd
     )
 {
-    _VALIDATE_RETURN_ERRCODE(buffer != nullptr, EINVAL);
-    _VALIDATE_RETURN_ERRCODE(buffer_count > 0,  EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, buffer != nullptr, EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, buffer_count > 0,  EINVAL);
     _RESET_STRING(buffer, buffer_count);
-    _VALIDATE_RETURN_ERRCODE(decimal_point != nullptr, EINVAL);
-    _VALIDATE_RETURN_ERRCODE(sign != nullptr,          EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, decimal_point != nullptr, EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, sign != nullptr,          EINVAL);
 
     char result_string[_CVTBUFSIZE + 1];
 
@@ -180,11 +220,12 @@ extern "C" errno_t __cdecl _ecvt_s(
     __acrt_fltout(
         reinterpret_cast<_CRT_DOUBLE const&>(value),
         _countof(result_string),
+        __acrt_precision_style::fixed,
         &strflt,
         result_string,
         _countof(result_string));
 
-    errno_t const e = internal_to_string(buffer, buffer_count, &strflt, requested_digits, decimal_point, sign);
+    errno_t const e = internal_to_string(buffer, buffer_count, &strflt, requested_digits, decimal_point, sign, ptd);
 
     // Make sure we don't overflow the buffer.  If the user asks for more digits
     // than the buffer can handle, truncate it to the maximum size allowed in
@@ -194,9 +235,53 @@ extern "C" errno_t __cdecl _ecvt_s(
 
     // The conversion function occasionally returns an extra char in the buffer:
     if (capped_digits >= 0 && buffer[capped_digits])
+    {
         buffer[capped_digits] = '\0';
+    }
 
     return e;
+}
+
+extern "C" errno_t __cdecl _ecvt_s(
+    char*  const buffer,
+    size_t const buffer_count,
+    double const value,
+    int    const requested_digits,
+    int*   const decimal_point,
+    int*   const sign
+    )
+{
+    __crt_cached_ptd_host ptd;
+    return _ecvt_s_internal(buffer, buffer_count, value, requested_digits, decimal_point, sign, ptd);
+}
+
+static char* __cdecl _ecvt_internal(
+    double             const value,
+    int                const requested_digits,
+    int*               const decimal_point,
+    int*               const sign,
+    __crt_cached_ptd_host&   ptd
+    )
+{
+    char* const buffer = try_get_ptd_buffer(ptd);
+    if (!buffer)
+    {
+        return nullptr;
+    }
+
+    // Make sure we don't overflow the buffer.  If the user asks for more digits
+    // than the buffer can handle, truncate it to the maximum size allowed in
+    // the buffer.  The maximum size is two less than the buffer size because we
+    // use one character for overflow and one for the null terminator.
+    int const capped_digits = min(requested_digits, _CVTBUFSIZE - 2);
+
+    errno_t const e = _ecvt_s_internal(buffer, _CVTBUFSIZE, value, capped_digits, decimal_point, sign, ptd);
+    if (e != 0)
+    {
+        return nullptr;
+    }
+
+    return buffer;
 }
 
 extern "C" char* __cdecl _ecvt(
@@ -206,19 +291,6 @@ extern "C" char* __cdecl _ecvt(
     int*   const sign
     )
 {
-    char* const buffer = try_get_ptd_buffer();
-    if (!buffer)
-        return nullptr;
-
-    // Make sure we don't overflow the buffer.  If the user asks for more digits
-    // than the buffer can handle, truncate it to the maximum size allowed in
-    // the buffer.  The maximum size is two less than the buffer size because we
-    // use one character for overflow and one for the null terminator.
-    int const capped_digits = min(requested_digits, _CVTBUFSIZE - 2);
-
-    errno_t const e = _ecvt_s(buffer, _CVTBUFSIZE, value, capped_digits, decimal_point, sign);
-    if (e != 0)
-        return nullptr;
-
-    return buffer;
+    __crt_cached_ptd_host ptd;
+    return _ecvt_internal(value, requested_digits, decimal_point, sign, ptd);
 }

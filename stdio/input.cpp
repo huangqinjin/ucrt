@@ -6,6 +6,7 @@
 // The core formatted input functions; all of the scanf-style functions call one
 // of these functions.
 //
+#define _ALLOW_OLD_VALIDATE_MACROS
 #include <corecrt_internal_stdio_input.h>
 
 using namespace __crt_stdio_input;

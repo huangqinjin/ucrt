@@ -11,6 +11,7 @@
 *******************************************************************************/
 #include <corecrt_internal.h>
 #include <corecrt_internal_lowio.h>
+#include <corecrt_internal_ptd_propagation.h>
 #include <io.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,7 +38,7 @@
 *
 *******************************************************************************/
 
-extern "C" void __cdecl perror(char const* const user_prefix)
+static void __cdecl _perror_internal(char const* const user_prefix, __crt_cached_ptd_host& ptd)
 {
     int const fh = 2;
 
@@ -46,18 +47,25 @@ extern "C" void __cdecl perror(char const* const user_prefix)
     {
         if (user_prefix != nullptr && user_prefix[0] != '\0')
         {
-            _write_nolock(fh, user_prefix, static_cast<unsigned>(strlen(user_prefix)));
-            _write_nolock(fh, ": ", 2);
+            _write_nolock(fh, user_prefix, static_cast<unsigned>(strlen(user_prefix)), ptd);
+            _write_nolock(fh, ": ", 2, ptd);
         }
 
-        char const* const system_message = _get_sys_err_msg(errno);
+        // Use PTD directly to access previously set errno value.
+        char const* const system_message = _get_sys_err_msg(ptd.get_raw_ptd()->_terrno);
 
-        _write_nolock(fh, system_message, static_cast<unsigned>(strlen(system_message)));
-        _write_nolock(fh, "\n", 1);
+        _write_nolock(fh, system_message, static_cast<unsigned>(strlen(system_message)), ptd);
+        _write_nolock(fh, "\n", 1, ptd);
 
     }
     __finally
     {
         __acrt_lowio_unlock_fh( fh );
     }
+}
+
+extern "C" void __cdecl perror(char const* const user_prefix)
+{
+    __crt_cached_ptd_host ptd;
+    return _perror_internal(user_prefix, ptd);
 }

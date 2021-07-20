@@ -6,6 +6,7 @@
 // Defines fflush() and related functions, which flush stdio streams.
 //
 #include <corecrt_internal_stdio.h>
+#include <corecrt_internal_ptd_propagation.h>
 
 
 
@@ -181,7 +182,7 @@ extern "C" int __cdecl fflush(FILE* const public_stream)
 
 
 
-extern "C" int __cdecl _fflush_nolock(FILE* const public_stream)
+static int __cdecl _fflush_nolock_internal(FILE* const public_stream, __crt_cached_ptd_host& ptd)
 {
     __crt_stdio_stream const stream(public_stream);
 
@@ -191,7 +192,7 @@ extern "C" int __cdecl _fflush_nolock(FILE* const public_stream)
         return common_flush_all(false);
     }
 
-    if (__acrt_stdio_flush_nolock(stream.public_stream()) != 0)
+    if (__acrt_stdio_flush_nolock(stream.public_stream(), ptd) != 0)
     {
         // If the flush fails, do not attempt to commit:
         return EOF;
@@ -209,12 +210,16 @@ extern "C" int __cdecl _fflush_nolock(FILE* const public_stream)
     return 0;
 }
 
-
+extern "C" int __cdecl _fflush_nolock(FILE* const public_stream)
+{
+    __crt_cached_ptd_host ptd;
+    return _fflush_nolock_internal(public_stream, ptd);
+}
 
 // Flushes the buffer of the given stream.  If the file is open for writing and
 // is buffered, the buffer is flushed.  On success, returns 0.  On failure (e.g.
 // if there is an error writing the buffer), returns EOF and sets errno.
-extern "C" int __cdecl __acrt_stdio_flush_nolock(FILE* const public_stream)
+extern "C" int __cdecl __acrt_stdio_flush_nolock(FILE* const public_stream, __crt_cached_ptd_host& ptd)
 {
     __crt_stdio_stream const stream(public_stream);
 
@@ -232,7 +237,7 @@ extern "C" int __cdecl __acrt_stdio_flush_nolock(FILE* const public_stream)
         return 0;
     }
 
-    int const bytes_written = _write(_fileno(stream.public_stream()), stream->_base, bytes_to_write);
+    int const bytes_written = _write_internal(_fileno(stream.public_stream()), stream->_base, bytes_to_write, ptd);
     if (bytes_to_write != bytes_written)
     {
         stream.set_flags(_IOERROR);

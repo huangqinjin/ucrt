@@ -15,6 +15,11 @@
 #include <appmodel.h>
 #include <roapi.h>
 
+// This is simlar to msvcrt.
+#if _M_AMD64 || _M_ARM || _M_ARM64 || _M_HYBRID
+#define FLS_ALWAYS_AVAILABLE 1
+#endif
+
 // The XState APIs are declared by the Windows headers only when building for
 // x86 and x64.  We declare them here unconditionally so that we can share the
 // same code for all architectures (we simply avoid use of these functions on
@@ -34,9 +39,8 @@ extern "C" WINBASEAPI PVOID WINAPI LocateXStateFeature(
     _Out_opt_ PDWORD   length
     );
 
-#define _ACRT_APPLY_TO_LATE_BOUND_MODULES                                                                \
+#define _ACRT_APPLY_TO_LATE_BOUND_MODULES_0                                                              \
     _APPLY(api_ms_win_core_datetime_l1_1_1,              "api-ms-win-core-datetime-l1-1-1"             ) \
-    _APPLY(api_ms_win_core_fibers_l1_1_1,                "api-ms-win-core-fibers-l1-1-1"               ) \
     _APPLY(api_ms_win_core_file_l1_2_2,                  "api-ms-win-core-file-l1-2-2"                 ) \
     _APPLY(api_ms_win_core_localization_l1_2_1,          "api-ms-win-core-localization-l1-2-1"         ) \
     _APPLY(api_ms_win_core_localization_obsolete_l1_2_0, "api-ms-win-core-localization-obsolete-l1-2-0") \
@@ -56,16 +60,25 @@ extern "C" WINBASEAPI PVOID WINAPI LocateXStateFeature(
     _APPLY(api_ms_win_appmodel_runtime_l1_1_2,           "api-ms-win-appmodel-runtime-l1-1-2"          ) \
     _APPLY(user32,                                       "user32"                                      )
 
+#if FLS_ALWAYS_AVAILABLE
 
+#define _ACRT_APPLY_TO_LATE_BOUND_MODULES_1 /* nothing */
 
-#define _ACRT_APPLY_TO_LATE_BOUND_FUNCTIONS                                                                                                             \
+#else
+
+#define _ACRT_APPLY_TO_LATE_BOUND_MODULES_1                                                              \
+    _APPLY(api_ms_win_core_fibers_l1_1_0,                "api-ms-win-core-fibers-l1-1-0"               )
+
+#endif
+
+#define _ACRT_APPLY_TO_LATE_BOUND_MODULES  \
+    _ACRT_APPLY_TO_LATE_BOUND_MODULES_0 \
+    _ACRT_APPLY_TO_LATE_BOUND_MODULES_1 \
+
+#define _ACRT_APPLY_TO_LATE_BOUND_FUNCTIONS_0                                                                                                           \
     _APPLY(AreFileApisANSI,                             ({ /* api_ms_win_core_file_l1_2_2, */            kernel32                                   })) \
     _APPLY(CompareStringEx,                             ({ api_ms_win_core_string_l1_1_0,                kernel32                                   })) \
     _APPLY(EnumSystemLocalesEx,                         ({ api_ms_win_core_localization_l1_2_1,          kernel32                                   })) \
-    _APPLY(FlsAlloc,                                    ({ api_ms_win_core_fibers_l1_1_1,                kernel32                                   })) \
-    _APPLY(FlsFree,                                     ({ api_ms_win_core_fibers_l1_1_1,                kernel32                                   })) \
-    _APPLY(FlsGetValue,                                 ({ api_ms_win_core_fibers_l1_1_1,                kernel32                                   })) \
-    _APPLY(FlsSetValue,                                 ({ api_ms_win_core_fibers_l1_1_1,                kernel32                                   })) \
     _APPLY(GetActiveWindow,                             ({ api_ms_win_rtcore_ntuser_window_l1_1_0,       user32                                     })) \
     _APPLY(GetDateFormatEx,                             ({ api_ms_win_core_datetime_l1_1_1,              kernel32                                   })) \
     _APPLY(GetEnabledXStateFeatures,                    ({ api_ms_win_core_xstate_l2_1_0,                kernel32                                   })) \
@@ -93,6 +106,24 @@ extern "C" WINBASEAPI PVOID WINAPI LocateXStateFeature(
     _APPLY(AppPolicyGetWindowingModel,                  ({ api_ms_win_appmodel_runtime_l1_1_2                                                       })) \
     _APPLY(SetThreadStackGuarantee,                     ({ api_ms_win_core_processthreads_l1_1_2,        kernel32                                   })) \
     _APPLY(SystemFunction036,                           ({ api_ms_win_security_systemfunctions_l1_1_0,   advapi32                                   }))
+
+#if FLS_ALWAYS_AVAILABLE
+
+#define _ACRT_APPLY_TO_LATE_BOUND_FUNCTIONS_1 /* nothing */
+
+#else
+
+#define _ACRT_APPLY_TO_LATE_BOUND_FUNCTIONS_1                                                                                                           \
+    _APPLY(FlsAlloc,                                    ({ api_ms_win_core_fibers_l1_1_0,                kernel32                                   })) \
+    _APPLY(FlsFree,                                     ({ api_ms_win_core_fibers_l1_1_0,                kernel32                                   })) \
+    _APPLY(FlsGetValue,                                 ({ api_ms_win_core_fibers_l1_1_0,                kernel32                                   })) \
+    _APPLY(FlsSetValue,                                 ({ api_ms_win_core_fibers_l1_1_0,                kernel32                                   }))
+
+#endif
+
+#define _ACRT_APPLY_TO_LATE_BOUND_FUNCTIONS \
+    _ACRT_APPLY_TO_LATE_BOUND_FUNCTIONS_0 \
+    _ACRT_APPLY_TO_LATE_BOUND_FUNCTIONS_1 \
 
 namespace
 {
@@ -132,8 +163,6 @@ namespace
     #undef _APPLY
 }
 
-
-
 // This table stores the module handles that we have obtained via LoadLibrary.
 // If a handle is null, we have not yet attempted to load that module.  If a
 // handle is -1 (INVALID_HANDLE_VALUE), we have attempted to load the module
@@ -146,8 +175,6 @@ static HMODULE module_handles[module_id_count];
 // get that function pointer.  If a function pointer is an encoded -1, we have
 // attempted to get that function pointer but the attempt failed.
 static void* encoded_function_pointers[function_id_count];
-
-
 
 extern "C" bool __cdecl __acrt_initialize_winapi_thunks()
 {
@@ -185,14 +212,10 @@ extern "C" bool __cdecl __acrt_uninitialize_winapi_thunks(bool const terminating
     return true;
 }
 
-
-
 static __forceinline void* __cdecl invalid_function_sentinel() throw()
 {
     return reinterpret_cast<void*>(static_cast<uintptr_t>(-1));
 }
-
-
 
 static HMODULE __cdecl try_load_library_from_system_directory(wchar_t const* const name) throw()
 {
@@ -216,8 +239,6 @@ static HMODULE __cdecl try_load_library_from_system_directory(wchar_t const* con
 
     return nullptr;
 }
-
-
 
 static HMODULE __cdecl try_get_module(module_id const id) throw()
 {
@@ -259,8 +280,6 @@ static HMODULE __cdecl try_get_module(module_id const id) throw()
     return new_handle;
 }
 
-
-
 static HMODULE __cdecl try_get_first_available_module(
     module_id const* const first,
     module_id const* const last
@@ -278,8 +297,6 @@ static HMODULE __cdecl try_get_first_available_module(
     return nullptr;
 }
 
-
-
 static __forceinline void* __cdecl try_get_proc_address_from_first_available_module(
     char      const* const name,
     module_id const* const first_module_id,
@@ -294,8 +311,6 @@ static __forceinline void* __cdecl try_get_proc_address_from_first_available_mod
 
     return reinterpret_cast<void*>(GetProcAddress(module_handle, name));
 }
-
-
 
 static void* __cdecl try_get_function(
     function_id      const id,
@@ -358,8 +373,6 @@ static void* __cdecl try_get_function(
     return new_fp;
 }
 
-
-
 // Generate accessors that wrap the general try_get_function for each function,
 // passing the correct set of candidate modules and returning a function pointer
 // of the correct type:
@@ -376,8 +389,6 @@ static void* __cdecl try_get_function(
     }
 _ACRT_APPLY_TO_LATE_BOUND_FUNCTIONS
 #undef _APPLY
-
-
 
 extern "C" BOOL WINAPI __acrt_AreFileApisANSI()
 {
@@ -405,6 +416,10 @@ extern "C" int WINAPI __acrt_CompareStringEx(
 {
     if (auto const compare_string_ex = try_get_CompareStringEx())
     {
+        // On WCOS devices, CompareStringEx may calls into icu.dll which is an OS component using the UCRT.
+        // If icu.dll calls any UCRT export under OS mode (ex: malloc), then CompareStringEx will return under Prog Mode even if
+        // we started in OS mode. To prevent this, an OS mode guard is in place.
+        __crt_state_management::scoped_global_state_reset os_mode_guard;
         return compare_string_ex(locale_name, flags, string1, string1_count, string2, string2_count, version, reserved, param);
     }
 
@@ -449,42 +464,58 @@ extern "C" BOOL WINAPI __acrt_EnumSystemLocalesEx(
 
 extern "C" DWORD WINAPI __acrt_FlsAlloc(PFLS_CALLBACK_FUNCTION const callback)
 {
+#if FLS_ALWAYS_AVAILABLE
+    return FlsAlloc(callback);
+#else
     if (auto const fls_alloc = try_get_FlsAlloc())
     {
         return fls_alloc(callback);
     }
 
     return TlsAlloc();
+#endif
 }
 
 extern "C" BOOL WINAPI __acrt_FlsFree(DWORD const fls_index)
 {
+#if FLS_ALWAYS_AVAILABLE
+    return FlsFree(fls_index);
+#else
     if (auto const fls_free = try_get_FlsFree())
     {
         return fls_free(fls_index);
     }
 
     return TlsFree(fls_index);
+#endif
 }
 
 extern "C" PVOID WINAPI __acrt_FlsGetValue(DWORD const fls_index)
 {
+#if FLS_ALWAYS_AVAILABLE
+    return FlsGetValue(fls_index);
+#else
     if (auto const fls_get_value = try_get_FlsGetValue())
     {
         return fls_get_value(fls_index);
     }
 
     return TlsGetValue(fls_index);
+#endif
 }
 
 extern "C" BOOL WINAPI __acrt_FlsSetValue(DWORD const fls_index, PVOID const fls_data)
 {
+#if FLS_ALWAYS_AVAILABLE
+    return FlsSetValue(fls_index, fls_data);
+#else
     if (auto const fls_set_value = try_get_FlsSetValue())
     {
         return fls_set_value(fls_index, fls_data);
     }
 
     return TlsSetValue(fls_index, fls_data);
+#endif
 }
 
 extern "C" int WINAPI __acrt_GetDateFormatEx(
@@ -781,8 +812,6 @@ extern "C" BOOL WINAPI __acrt_SetThreadStackGuarantee(PULONG const stack_size_in
 
     return FALSE;
 }
-
-
 
 extern "C" bool __cdecl __acrt_can_show_message_box()
 {

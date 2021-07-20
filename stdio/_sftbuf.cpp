@@ -18,6 +18,7 @@
 // functions are intended for internal library use only.
 //
 #include <corecrt_internal_stdio.h>
+#include <corecrt_internal_ptd_propagation.h>
 
 
 
@@ -79,7 +80,7 @@ extern "C" bool __cdecl __acrt_stdio_begin_temporary_buffering_nolock(
 
     #ifndef CRTDLL
     _cflush++; // Force library pre-termination procedure to run
-    #endif    
+    #endif
 
     // Make sure the stream is not already buffered:
     if (stream.has_any_buffer())
@@ -117,19 +118,20 @@ extern "C" bool __cdecl __acrt_stdio_begin_temporary_buffering_nolock(
 // __acrt_stdio_begin_temporary_buffering_nolock(), and if the flag value is
 // 1, this function flushes the stream and disables buffering of the stream.
 extern "C" void __cdecl __acrt_stdio_end_temporary_buffering_nolock(
-    bool  const flag,
-    FILE* const public_stream
+    bool               const flag,
+    FILE*              const public_stream,
+    __crt_cached_ptd_host&   ptd
     )
 {
     __crt_stdio_stream const stream(public_stream);
-    
+
     if (!flag)
         return;
 
     if (stream.has_temporary_buffer())
     {
         // Flush the stream and tear down temporary buffering:
-        __acrt_stdio_flush_nolock(stream.public_stream());
+        __acrt_stdio_flush_nolock(stream.public_stream(), ptd);
         stream.unset_flags(_IOBUFFER_USER | _IOBUFFER_STBUF);
         stream->_bufsiz = 0;
         stream->_base   = nullptr;

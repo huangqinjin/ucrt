@@ -9,7 +9,9 @@
 #include <stdlib.h>
 
 
-
+#ifdef  _MSC_VER
+#pragma function(ldiv)
+#endif
 extern "C" ldiv_t __cdecl ldiv(long const numerator, long const denominator)
 {
     ldiv_t result;

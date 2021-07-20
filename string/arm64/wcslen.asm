@@ -23,10 +23,14 @@
 
         ; Note: this code assumes that the input parameter is always aligned to an even byte boundary.
 
-        EXPORT wcslen    [FUNC]
-        EXPORT wcsnlen   [FUNC]
+#if !defined(_M_ARM64EC)
 
-        AREA    |.text|,ALIGN=6,CODE,READONLY,CODEALIGN
+        EXPORT A64NAME(wcslen)    [FUNC]
+        EXPORT A64NAME(wcsnlen)   [FUNC]
+
+#endif
+
+        SET_COMDAT_ALIGNMENT 6
 
         ; With wcslen we will usually read some chars past the end of the string. To avoid getting an AV
         ; when a char-by-char implementation would not, we have to ensure that we never cross a page boundary with a
@@ -51,9 +55,8 @@
 
 __wcsnlen_forceAlignThreshold  EQU 216                      ; code logic below assumes >= 16
 
-        ALIGN 64
-
-        LEAF_ENTRY wcslen
+        ARM64EC_ENTRY_THUNK A64NAME(wcslen),1,0
+        LEAF_ENTRY_COMDAT A64NAME(wcslen)
 
         ; check for empty string to avoid huge perf degradation in this case.
         ldrh    w2, [x0], #0
@@ -99,9 +102,6 @@ WcslenMainLoop                                              ; test 8 wchar_t's a
         fmov    w2, s1                                      ; need to move min wchar_t into gpr to test it
         cbnz    w2, WcslenMainLoop                          ; fall through when any one of the wchar_ts in v0 is zero
 
-;; The code from here to the next 'ret' is common to both wcslen and wcsnlen
-
-UndoPI_FindNullInVector
         sub     x5, x5, #16                                 ; undo the last #16 post-increment of x5
 
 FindWideNullInVector
@@ -132,13 +132,14 @@ WCharAtATime
         ldrh    w2, [x5], #2
         cbnz    w2, WCharAtATime                            ; when found use same exit sequence as when found during slow alignment
 
-;; The code from here to the next 'ret' is common to both wcslen and wcsnlen
-
 OneByOneFoundIt
         sub     x5, x5, #2                                  ; Undo the final post-increment that happened on the load of the null wchar_t.
-OneByOneReachedMax
         sub     x0, x5, x0                                  ; With x5 pointing at the null char, x5-x0 is the length in bytes
         asr     x0, x0, #1                                  ; divide by 2 to get length in wchar_ts
+        ret
+
+EmptyStr
+        mov     x0, 0
         ret
 
         ; The challenge is to find a way to efficiently determine which of the 8 wchar_t's we loaded is the end of the string.
@@ -152,12 +153,14 @@ OneByOneReachedMax
         ; Exclusive oring the position indicator byte with 7 inverts the order, which gives us the character position of the null
         ; counting from the first wchar_t we loaded into the v0 SIMD reg.
 
-ReverseBytePos
+ReverseBytePos \
         dcw      7, 6, 5, 4, 3, 2, 1, 0                     ; vector of halfwords
 
-        LEAF_END wcslen
+        LEAF_END
 
-        LEAF_ENTRY wcsnlen
+
+        ARM64EC_ENTRY_THUNK A64NAME(wcsnlen),1,0
+        LEAF_ENTRY_COMDAT A64NAME(wcsnlen)
 
         mov     x5, x0                                      ; keep original x0 value for the final 'sub'
 
@@ -182,7 +185,7 @@ ReverseBytePos
         ld1     v0.8h, [x5]                                 ; don't post-increment x5
         uminv   h1, v0.8h
         fmov    w2, s1                                      ; fmov is sometimes 1 cycle faster than "umov w2, v1.h[0]"
-        cbz     w2, FindWideNullInVector                    ; jump when found null within first 8 wchar_t's
+        cbz     w2, FindWideNullInVector_Wcsnlen            ; jump when found null within first 8 wchar_t's
         sub     x1, x1, x3, ASR #1                          ; reduce elements remaining by number of wchar_t's needed to get aligned (bytes/2)
         add     x5, x5, x3                                  ; move x5 forward by x3 bytes, so x5 is now a 16-byte aligned address
 ResumeAfterAlignSlowly
@@ -227,7 +230,7 @@ ShortWcsnlen
 
 ShortWcsNLenLoop
         ldrh    w2, [x5], #2
-        cbz     w2, OneByOneFoundIt                        ; jump into other function to avoid code duplication of exit sequence
+        cbz     w2, OneByOneFoundIt_Wcsnlen                 ; jump into other function to avoid code duplication of exit sequence
         subs    x1, x1, #1
         bhi     ShortWcsNLenLoop
 
@@ -245,17 +248,50 @@ AlignSlowly_Wcsnlen
 
 AlignLoop_Wcsnlen                                           ; test one wchar_t at a time until we are 16-byte aligned
         ldrh    w2, [x5], #2
-        cbz     w2, OneByOneFoundIt                         ; branch if found the null
+        cbz     w2, OneByOneFoundIt_Wcsnlen                 ; branch if found the null
         subs    x1, x1, #1
-        beq     OneByOneReachedMax                          ; branch if byte-at-a-time testing reached end of buffer count
+        beq     OneByOneReachedMax_Wcsnlen                  ; branch if byte-at-a-time testing reached end of buffer count
         subs    x3, x3, #1
         bgt     AlignLoop_Wcsnlen                           ; fall through when not found and reached 16-byte alignment
         b       ResumeAfterAlignSlowly
 
-EmptyStr
-        mov     x0, 0
+OneByOneFoundIt_Wcsnlen
+        sub     x5, x5, #2                                  ; Undo the final post-increment that happened on the load of the null wchar_t.
+OneByOneReachedMax_Wcsnlen
+        sub     x0, x5, x0                                  ; With x5 pointing at the null char, x5-x0 is the length in bytes
+        asr     x0, x0, #1                                  ; divide by 2 to get length in wchar_ts
         ret
 
-        LEAF_END wcsnlen
+UndoPI_FindNullInVector
+        sub     x5, x5, #16                                 ; undo the last #16 post-increment of x5
+
+FindWideNullInVector_Wcsnlen
+        ldr     q1, ReverseBytePos_Wcsnlen                  ; load the position indicator mask
+
+        cmeq    v0.8h, v0.8h, #0                            ; +----
+        and     v0.16b, v0.16b, v1.16b                      ; |
+        umaxv   h0, v0.8h                                   ; | see big comment below
+        fmov    w2, s0                                      ; |
+        eor     w2, w2, #7                                  ; +----
+
+        sub     x0, x5, x0                                  ; subtract ptr to null char from ptr to first char to get the string length in bytes
+        add     x0, x2, x0, ASR #1                          ; divide x0 by 2 to get the number of wide chars and then add in the final vector char pos
+        ret
+
+        ; The challenge is to find a way to efficiently determine which of the 8 wchar_t's we loaded is the end of the string.
+        ; The trick is to load a position indicator mask and generate the position of the rightmost null from that.
+        ; Little-endian order means when we load the mask below v1.8h[0] has 7, and v0.8h[0] is the wchar_t of the string
+        ; that comes first of the 8 we loaded. We do a cmeq, mapping all the wchar_t's we loaded to either 0xFFFF (for nulls)
+        ; or 0x0000 for non-nulls. Then we and with the mask below. SIMD lanes corresponding to a non-null wchar_t will be 0x0000,
+        ; and SIMD lanes corresponding to a null wchar_t will have a halfword from the mask. We take the max across the halfwords
+        ; of the vector to find the highest position that corresponds to a null wchar_t. The numbering order means we find the
+        ; rightmost null in the vector, which is the null that occurred first in memory due to little endian loading.
+        ; Exclusive oring the position indicator byte with 7 inverts the order, which gives us the character position of the null
+        ; counting from the first wchar_t we loaded into the v0 SIMD reg.
+
+ReverseBytePos_Wcsnlen \
+        dcw      7, 6, 5, 4, 3, 2, 1, 0                     ; vector of halfwords
+
+        LEAF_END 
 
         END

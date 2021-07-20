@@ -7,6 +7,7 @@
 // contained in a multibyte character.
 //
 #include <corecrt_internal_mbstring.h>
+#include <corecrt_internal_ptd_propagation.h>
 
 using namespace __crt_mbstring;
 
@@ -15,10 +16,10 @@ using namespace __crt_mbstring;
 // character encodings.  If the next max_count bytes of the string are not a valid
 // multibyte character, -1 is returned.  Otherwise, the number of bytes that
 // compose the next multibyte character are returned.
-extern "C" int __cdecl _mblen_l(
-    char const* const string,
-    size_t      const max_count,
-    _locale_t   const locale
+static int __cdecl _mblen_internal(
+    char const*        const string,
+    size_t             const max_count,
+    __crt_cached_ptd_host&   ptd
     )
 {
     mbstate_t internal_state{};
@@ -28,55 +29,63 @@ extern "C" int __cdecl _mblen_l(
         return 0;
     }
 
-    _LocaleUpdate locale_update(locale);
+    _locale_t const locale = ptd.get_locale();
 
-    if (locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage == CP_UTF8)
+    if (locale->locinfo->_public._locale_lc_codepage == CP_UTF8)
     {
-        int result = static_cast<int>(__mbrtowc_utf8(nullptr, string, max_count, &internal_state));
+        int result = static_cast<int>(__mbrtowc_utf8(nullptr, string, max_count, &internal_state, ptd));
         if (result < 0)
+        {
             result = -1;
+        }
         return result;
     }
 
     _ASSERTE(
-        locale_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max == 1 ||
-        locale_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max == 2);
+        locale->locinfo->_public._locale_mb_cur_max == 1 ||
+        locale->locinfo->_public._locale_mb_cur_max == 2);
 
-    if (_isleadbyte_l(static_cast<unsigned char>(*string), locale_update.GetLocaleT()))
+    if (_isleadbyte_fast_internal(static_cast<unsigned char>(*string), locale))
     {
-        _ASSERTE(locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage != CP_UTF8 && L"UTF-8 isn't supported in this _mblen_l function yet!!!");
+        _ASSERTE(locale->locinfo->_public._locale_lc_codepage != CP_UTF8 && L"UTF-8 isn't supported in this _mblen_l function yet!!!");
 
         // If this is a lead byte, then the codepage better be a multibyte codepage
-        _ASSERTE(locale_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max > 1);
+        _ASSERTE(locale->locinfo->_public._locale_mb_cur_max > 1);
 
         // Multi-byte character; verify that it is valid:
-        if (locale_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max <= 1)
+        if (locale->locinfo->_public._locale_mb_cur_max <= 1)
+        {
             return -1;
+        }
 
-        if (max_count > INT_MAX || static_cast<int>(max_count) < locale_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max)
+        if (max_count > INT_MAX || static_cast<int>(max_count) < locale->locinfo->_public._locale_mb_cur_max)
+        {
             return -1;
+        }
 
         int const status = __acrt_MultiByteToWideChar(
-            locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+            locale->locinfo->_public._locale_lc_codepage,
             MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
             string,
-            locale_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max,
+            locale->locinfo->_public._locale_mb_cur_max,
             nullptr,
             0);
 
         if (status == 0)
+        {
             return -1;
+        }
 
-        return locale_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max;
+        return locale->locinfo->_public._locale_mb_cur_max;
     }
     else
     {
         // Single byte character; verify that it is valid:
         // CP_ACP is known to be valid for all values
-        if (locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage != CP_ACP)
+        if (locale->locinfo->_public._locale_lc_codepage != CP_ACP)
         {
             int const status = __acrt_MultiByteToWideChar(
-                locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+                locale->locinfo->_public._locale_lc_codepage,
                 MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
                 string,
                 1,
@@ -84,11 +93,23 @@ extern "C" int __cdecl _mblen_l(
                 0);
 
             if (status == 0)
+            {
                 return -1;
+            }
         }
 
         return sizeof(char);
     }
+}
+
+extern "C" int __cdecl _mblen_l(
+    char const* const string,
+    size_t      const max_count,
+    _locale_t   const locale
+    )
+{
+    __crt_cached_ptd_host ptd(locale);
+    return _mblen_internal(string, max_count, ptd);
 }
 
 
@@ -98,12 +119,6 @@ extern "C" int __cdecl mblen(
     size_t      const max_count
     )
 {
-    if (!__acrt_locale_changed())
-    {
-        return _mblen_l(string, max_count, &__acrt_initial_locale_pointers);
-    }
-    else
-    {
-        return _mblen_l(string, max_count, nullptr);
-    }
+    __crt_cached_ptd_host ptd;
+    return _mblen_internal(string, max_count, ptd);
 }

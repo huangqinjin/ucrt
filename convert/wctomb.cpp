@@ -19,19 +19,20 @@
 // The return_value pointer may be null.
 //
 #include <corecrt_internal.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <locale.h>
-#include <limits.h>
 #include <corecrt_internal_mbstring.h>
+#include <corecrt_internal_ptd_propagation.h>
+#include <errno.h>
+#include <limits.h>
+#include <locale.h>
+#include <stdlib.h>
 
 
-extern "C" int __cdecl _wctomb_s_l(
-    int*      const return_value,
-    char*     const destination,
-    size_t    const destination_count,
-    wchar_t   const wchar,
-    _locale_t const locale
+extern "C" int __cdecl _wctomb_internal(
+    int*               const return_value,
+    char*              const destination,
+    size_t             const destination_count,
+    wchar_t            const wchar,
+    __crt_cached_ptd_host&   ptd
     )
 {
     // Did the caller request if this is a state dependent encoding?
@@ -49,17 +50,16 @@ extern "C" int __cdecl _wctomb_s_l(
 
     // We need to cast destination_count to int, so we make sure we are not
     // going to truncate destination_count:
-    _VALIDATE_RETURN_ERRCODE(destination_count <= INT_MAX, EINVAL);
+    _UCRT_VALIDATE_RETURN_ERRCODE(ptd, destination_count <= INT_MAX, EINVAL);
+    _locale_t const locale = ptd.get_locale();
 
-    _LocaleUpdate locale_update(locale);
-
-    if (locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage == CP_UTF8)
+    if (locale->locinfo->_public._locale_lc_codepage == CP_UTF8)
     {
         // Unlike c16rtomb. wctomb/wcrtomb have no ability to process a partial code point.
         // So, we could call c16rtomb and check for a lone surrogate or other error, or for simplicity
         // We can instead just call c32rtomb and check for any error. I choose the latter.
         mbstate_t state{};
-        int result = static_cast<int>(__crt_mbstring::__c32rtomb_utf8(destination, static_cast<char32_t>(wchar), &state));
+        int result = static_cast<int>(__crt_mbstring::__c32rtomb_utf8(destination, static_cast<char32_t>(wchar), &state, ptd));
         if (return_value != nullptr)
         {
             *return_value = result;
@@ -70,13 +70,13 @@ extern "C" int __cdecl _wctomb_s_l(
         }
         else
         {
-            return errno;
+            return ptd.get_errno().value_or(0);
         }
     }
 
     // Check for C-locale behavior, which merely casts it to char (if in range)
     // for ASCII-ish behavior.
-    if (!locale_update.GetLocaleT()->locinfo->locale_name[LC_CTYPE])
+    if (!locale->locinfo->locale_name[LC_CTYPE])
     {
         // See if the WCHAR is > ASCII-ish range
         if (wchar > 255)  // Validate high byte
@@ -87,13 +87,13 @@ extern "C" int __cdecl _wctomb_s_l(
                 memset(destination, 0, destination_count);
             }
 
-            return errno = EILSEQ;
+            return ptd.get_errno().set(EILSEQ);
         }
 
         // ASCII-ish, just cast to a (char)
         if (destination != nullptr)
         {
-            _VALIDATE_RETURN_ERRCODE(destination_count > 0, ERANGE);
+            _UCRT_VALIDATE_RETURN_ERRCODE(ptd, destination_count > 0, ERANGE);
             *destination = static_cast<char>(wchar);
         }
 
@@ -110,7 +110,7 @@ extern "C" int __cdecl _wctomb_s_l(
     {
         BOOL default_used{};
         int const size = __acrt_WideCharToMultiByte(
-            locale_update.GetLocaleT()->locinfo->_public._locale_lc_codepage,
+            locale->locinfo->_public._locale_lc_codepage,
             0,
             &wchar,
             1,
@@ -128,19 +128,33 @@ extern "C" int __cdecl _wctomb_s_l(
                     memset(destination, 0, destination_count);
                 }
 
-                _VALIDATE_RETURN_ERRCODE(("Buffer too small", 0), ERANGE);
+                _UCRT_VALIDATE_RETURN_ERRCODE(ptd, ("Buffer too small", 0), ERANGE);
             }
 
-            return errno = EILSEQ;
+            return ptd.get_errno().set(EILSEQ);
         }
 
         if (return_value)
+        {
             *return_value = size;
+        }
 
         return 0;
     }
 
     // The last thing was an if/else, so we already returned.
+}
+
+extern "C" int __cdecl _wctomb_s_l(
+    int*      const return_value,
+    char*     const destination,
+    size_t    const destination_count,
+    wchar_t   const wchar,
+    _locale_t const locale
+    )
+{
+    __crt_cached_ptd_host ptd(locale);
+    return _wctomb_internal(return_value, destination, destination_count, wchar, ptd);
 }
 
 extern "C" errno_t __cdecl wctomb_s (
@@ -150,7 +164,8 @@ extern "C" errno_t __cdecl wctomb_s (
     wchar_t const wchar
     )
 {
-    return _wctomb_s_l(return_value, destination, destination_count, wchar, nullptr);
+    __crt_cached_ptd_host ptd;
+    return _wctomb_internal(return_value, destination, destination_count, wchar, ptd);
 }
 
 extern "C" int __cdecl _wctomb_l(
@@ -159,18 +174,20 @@ extern "C" int __cdecl _wctomb_l(
     _locale_t const locale
     )
 {
-    _LocaleUpdate locale_update(locale);
+    __crt_cached_ptd_host ptd(locale);
 
     int return_value{};
-    errno_t const e = _wctomb_s_l(
+    errno_t const e = _wctomb_internal(
         &return_value,
         destination,
-        locale_update.GetLocaleT()->locinfo->_public._locale_mb_cur_max,
+        ptd.get_locale()->locinfo->_public._locale_mb_cur_max,
         wchar,
-        locale_update.GetLocaleT());
+        ptd);
 
     if (e != 0)
+    {
         return -1;
+    }
 
     return return_value;
 }
@@ -185,10 +202,14 @@ extern "C" int __cdecl wctomb(
     wchar_t const wchar
     )
 {
+    __crt_cached_ptd_host ptd;
+
     int return_value{};
-    errno_t const e = _wctomb_s_l(&return_value, destination, MB_CUR_MAX, wchar, nullptr);
+    errno_t const e = _wctomb_internal(&return_value, destination, MB_CUR_MAX, wchar, ptd);
     if (e != 0)
+    {
         return -1;
+    }
 
     return return_value;
 }
