@@ -17,7 +17,10 @@ Operating System.
 - On Windows XP, the VCRedist will deploy the UCRT itself.
 
 ## Where the UCRT sources
-All versions of the sources are located in `C:\Program Files (x86)\Windows Kits\10\<Include|Source>\%Version%\ucrt` if installed.
+- **Include:** `C:\Program Files (x86)\Windows Kits\10\Include\%Version%\ucrt`.
+- **Source:** `C:\Program Files (x86)\Windows Kits\10\Source\%Version%\ucrt`.
+- **Redist DLLs:** `C:\Program Files (x86)\Windows Kits\10\Redist\%Version%\ucrt\DLLs\%ARCH%`.
+- **Debug DLL:** `C:\Program Files (x86)\Windows Kits\10\bin\%Version%\%ARCH%\ucrt`.
 
 ## References
 1. [Introducing the Universal CRT](https://devblogs.microsoft.com/cppblog/introducing-the-universal-crt/).
