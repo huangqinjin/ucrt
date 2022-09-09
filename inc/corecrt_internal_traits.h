@@ -39,7 +39,7 @@ struct __crt_char_traits;
     _APPLY(get_full_path_name,                 __acrt_get_full_path_name_narrow_acp_or_utf8,     __acrt_get_full_path_name_wide                ) \
     _APPLY(get_module_file_name,               __acrt_GetModuleFileNameA,                        GetModuleFileNameW                            ) \
     _APPLY(get_or_create_environment_nolock,   __dcrt_get_or_create_narrow_environment_nolock,   __dcrt_get_or_create_wide_environment_nolock  ) \
-    _APPLY(get_temp_path,                      __acrt_GetTempPathA,                              GetTempPathW                                  ) \
+    _APPLY(get_temp_path,                      __acrt_GetTempPath2A,                             __acrt_GetTempPath2W                           ) \
     _APPLY(getc_nolock,                        _getc_nolock,                                     _getwc_nolock                                 ) \
     _APPLY(gettche_nolock,                     _getche_nolock,                                   _getwche_nolock                               ) \
     _APPLY(initialize_environment_nolock,      _initialize_narrow_environment,                   _initialize_wide_environment                  ) \
@@ -199,7 +199,7 @@ struct __crt_integer_traits<long long>
 //       the other needs to be cloned into the other.
 //
 // Places where we don't use current global locale, user-supplied locale, or ACP/UTF-8 adapter:
-// CP_ACP - __acrt_GetTempPathA (via tmpnam)
+// CP_ACP - __acrt_GetTempPath2A (via tmpnam)
 //     * Documented to do so on MSDN.
 //     * Required by API design - static buffer returned to user
 //     * Therefore, characters cannot be modified according to locale.

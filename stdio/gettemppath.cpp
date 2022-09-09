@@ -3,22 +3,22 @@
 //
 //      Copyright (c) Microsoft Corporation. All rights reserved.
 //
-// The __acrt_GetTempPathA() function, which calls GetTempPathW and converts the string to multibyte.
+// The __acrt_GetTempPath2A() function, which calls GetTempPathW and converts the string to multibyte.
 //
 #include <corecrt_internal.h>
 #include <io.h>
 
 
 
-// This function simply calls GetTempPathW() and converts the wide string to multibyte.
+// This function simply calls __acrt_GetTempPath2W() and converts the wide string to multibyte.
 // Note that GetTempPathA is not UTF-8 aware. This is because APIs using temporary paths
 // must not depend on the current locale setting and must use the ACP or OEMCP since
 // the returned data must be a static buffer and this behavior is guaranteed by MSDN documentation.
-extern "C" DWORD __cdecl __acrt_GetTempPathA(DWORD nBufferLength, LPSTR lpBuffer)
+extern "C" DWORD __cdecl __acrt_GetTempPath2A(DWORD nBufferLength, LPSTR lpBuffer)
 {
     wchar_t wide_buffer[_MAX_PATH + 1] = {};
 
-    DWORD const get_temp_path_result = GetTempPathW(_countof(wide_buffer), wide_buffer);
+    DWORD const get_temp_path_result = __acrt_GetTempPath2W(_countof(wide_buffer), wide_buffer);
     if (get_temp_path_result == 0)
     {
         return 0;

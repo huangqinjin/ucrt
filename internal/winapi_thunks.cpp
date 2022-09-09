@@ -20,6 +20,15 @@
 #define FLS_ALWAYS_AVAILABLE 1
 #endif
 
+ WINBASEAPI
+ _Success_(return > 0 && return < BufferLength)
+ DWORD
+ WINAPI
+ GetTempPath2W(
+     _In_ DWORD BufferLength,
+     _Out_writes_to_opt_(BufferLength,return + 1) LPWSTR Buffer
+     );
+
 // The XState APIs are declared by the Windows headers only when building for
 // x86 and x64.  We declare them here unconditionally so that we can share the
 // same code for all architectures (we simply avoid use of these functions on
@@ -41,6 +50,7 @@ extern "C" WINBASEAPI PVOID WINAPI LocateXStateFeature(
 
 #define _ACRT_APPLY_TO_LATE_BOUND_MODULES_0                                                              \
     _APPLY(api_ms_win_core_datetime_l1_1_1,              "api-ms-win-core-datetime-l1-1-1"             ) \
+    _APPLY(api_ms_win_core_file_l1_2_4,                  "api-ms-win-core-file-l1-2-4"                 ) \
     _APPLY(api_ms_win_core_file_l1_2_2,                  "api-ms-win-core-file-l1-2-2"                 ) \
     _APPLY(api_ms_win_core_localization_l1_2_1,          "api-ms-win-core-localization-l1-2-1"         ) \
     _APPLY(api_ms_win_core_localization_obsolete_l1_2_0, "api-ms-win-core-localization-obsolete-l1-2-0") \
@@ -56,6 +66,7 @@ extern "C" WINBASEAPI PVOID WINAPI LocateXStateFeature(
     _APPLY(ext_ms_win_ntuser_windowstation_l1_1_0,       "ext-ms-win-ntuser-windowstation-l1-1-0"      ) \
     _APPLY(advapi32,                                     "advapi32"                                    ) \
     _APPLY(kernel32,                                     "kernel32"                                    ) \
+    _APPLY(kernelbase,                                   "kernelbase"                                  ) \
     _APPLY(ntdll,                                        "ntdll"                                       ) \
     _APPLY(api_ms_win_appmodel_runtime_l1_1_2,           "api-ms-win-appmodel-runtime-l1-1-2"          ) \
     _APPLY(user32,                                       "user32"                                      )
@@ -81,6 +92,7 @@ extern "C" WINBASEAPI PVOID WINAPI LocateXStateFeature(
     _APPLY(EnumSystemLocalesEx,                         ({ api_ms_win_core_localization_l1_2_1,          kernel32                                   })) \
     _APPLY(GetActiveWindow,                             ({ api_ms_win_rtcore_ntuser_window_l1_1_0,       user32                                     })) \
     _APPLY(GetDateFormatEx,                             ({ api_ms_win_core_datetime_l1_1_1,              kernel32                                   })) \
+    _APPLY(GetTempPath2W,                               ({ api_ms_win_core_file_l1_2_4,                  kernelbase                                 })) \
     _APPLY(GetEnabledXStateFeatures,                    ({ api_ms_win_core_xstate_l2_1_0,                kernel32                                   })) \
     _APPLY(GetLastActivePopup,                          ({ ext_ms_win_ntuser_dialogbox_l1_1_0,           user32                                     })) \
     _APPLY(GetLocaleInfoEx,                             ({ api_ms_win_core_localization_l1_2_1,          kernel32                                   })) \
@@ -534,6 +546,18 @@ extern "C" int WINAPI __acrt_GetDateFormatEx(
     }
 
     return GetDateFormatW(__acrt_LocaleNameToLCID(locale_name, 0), flags, date, format, buffer, buffer_count);
+}
+
+extern "C" int WINAPI __acrt_GetTempPath2W(
+    DWORD nBufferLength,
+    LPWSTR lpBuffer
+)
+{
+    if (auto const get_temp_path2w = try_get_GetTempPath2W())
+    {
+        return get_temp_path2w(nBufferLength, lpBuffer);
+    }
+    return GetTempPathW(nBufferLength, lpBuffer);
 }
 
 extern "C" DWORD64 WINAPI __acrt_GetEnabledXStateFeatures()

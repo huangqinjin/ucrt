@@ -5,14 +5,9 @@
 //
 // The exit() implementation
 //
-#include <nt.h>
-#include <ntrtl.h>
-#include <nturtl.h>
 #include <corecrt_internal.h>
 #include <eh.h>
 #include <process.h>
-
-
 
 static long c_termination_complete = FALSE;
 
@@ -117,8 +112,7 @@ static bool __cdecl should_call_terminate_process() throw()
     // If application verifier is running, we still want to call ExitProcess,
     // to enable tools that require DLLs to be unloaded cleanly at process exit
     // to do their work.
-    bool const application_verifier_enabled = (NtCurrentPeb()->NtGlobalFlag & FLG_APPLICATION_VERIFIER) != 0;
-    if (application_verifier_enabled)
+    if (__acrt_app_verifier_enabled())
     {
         return false;
     }

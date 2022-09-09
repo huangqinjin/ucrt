@@ -16,6 +16,33 @@ using namespace __crt_strtox;
 
 namespace
 {
+    // Guard class for floating point control word modifications in the interrupt exception mask.
+    class fp_control_word_guard
+    {
+    public:
+        explicit fp_control_word_guard(unsigned int const mask = ~0u) : _mask(mask)
+        {
+            _controlfp_s(&_original_control_word, 0, 0);
+        }
+
+        fp_control_word_guard(unsigned int const new_control, unsigned int const mask) : _mask(mask)
+        {
+            unsigned int float_control;
+            _controlfp_s(&_original_control_word, 0, 0);
+            _controlfp_s(&float_control, new_control, _mask);
+        }
+
+        ~fp_control_word_guard()
+        {
+            unsigned int reset_cw;
+            _controlfp_s(&reset_cw, _original_control_word, _mask);
+        }
+
+    private:
+        unsigned int _original_control_word;
+        unsigned int _mask;
+    };
+
     class scoped_fp_state_reset
     {
     public:
@@ -335,5 +362,6 @@ extern "C" __acrt_has_trailing_digits __cdecl __acrt_fltout(
     // The digit generator produces a truncated sequence of digits.  To allow
     // our caller to correctly round the mantissa, we need to generate an extra
     // digit.
+    fp_control_word_guard const fpc(_MCW_EM, _MCW_EM);
     return convert_to_fos_high_precision(value.x, precision + 1, precision_style, &flt->decpt, result, result_count);
 }

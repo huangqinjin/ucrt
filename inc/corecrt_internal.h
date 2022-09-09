@@ -250,7 +250,7 @@ BOOL __cdecl __acrt_CreateProcessA(
     );
 
 _Success_(return > 0)
-DWORD __cdecl __acrt_GetTempPathA(
+DWORD __cdecl __acrt_GetTempPath2A(
     DWORD nBufferLength,
     _Out_writes_to_(nBufferLength, return + 1) PSTR lpBuffer
     );
@@ -1241,6 +1241,11 @@ int WINAPI __acrt_GetDateFormatEx(
     _In_opt_                       LPCWSTR           calendar
     );
 
+int WINAPI __acrt_GetTempPath2W(
+    _In_ DWORD nBufferLength,
+    _Out_writes_to_opt_(BufferLength, return +1) LPWSTR lpBuffer
+    );
+
 DWORD64 WINAPI __acrt_GetEnabledXStateFeatures(void);
 
 int WINAPI __acrt_GetLocaleInfoEx(
@@ -1364,7 +1369,8 @@ bool __cdecl __acrt_can_use_xstate_apis(void);
 HWND __cdecl __acrt_get_parent_window(void);
 bool __cdecl __acrt_is_interactive(void);
 
-
+bool __cdecl __acrt_app_verifier_enabled(void);
+bool __cdecl __acrt_is_secure_process(void);
 
 LCID __cdecl __acrt_DownlevelLocaleNameToLCID(
     _In_opt_ LPCWSTR localeName

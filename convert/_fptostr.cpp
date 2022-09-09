@@ -90,12 +90,12 @@ static bool should_round_up(
 
     if (round_mode == FE_UPWARD)
     {
-        return *mantissa_it != '0' && sign != '-';
+        return check_trailing(mantissa_it, trailing_digits) && sign != '-';
     }
 
     if (round_mode == FE_DOWNWARD)
     {
-        return *mantissa_it != '0' && sign == '-';
+        return check_trailing(mantissa_it, trailing_digits) && sign == '-';
     }
 
     return false;
