@@ -17,6 +17,8 @@ Operating System.
 - On Windows XP, the VCRedist will deploy the UCRT itself.
 
 ## Where the UCRT sources
+A subset of UCRT sources has been released under the MIT license at [nuget.org](https://www.nuget.org/packages/Microsoft.Windows.SDK.CRTSource). Alternatively, they can be found at below locations:
+
 - **Include:** `C:\Program Files (x86)\Windows Kits\10\Include\%Version%\ucrt`.
 - **Source:** `C:\Program Files (x86)\Windows Kits\10\Source\%Version%\ucrt`.
 - **Redist DLLs:** `C:\Program Files (x86)\Windows Kits\10\Redist\%Version%\ucrt\DLLs\%ARCH%`.
@@ -26,3 +28,4 @@ Operating System.
 1. [Introducing the Universal CRT](https://devblogs.microsoft.com/cppblog/introducing-the-universal-crt/).
 1. [Determining Which DLLs to Redistribute](https://docs.microsoft.com/en-us/cpp/windows/determining-which-dlls-to-redistribute).
 1. [Update for Universal C Runtime in Windows](https://support.microsoft.com/en-us/help/2999226/update-for-universal-c-runtime-in-windows).
+1. https://github.com/microsoft/STL?tab=readme-ov-file#block-diagram
